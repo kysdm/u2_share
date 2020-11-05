@@ -1,24 +1,21 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      0.7
+// @version      0.9
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_xmlhttpRequest
 // @match        *://u2.dmhy.org/torrents.php*
-// @match        *://u2.dmhy.org/sendmessage.php?receiver=*
+// @match        *://u2.dmhy.org/sendmessage.php*
 // @match        *://u2.dmhy.org/details.php*
+// @require      https://cdn.bootcss.com/jquery-cookie/1.4.1/jquery.cookie.min.js
 // @connect      raw.githubusercontent.com
 // ==/UserScript==
 
-// debugger;(async ($) => {
 (async($) => {
-    'use strict'
-
-    var email = '' // 此处可写入谷歌邮箱，这样发送请求的时候就不用手动填写了
-    // 需要注意的是，修改后脚本自动更新会被自动关闭
+    'use strict';
 
     if (window.location.href.indexOf("//u2.dmhy.org/torrents.php") != -1 | window.location.href.indexOf("//u2.dmhy.org/details.php") != -1) {
         const gdListUrl = 'https://raw.githubusercontent.com/kysdm/u2_share_js/main/u2list.txt'; // 为什么就不能让我套 jsdelivr 呢.
@@ -75,9 +72,27 @@
             }
         }
     }
-    if (window.location.href.indexOf("//u2.dmhy.org/sendmessage.php") != -1) {
+    if (window.location.href.indexOf("//u2.dmhy.org/sendmessage.php?receiver=45940#") != -1) {  // 判断暂时先这样，以后换正则
+        const email = $.cookie('gd_email');
         $("td.rowfollow > input[type=text]").val("#request#");
-        if (email === '') { email = '请输入您的谷歌邮箱！' }
         $(".bbcode").val('{ "id":"' + window.location.href.split("#")[1] + '" , "email":"' + email + '" }');
+        $('td.toolbox').append('<input type="checkbox" name="save_email" checked="checked">记住邮箱地址');
+        $('#compose').attr('onsubmit','return checkemail();')
+        $('body').append(
+"<script>\n\
+function checkemail(){\n\
+    const re = /\\w[-\\w.+]*@([A-Za-z0-9][-A-Za-z0-9]+\\.)+[A-Za-z]{2,14}/;\n\
+    let newemail = $.parseJSON($('textarea#body.bbcode').val()).email;\n\
+    let email_switch = $('input[name=save_email]').prop('checked');\n\
+    if ( !re.test(newemail) ) {\n\
+        alert('邮箱地址错误或未定义，请重新输入。');\n\
+        return false;\n\
+    }\n\
+    if ( email_switch ){\n\
+        $.cookie('gd_email', newemail, { expires: 3650, path: '/sendmessage.php' });\n\
+        return true;\n\
+    }\n\
+}</script>"
+        )
     }
 })($);
