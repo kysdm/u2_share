@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      0.9
+// @version      1.0
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        GM_setValue
@@ -11,14 +11,14 @@
 // @match        *://u2.dmhy.org/sendmessage.php*
 // @match        *://u2.dmhy.org/details.php*
 // @require      https://cdn.bootcss.com/jquery-cookie/1.4.1/jquery.cookie.min.js
-// @connect      raw.githubusercontent.com
+// @connect      cdn.jsdelivr.net
 // ==/UserScript==
 
 (async($) => {
     'use strict';
 
     if (window.location.href.indexOf("//u2.dmhy.org/torrents.php") != -1 | window.location.href.indexOf("//u2.dmhy.org/details.php") != -1) {
-        const gdListUrl = 'https://raw.githubusercontent.com/kysdm/u2_share_js/main/u2list.txt'; // 为什么就不能让我套 jsdelivr 呢.
+        const gdListUrl = 'https://cdn.jsdelivr.net/gh/kysdm/u2_share@main/u2list.txt';
         const date = new Date().getDate();
         let gdListObj = GM_getValue('u2_gd_list', null);
         if (gdListObj === null || gdListObj.date !== date) {
