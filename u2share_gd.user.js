@@ -39,7 +39,7 @@
 
         const gdList = gdListObj.list;
         const Uploaders = 3;
-        var userid = 45940 // 勿动
+        const userid = 45940 // 勿动
         var GstaticIco;
 
         if (window.location.href.indexOf("//u2.dmhy.org/torrents.php") != -1) {
