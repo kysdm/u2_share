@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      1.0
+// @version      1.1
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        GM_setValue
@@ -27,7 +27,7 @@
                     method: 'GET',
                     url: gdListUrl,
                     onload: r => resolve(r.responseText),
-                    onerror: r => reject(r)
+                    // onerror: r => reject(r)
                 })
             })
             gdListObj = {
