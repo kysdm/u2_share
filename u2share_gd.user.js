@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      1.1
+// @version      1.2
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        GM_setValue
@@ -14,7 +14,7 @@
 // @connect      cdn.jsdelivr.net
 // ==/UserScript==
 
-(async($) => {
+(async ($) => {
     'use strict';
 
     if (window.location.href.indexOf("//u2.dmhy.org/torrents.php") != -1 | window.location.href.indexOf("//u2.dmhy.org/details.php") != -1) {
@@ -26,15 +26,17 @@
                 GM_xmlhttpRequest({
                     method: 'GET',
                     url: gdListUrl,
-                    onload: r => resolve(r.responseText),
-                    // onerror: r => reject(r)
+                    onload: r => r.status < 400 ? resolve(r.responseText) : reject(r.status),
+                    onerror: r => reject(r.status)
                 })
             })
-            gdListObj = {
-                date: date,
-                list: gdListRaw.trim().split('\n')
-            }
-            GM_setValue('u2_gd_list', gdListObj)
+                .then((g) => {
+                    gdListObj = { date: date, list: g.trim().split('\n') };
+                    GM_setValue('u2_gd_list', gdListObj);
+                })
+                .catch((e) => {
+                    console.log('下载列表发生错误，HTTP状态码[' + e + ']。');
+                })
         }
 
         const gdList = gdListObj.list;
@@ -63,7 +65,6 @@
         } else if (window.location.href.indexOf("//u2.dmhy.org/details.php") != -1) {
             const id = $("#outer > h3").text().split(/\(#(\d+?)\)/, 2)[1]
             const SeederNum = $("#peercount").text().split(/个(?:做种|下载)者\s?\|?\s?/, 2)[0]
-                //const SeederNum = Peer[0]
             const Id_Data = gdList.findIndex((value) => value == Number(id));
             if (Id_Data != -1 && SeederNum <= Uploaders) {
                 $("td.rowfollow:first").append('&nbsp;<a class="index" href="sendmessage.php?receiver=' + userid + '#' + id + '" title="查询网盘备份">[GD]</a>');
@@ -77,9 +78,9 @@
         $("td.rowfollow > input[type=text]").val("#request#");
         $(".bbcode").val('{ "id":"' + window.location.href.split("#")[1] + '" , "email":"' + email + '" }');
         $('td.toolbox').append('<input type="checkbox" name="save_email" checked="checked">记住邮箱地址');
-        $('#compose').attr('onsubmit','return checkemail();')
+        $('#compose').attr('onsubmit', 'return checkemail();')
         $('body').append(
-"<script>\n\
+            "<script>\n\
 function checkemail(){\n\
     const re = /\\w[-\\w.+]*@([A-Za-z0-9][-A-Za-z0-9]+\\.)+[A-Za-z]{2,14}/;\n\
     let newemail = $.parseJSON($('textarea#body.bbcode').val()).email;\n\
