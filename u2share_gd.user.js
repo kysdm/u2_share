@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      1.2
+// @version      1.3
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        GM_setValue
@@ -17,7 +17,7 @@
 (async ($) => {
     'use strict';
 
-    if (window.location.href.indexOf("//u2.dmhy.org/torrents.php") != -1 | window.location.href.indexOf("//u2.dmhy.org/details.php") != -1) {
+    if (window.location.href.indexOf("//u2.dmhy.org/torrents.php") != -1 || window.location.href.indexOf("//u2.dmhy.org/details.php") != -1) {
         const gdListUrl = 'https://cdn.jsdelivr.net/gh/kysdm/u2_share@main/u2list.txt';
         const date = new Date().getDate();
         let gdListObj = GM_getValue('u2_gd_list', null);
