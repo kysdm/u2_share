@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      1.4
+// @version      1.5
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        GM_setValue
@@ -39,7 +39,7 @@
     }
 
     const gdList = gdListObj.list;
-    const Uploaders = 3;
+    const Uploaders = 7;
     const userid = 45940; // 勿动
     var GstaticIco;
     const CurrentUrl = window.location.href;
@@ -68,7 +68,7 @@
             } else if (Id_Data != -1) {
                 GstaticIco = $(this).find('td.embedded')[1];
                 $(GstaticIco).width(55);
-                $(GstaticIco).prepend('<img src="bitbucket/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px; filter: grayscale(100%);" alt="request">');
+                $(GstaticIco).prepend('<img src="bitbucket/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px; filter: grayscale(100%);" alt="request" title="当前种子做种良好">');
             }
         })
     }
