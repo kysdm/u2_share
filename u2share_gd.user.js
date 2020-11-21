@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      1.5
+// @version      1.6
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        GM_setValue
@@ -68,7 +68,7 @@
             } else if (Id_Data != -1) {
                 GstaticIco = $(this).find('td.embedded')[1];
                 $(GstaticIco).width(55);
-                $(GstaticIco).prepend('<img src="bitbucket/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px; filter: grayscale(100%);" alt="request" title="当前种子做种良好">');
+                $(GstaticIco).prepend('<img src="bitbucket/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px; filter: grayscale(100%);" alt="request" title="做种良好">');
             }
         })
     }
@@ -78,9 +78,9 @@
         const SeederNum = $("#peercount").text().split(/个(?:做种|下载)者\s?\|?\s?/, 2)[0]
         const Id_Data = gdList.findIndex((value) => value == Number(id));
         if (Id_Data != -1 && SeederNum <= Uploaders) {
-            $("td.rowfollow:first").append('&nbsp;<a class="index" href="sendmessage.php?receiver=' + userid + '#' + id + '" title="查询网盘备份">[GD]</a>');
+            $("td.rowfollow:first").append('&nbsp;<a class="index" href="sendmessage.php?receiver=' + userid + '#' + id + '" title="发送请求">[GD]</a>');
         } else if (Id_Data != -1) {
-            $("td.rowfollow:first").append('&nbsp;<div class="gdindex" title="当前种子做种良好" style="display: inline-block; text-decoration: none; font-weight: bold" >[GD]</div>');
+            $("td.rowfollow:first").append('&nbsp;<div class="gdindex" title="做种良好" style="display: inline-block; text-decoration: none; font-weight: bold" >[GD]</div>');
         }
     }
 
