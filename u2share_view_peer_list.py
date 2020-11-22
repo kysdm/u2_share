@@ -92,7 +92,7 @@ if __name__ == "__main__":
                         mode = 1
                         continue
                 ProcessingPeerList(torrent_id, str(v))
-
+            print(PeerList)
             with open(f'{abs_path}/PeerIdList.csv', 'a', newline='', encoding='utf-8-sig') as csv_file:
                 writer = csv.writer(csv_file)
                 for v in PeerList:
