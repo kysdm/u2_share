@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      1.6
+// @version      1.7
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        GM_setValue
@@ -75,7 +75,7 @@
 
     function details() {
         const id = $("#outer > h3").text().split(/\(#(\d+?)\)/, 2)[1]
-        const SeederNum = $("#peercount").text().split(/个(?:做种|下载)者\s?\|?\s?/, 2)[0]
+        const SeederNum = $("#peercount").text().match(/^(\d+?)\s?(?:个做种者|個做種者|Seeders|Раздающих)/i)[1]
         const Id_Data = gdList.findIndex((value) => value == Number(id));
         if (Id_Data != -1 && SeederNum <= Uploaders) {
             $("td.rowfollow:first").append('&nbsp;<a class="index" href="sendmessage.php?receiver=' + userid + '#' + id + '" title="发送请求">[GD]</a>');
