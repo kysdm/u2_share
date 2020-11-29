@@ -12,8 +12,8 @@ import sqlite3
 import logging
 from logging import Handler, FileHandler, StreamHandler
 """
-回帖者需将 UID 用#包围 (#UID#)
-支持任意数量 UC 发送
+回帖者需将UID用#包围 (#UID#)
+支持任意数量UC发送
 支持中断续发
 支持 Windows 和 Linux
 需要 Python 3.6+
@@ -276,7 +276,7 @@ def TransferUC(uid, ucoin, message=''):
                     log.info(f'[ {uid} ] 触发频繁转账限制，将在{sleeptime}秒后重试。')
                     sleep(sleeptime + 5)
             else:
-                log.error(F'POST 返回值未知。[HTTP: {f1.status_code}]')
+                log.error(f'POST 返回值未知。[HTTP: {f1.status_code}]')
                 pass
 
 
