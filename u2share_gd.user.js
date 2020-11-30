@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      1.7
+// @version      1.8
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        GM_setValue
@@ -10,6 +10,7 @@
 // @match        *://u2.dmhy.org/torrents.php*
 // @match        *://u2.dmhy.org/sendmessage.php*
 // @match        *://u2.dmhy.org/details.php*
+// @match        *://u2.dmhy.org/offers.php*
 // @require      https://cdn.bootcss.com/jquery-cookie/1.4.1/jquery.cookie.min.js
 // @connect      cdn.jsdelivr.net
 // ==/UserScript==
@@ -46,7 +47,7 @@
 
     if (CurrentUrl.indexOf("//u2.dmhy.org/torrents.php") != -1) {
         new torrents();
-    } else if (CurrentUrl.indexOf("//u2.dmhy.org/details.php") != -1) {
+    } else if (CurrentUrl.indexOf("//u2.dmhy.org/details.php") != -1 || CurrentUrl.indexOf("u2.dmhy.org/offers.php") != -1) {
         new torrents();
         new details();
     } else if (CurrentUrl.indexOf('//u2.dmhy.org/sendmessage.php?receiver=' + userid + '#') != -1) {
