@@ -25,8 +25,9 @@ from logging import Handler, FileHandler, StreamHandler
 * 开始新的一次发糖，需要删除 'u2_ucoin.db' 文件。
   不删除运行脚本，将执行上次未完成的队列任务。
   注：存在 db 文件时运行脚本，可能会因主键的关系报 'UNIQUE constraint failed' 错误。
-* 发帖时需要注明回帖 UID 要求(#UID#)，示例建议填入自己的 UID，
+* 发帖时需要注明回帖UID要求(#UID#)，示例建议填入自己的 UID，
   脚本开始时会要求输入发糖人的 UID，执行时会排除掉填入的 UID。
+  注：发糖数量需要加上示例UID，例如发5人需填6人。
 * proxies 填入 http 代理，访问将通过代理服务器。
 """
 
