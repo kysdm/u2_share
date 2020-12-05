@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      1.8
+// @version      1.9
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        GM_setValue
@@ -39,6 +39,35 @@
             })
     }
 
+    const lang = $('#locale_selection').val() // 获取当前网页使用的语言
+    let txt1 = {
+        'zh_CN': '发送请求',
+        'zh_TW': '發送請求',
+        'zh_HK': '發送請求',
+        'en_US': 'send request',
+        'ru_RU': 'послать запрос' // 谷歌翻译
+    }
+    let txt2 = {
+        'zh_CN': '做种良好',
+        'zh_TW': '做種良好',
+        'zh_HK': '做種良好',
+        'en_US': 'good seeding',
+        'ru_RU': 'хороший посев' // 谷歌翻译
+    }
+    let txt3 = {
+        'zh_CN': '记住邮箱地址',
+        'zh_TW': '記住信箱地址',
+        'zh_HK': '記住郵箱地址',
+        'en_US': 'Remember email address',
+        'ru_RU': 'Запомнить адрес электронной почты' // 谷歌翻译
+    }
+    let txt4 = {
+        'zh_CN': '邮箱地址错误或未定义，请重新输入。',
+        'zh_TW': '信箱地址錯誤或未定義，請重新輸入。',
+        'zh_HK': '郵箱地址錯誤或未定義，請重新輸入。',
+        'en_US': 'Email address is wrong or undefined, please re-enter.',
+        'ru_RU': 'Адрес электронной почты неверен или не указан, введите его еще раз.' // 谷歌翻译
+    }
     const gdList = gdListObj.list;
     const Uploaders = 7;
     const userid = 45940; // 勿动
@@ -65,11 +94,11 @@
             if (Id_Data != -1 && SeederNum <= Uploaders) {
                 GstaticIco = $(this).find('td.embedded')[1];
                 $(GstaticIco).width(55);
-                $(GstaticIco).prepend('<a href="sendmessage.php?receiver=' + userid + '#' + id + '" target="_blank"><img src="bitbucket/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px;" alt="request" title="发送请求"></a>');
+                $(GstaticIco).prepend('<a href="sendmessage.php?receiver=' + userid + '#' + id + '" target="_blank"><img src="bitbucket/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px;" alt="request" title="' + txt1[lang] + '"></a>');
             } else if (Id_Data != -1) {
                 GstaticIco = $(this).find('td.embedded')[1];
                 $(GstaticIco).width(55);
-                $(GstaticIco).prepend('<img src="bitbucket/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px; filter: grayscale(100%);" alt="request" title="做种良好">');
+                $(GstaticIco).prepend('<img src="bitbucket/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px; filter: grayscale(100%);" alt="request" title="' + txt2[lang] + '">');
             }
         })
     }
@@ -79,9 +108,9 @@
         const SeederNum = $("#peercount").text().match(/^(\d+?)\s?(?:个做种者|個做種者|Seeders|Раздающих)/i)[1]
         const Id_Data = gdList.findIndex((value) => value == Number(id));
         if (Id_Data != -1 && SeederNum <= Uploaders) {
-            $("td.rowfollow:first").append('&nbsp;<a class="index" href="sendmessage.php?receiver=' + userid + '#' + id + '" title="发送请求">[GD]</a>');
+            $("td.rowfollow:first").append('&nbsp;<a class="index" href="sendmessage.php?receiver=' + userid + '#' + id + '" title="' + txt1[lang] + '">[GD]</a>');
         } else if (Id_Data != -1) {
-            $("td.rowfollow:first").append('&nbsp;<div class="gdindex" title="做种良好" style="display: inline-block; text-decoration: none; font-weight: bold" >[GD]</div>');
+            $("td.rowfollow:first").append('&nbsp;<div class="gdindex" title="' + txt2[lang] + '" style="display: inline-block; text-decoration: none; font-weight: bold" >[GD]</div>');
         }
     }
 
@@ -89,23 +118,23 @@
         const email = $.cookie('gd_email');
         $("td.rowfollow > input[type=text]").val("#request#");
         $(".bbcode").val('{ "id":"' + CurrentUrl.split("#")[1] + '" , "email":"' + email + '" }');
-        $('td.toolbox').append('<input type="checkbox" name="save_email" checked="checked">记住邮箱地址');
+        $('td.toolbox').append('<input type="checkbox" name="save_email" checked="checked">' + txt3[lang] + '');
         $('#compose').attr('onsubmit', 'return checkemail();')
         $('body').append(
-            "<script>\n\
+            '<script>\n\
 function checkemail(){\n\
     const re = /\\w[-\\w.+]*@([A-Za-z0-9][-A-Za-z0-9]+\\.)+[A-Za-z]{2,14}/;\n\
-    let newemail = $.parseJSON($('textarea#body.bbcode').val()).email;\n\
-    let email_switch = $('input[name=save_email]').prop('checked');\n\
+    let newemail = $.parseJSON($("textarea#body.bbcode").val()).email;\n\
+    let email_switch = $("input[name=save_email]").prop("checked");\n\
     if ( !re.test(newemail) ) {\n\
-        alert('邮箱地址错误或未定义，请重新输入。');\n\
+        alert("' + txt4[lang] + '");\n\
         return false;\n\
     }\n\
     if ( email_switch ){\n\
-        $.cookie('gd_email', newemail, { expires: 3650, path: '/sendmessage.php' });\n\
+        $.cookie("gd_email", newemail, { expires: 3650, path: "/sendmessage.php" });\n\
         return true;\n\
     }\n\
-}</script>"
+}</script>'
         )
     }
 })($);
