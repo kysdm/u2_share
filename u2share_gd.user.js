@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      2.0
+// @version      2.1
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        none
@@ -30,7 +30,7 @@
     // 列表如果上千了，就可以明显感觉到慢了，chrome任务管理器里直接99占用，wwwwwww
     // 如果其他脚本也劫持了 ajax 请求，那可能会发生冲突!!!!!!!!
     xhook.after(function (request, response) {
-        if (request.url.match(/getusertorrentlistajax\.php\?userid=\d+?&type=/i)) {
+        if (request.url.match(/getusertorrentlistajax\.php\?userid=\d+?&type=leeching/i)) {
             response.text = userdetails(response.text);
         }
     });
@@ -157,10 +157,18 @@ function checkemail(){\n\
             let ka = kaTable[i].querySelector("td.rowfollow:nth-child(2) > table > tbody > tr:nth-child(1)")
             let id = ka.querySelector("td > a").href.match(/id=(\d+)/i)[1]
             let Id_Data = gdList.findIndex((value) => value == Number(id));
-            if (Id_Data != -1) { // 列表中没有做种人数信息，无法判断请求是否会被允许
+            let SeederNum = kaTable[i].querySelector("td:nth-child(4) > b > a").innerHTML;
+            if (Id_Data != -1 && SeederNum <= Uploaders) {
                 $(ka).append(
                     '<td width="40" class="embedded" style="text-align: right; width: 55px;" valign="middle">\
-        <a href="sendmessage.php?receiver=' + userid + '#' + id + '" target="_blank"><img src="//cdn.jsdelivr.net/gh/kysdm/u2_share@main/img/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px;filter: grayscale(55%);" alt="request" title="' + txt1[lang] + '"></a>\
+        <a href="sendmessage.php?receiver=' + userid + '#' + id + '" target="_blank"><img src="//cdn.jsdelivr.net/gh/kysdm/u2_share@main/img/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px;" alt="request" title="' + txt1[lang] + '"></a>\
+        <a href="download.php?id=' + id + '"><img class="download" src="pic/trans.gif" style="padding-bottom: 2px;" alt="download" title="' + txt5[lang] + '">\
+        </a></td>'
+                )
+            } else if (Id_Data != -1){
+                $(ka).append(
+                    '<td width="40" class="embedded" style="text-align: right; width: 55px;" valign="middle">\
+                    <img src="//cdn.jsdelivr.net/gh/kysdm/u2_share@main/img/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px; filter: grayscale(100%);" alt="request" title="' + txt2[lang] + '">\
         <a href="download.php?id=' + id + '"><img class="download" src="pic/trans.gif" style="padding-bottom: 2px;" alt="download" title="' + txt5[lang] + '">\
         </a></td>'
                 )
