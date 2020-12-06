@@ -16,7 +16,6 @@
 // ==/UserScript==
 
 // $.cookie 方法感觉可以弃用了，直接用 localStorage 就可以
-// 在用户界面发起的请求，由于列表里没有做种人数，请求不一定会允许
 (function () {
     'use strict';
 
