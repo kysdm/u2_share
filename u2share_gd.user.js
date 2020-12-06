@@ -16,6 +16,7 @@
 // ==/UserScript==
 
 // $.cookie 方法感觉可以弃用了，直接用 localStorage 就可以
+// https://greasyfork.org/zh-CN/scripts/414882-u2%E7%A7%8D%E5%AD%90%E5%A4%87%E4%BB%BD%E6%9F%A5%E8%AF%A2
 (function () {
     'use strict';
 
