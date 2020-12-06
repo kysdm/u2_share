@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      2.1
+// @version      2.2
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        none
@@ -165,10 +165,17 @@ function checkemail(){\n\
         <a href="download.php?id=' + id + '"><img class="download" src="pic/trans.gif" style="padding-bottom: 2px;" alt="download" title="' + txt5[lang] + '">\
         </a></td>'
                 )
-            } else if (Id_Data != -1){
+            } else if (Id_Data != -1) {
                 $(ka).append(
                     '<td width="40" class="embedded" style="text-align: right; width: 55px;" valign="middle">\
                     <img src="//cdn.jsdelivr.net/gh/kysdm/u2_share@main/img/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px; filter: grayscale(100%);" alt="request" title="' + txt2[lang] + '">\
+        <a href="download.php?id=' + id + '"><img class="download" src="pic/trans.gif" style="padding-bottom: 2px;" alt="download" title="' + txt5[lang] + '">\
+        </a></td>'
+                )
+            }
+            else {
+                $(ka).append(
+                    '<td width="40" class="embedded" style="text-align: right; width: 55px;" valign="middle">\
         <a href="download.php?id=' + id + '"><img class="download" src="pic/trans.gif" style="padding-bottom: 2px;" alt="download" title="' + txt5[lang] + '">\
         </a></td>'
                 )
