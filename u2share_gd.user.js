@@ -10,6 +10,7 @@
 // @match        *://u2.dmhy.org/details.php?id=*
 // @match        *://u2.dmhy.org/offers.php?id=*
 // @match        *://u2.dmhy.org/userdetails.php?id=*
+// @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://unpkg.com/xhook@latest/dist/xhook.min.js
 // @connect      cdn.jsdelivr.net
 // ==/UserScript==
