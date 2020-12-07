@@ -140,7 +140,7 @@ function checkemail(){\n\
 }</script>'
         );
     }
-    // $.cookie("gd_email", newemail, { expires: 3650, path: "/sendmessage.php" });\n\
+
     function userdetails(msg) {
         // https://developer.mozilla.org/zh-CN/docs/Web/API/DOMParser
         let parser = new DOMParser();
