@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      2.2
+// @version      2.3
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        none
@@ -15,15 +15,15 @@
 // @connect      cdn.jsdelivr.net
 // ==/UserScript==
 
-// $.cookie 方法感觉可以弃用了，直接用 localStorage 就可以
+// $.cookie 方法感觉可以弃用了，直接用 localStorage 就可以 // localStorage 无法跨域读取，有空的时候再改了
 // https://greasyfork.org/zh-CN/scripts/414882-u2%E7%A7%8D%E5%AD%90%E5%A4%87%E4%BB%BD%E6%9F%A5%E8%AF%A2
-(function () {
+(async () => {
     'use strict';
 
     const userid = 45940; // 勿动
     const Uploaders = 7;
     let GstaticIco;
-    const date = new Date().getDate();
+    const date = getDateString();
 
     // Ajax-hook 有点复杂，用 xhook 简单点...
     // 好像 Ajax-hook 的处理效率更高? 也可能我的写法有问题
@@ -37,15 +37,10 @@
 
     let gdListObj = JSON.parse(localStorage.getItem("u2_gd_list"))
     if (gdListObj === null || gdListObj.date !== date) {
-        let gdListValue = getList()
-        gdListValue.then(g => {
-            gdListObj = { date: date, list: g.trim().split('\n') };
-            console.log(gdListObj)
-            localStorage.setItem("u2_gd_list", JSON.stringify(gdListObj)); // https://www.runoob.com/jsref/obj-storage.html
-        })
-        gdListValue.catch(e => {
-            console.log('下载列表发生错误，HTTP状态码[' + e + ']。');
-        })
+        let gdListStr = await getList()
+        gdListObj = { date: date, list: gdListStr.trim().split('\n') };
+        console.log(gdListObj)
+        localStorage.setItem("u2_gd_list", JSON.stringify(gdListObj)); // https://www.runoob.com/jsref/obj-storage.html
     }
     const gdList = gdListObj.list;
     const lang = $('#locale_selection').val() // 获取当前网页使用的语言
@@ -193,16 +188,25 @@ function getList() {
             url: 'https://cdn.jsdelivr.net/gh/kysdm/u2_share@main/u2list.txt',
             contentType: 'text/plain',
             dataType: 'text',
-            success: function (data, textStatus) {
-                resolve(data)
-                // console.log(data) // 返回字符串
-                // console.log(textStatus) // success
-            },
-            error: function (XMLHttpRequest, textStatus) {
-                reject(XMLHttpRequest.status)
-                // console.log(XMLHttpRequest) // xml对象
-                // console.log(textStatus) // error
+            cache: false,
+            success: r => resolve(r),
+            error: r => {
+                console.log('下载列表发生错误，HTTP状态码[' + r.status + ']。');
+                reject(r.status)
             }
         })
     })
+
+}
+
+function Appendzero(obj) {
+    return obj < 10 ? "0" + obj : obj
+}
+
+function getDateString() {
+    const time = new Date()
+    return time.getFullYear().toString() +
+        (Appendzero(time.getMonth() + 1)).toString() +
+        Appendzero(time.getDate()).toString() +
+        Appendzero(time.getHours())
 }
