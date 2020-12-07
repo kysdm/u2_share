@@ -121,7 +121,7 @@
         const email = localStorage.getItem("u2_gd_email");
         $("td.rowfollow > input[type=text]").val("#request#");
         $(".bbcode").val('{ "id":"' + location.href.split("#")[1] + '" , "email":"' + email + '" }');
-        $('td.toolbox').append('<input type="checkbox" name="save_email" checked="checked">' + txt3[lang] + '');
+        $('td.toolbox').append('<input type="checkbox" name="save_email" checked="checked">' + txt3[lang]);
         $('#compose').attr('onsubmit', 'return checkemail();');
         $('body').append(
             '<script>\n\
@@ -198,7 +198,7 @@ function getList() {
 }
 
 function Appendzero(obj) {
-    return obj < 10 ? "0" + obj : obj
+    return obj < 10 ? '0' + obj : obj
 }
 
 function getDateString() {
