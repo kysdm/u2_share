@@ -1,139 +1,203 @@
 # -*- coding: utf-8 -*-
 # by kysdm
-# 刚学py时写的
 
 import re
-from bs4 import BeautifulSoup
-# pip3 install bs4
-# pip3 install lxml
+import json
 import requests
-# from requests.adapters import HTTPAdapter
-import time
+from time import sleep
 
-# **************用户变量********************
+uid = 00000  # 自己的UID
+Upload = 1.00  # 魔法上传倍率
+Download = 0.00  # 魔法下载倍率
+Hours = 24  # 魔法时长
+Range = 'SELF'  # ALL 是地图炮 | SELF 是恢复系
+cookie = '__cfduid=; nexusphp_u2='  # cookie值
+proxies = {
+    "http": "",
+    "https": ""
+}  # 代理服务器 http://127.0.0.1:1088
+useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'
 
-uid = ''
-cookie = ''
-# **************用户变量********************
+
+def GetHtml(url):
+    headers = {'user-agent': useragent, 'cookie': cookie}
+    i = 1
+    while i <= 15:
+        try:
+            html = requests.get(url,
+                                headers=headers,
+                                proxies=proxies,
+                                timeout=10)
+            if html.status_code < 400:
+                return html.text
+        except Exception:
+            print(f'打开网页发生错误！* {i} | {i * 5}秒后重试...')
+            sleep(i * 5)
+            i += 1
 
 
 def tlist():
+    print('开始下载列表... (如果报错，代表连接U2失败)\n')
+    html = GetHtml(
+        f'https://u2.dmhy.org/getusertorrentlistajax.php?userid={uid}&type=leeching'
+    )
+    _h1 = re.findall(
+        r'<tr><td class="rowfollow nowrap".*?>(?:---</td></tr>|\d+?\.\d+?</font></td></tr>)',
+        html, re.S | re.I)
+    _Magic_List = []
+    for each in _h1:
+        # print(each)
+        _id = re.search(r'<a href="details.php\?id=(\d+?)&hit=1">', each,
+                        re.M | re.I).group(1)  # 种子ID
+        seeders = re.search(
+            r'<a href="details.php\?id=\d+?&amp;hit=1&amp;dllist=1#seeders">(\d+?)</a>',
+            each, re.M | re.I).group(1)  # 做种人数
+        pro_free2up_search = re.search(
+            r'<img class="pro_free2up" src="pic/trans.gif" alt="2X Free"(?:\s/)?>',
+            each, re.M | re.I)
+        pro_custom_search = re.search(
+            r'<img class="arrowup" src="pic/trans.gif" alt="上传比率"(?:\s/)?><b>(.+?)X</b>&nbsp;<img class="arrowdown" src="pic/trans.gif" alt="下载比率"(?:\s/)?><b>(.+?)X</b>',
+            each, re.M | re.I)
+        pro_50pctdown2up_search = re.search(
+            r'<img class="pro_50pctdown2up" src="pic/trans.gif" alt="2X 50%"(?:\s/)?>',
+            each, re.M | re.I)
+        pro_2up_search = re.search(
+            r'<img class="pro_2up" src="pic/trans.gif" alt="2X"(?:\s/)?>',
+            each, re.M | re.I)
+        pro_50pctdown_search = re.search(
+            r'<img class="pro_50pctdown" src="pic/trans.gif" alt="50%"(?:\s/)?>',
+            each, re.M | re.I)
+        pro_30pctdown_search = re.search(
+            r'<img class="pro_30pctdown" src="pic/trans.gif" alt="30%"(?:\s/)?>',
+            each, re.M | re.I)
+        pro_free_search = re.search(
+            r'<img class="pro_free" src="pic/trans.gif" alt="FREE"(?:\s/)?>',
+            each, re.M | re.I)
+
+        if pro_free2up_search:  # 2倍上传 免费下载 img.pro_free2up
+            _Magic_List.append([_id, seeders, '2.00 / 0.00'])
+        elif pro_custom_search:  # 2倍上传 30%下载 img.pro_custom
+            _Magic_List.append([
+                _id, seeders,
+                f'{pro_custom_search.group(1)} / {pro_custom_search.group(2)}'
+            ])
+        elif pro_50pctdown2up_search:  # 2倍上传 50%下载 img.pro_50pctdown2up
+            _Magic_List.append([_id, seeders, '2.00 / 0.50'])
+        elif pro_2up_search:  # 2倍上传 img.pro_2up
+            _Magic_List.append([_id, seeders, '2.00 / 1.00'])
+        elif pro_50pctdown_search:  # 50%下载 pro_50pctdown
+            _Magic_List.append([_id, seeders, '1.00 / 0.50'])
+        elif pro_30pctdown_search:  # 30%下载 img.pro_30pctdown
+            _Magic_List.append([_id, seeders, '1.00 / 0.30'])
+        elif pro_free_search:  # 免费下载 img.pro_free
+            _Magic_List.append([_id, seeders, '1.00 / 0.00'])
+        else:
+            _Magic_List.append([_id, seeders, '1.00 / 1.00'])
+
+    return _Magic_List
+
+
+def Send(_id, _ur, _dr):
+    html = GetHtml(
+        f'https://u2.dmhy.org/promotion.php?action=magic&torrent={_id}')
+    divergence = re.search(
+        r'<input type="hidden" name="divergence" value="(.+?)"(?:\s/)?>', html,
+        re.M | re.I).group(1)
+    base_everyone = re.search(
+        r'<input type="hidden" name="base_everyone" value="(.+?)"(?:\s/)?>',
+        html, re.M | re.I).group(1)
+    base_self = re.search(
+        r'<input type="hidden" name="base_self" value="(.+?)"(?:\s/)?>', html,
+        re.M | re.I).group(1)
+    base_other = re.search(
+        r'<input type="hidden" name="base_other" value="(.+?)"(?:\s/)?>', html,
+        re.M | re.I).group(1)
+    tsize = re.search(
+        r'<input type="hidden" name="tsize" value="(.+?)"(?:\s/)?>', html,
+        re.M | re.I).group(1)
+    ttl = re.search(r'<input type="hidden" name="ttl" value="(.+?)"(?:\s/)?>',
+                    html, re.M | re.I).group(1)
     headers = {
-        'Referer': f'https://u2.dmhy.org/userdetails.php?id={uid}',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
+        'Referer':
+        f'https://u2.dmhy.org/promotion.php?action=magic&torrent={_id}',
+        'origin': 'https://u2.dmhy.org',
+        'User-Agent': useragent,
         'cookie': cookie
     }
-    print('开始下载列表... (如果报错，代表连接U2失败)\n')
-    # html = requests.get(f'https://u2.dmhy.org/getusertorrentlistajax.php?userid={uid}&type=leeching', headers=headers)
+    data = {
+        'action': 'magic',
+        'divergence': divergence,  # 全站基数
+        'base_everyone': base_everyone,
+        'base_self': base_self,
+        'base_other': base_other,
+        'torrent': _id,  # 种子ID
+        'tsize': tsize,  # 种子大小
+        'ttl': ttl,  # 种子已存在时间
+        'user': Range,  # 为自己放魔法
+        # 'user_other':'', # 为他人放魔法才有用
+        'start': '0',  # 魔法立即生效
+        'hours': str(Hours),  # 魔法有效期24小时
+        'promotion': '8',  # 魔法类型为其他
+        'ur': _ur,  # 上传比率
+        'dr': _dr,  # 下载比率
+        'comment': ''  # 评论
+    }
+    try:
+        f1 = requests.post('https://u2.dmhy.org/promotion.php?test=1',
+                           data=data,
+                           headers=headers,
+                           proxies=proxies,
+                           timeout=10)
+    except Exception:
+        pass
+    finally:
+        return f1.status_code
+    JsonObj = json.loads(f1.text)
+    if not JsonObj['status'] == 'operational':
+        print(f'{_id} | 魔法不可用')
+        return 403
+    uc = re.search(r'title="(.+?)"', JsonObj['price'],
+                   re.M | re.I).group(1).replace(',', '')
+    data['comment'] = f'消耗UCoin: {uc}'
+    sleep(3)
+    try:
+        f2 = requests.post(
+            f'https://u2.dmhy.org/promotion.php?action=magic&torrent={_id}',
+            data=data,
+            headers=headers,
+            proxies=proxies,
+            timeout=10)
+    except Exception:
+        pass
+    finally:
+        return f2.status_code
 
-    i = 0
-    while i <= 5:
-        try:
-#            html = requests.get(url, headers=headers, proxies=proxies, timeout=10)
-            html = requests.get(f'https://u2.dmhy.org/getusertorrentlistajax.php?userid={uid}&type=leeching', headers=headers, timeout=10)
-            break
-        except KeyboardInterrupt:
-            exit(0)
-        except:
-            print('打开网页发生错误！')
-            time.sleep(i*5)
-            i += 1
-    # return html.text
 
-
-    soup = BeautifulSoup(html.text, 'lxml')
-    tobj = soup.find_all('table', attrs={'class': 'torrentname'})
-    tobj2 = soup.find_all(href=re.compile(r'^details.+#seeders', re.S))
-    re1 = re.compile(r'href="details.php\?id=(\d+?)&amp;hit=1"', re.S)
-    re2 = re.compile(r'<img\s?alt="上传比率".+?><b>(.+?)<\/b>', re.S)
-    re3 = re.compile(r'<img\s?alt="下载比率".+?><b>(.+?)<\/b>', re.S)
-    re4 = re.compile(r'details.php\?id=(\d+)', re.S)
-    re5 = re.compile(r'>(\d+?)</a>', re.S)
-
-    seeders = []
-    for v in tobj2:
-        _id = (re.findall(re4, str(v)))[0]
-        _seeders = (re.findall(re5, str(v)))[0]
-        seeders.append((_id, _seeders))
-
-    for v in tobj:
-        if 'alt="2X Free"' in str(v):
-            texit((re.findall(re1, str(v)))[0], '2X Free')
-        elif 'alt="FREE"' in str(v):
-            texit((re.findall(re1, str(v)))[0], 'FREE')
-        elif 'alt="下载比率"' in str(v) and '<b>0.00X</b>' in str(v):
-            texit((re.findall(re1, str(v)))[
-                0], f'{(re.findall(re2, str(v)))[0]} {(re.findall(re3, str(v)))[0]}')
+def Magic():
+    _List = tlist()
+    for _id, _seeders, _magic in _List:
+        if _seeders == '0':
+            print(f'ID:{_id} | 无人做种暂不释放魔法')
+            continue
+        _Upload = float(_magic.split(' / ')[0])  # 上传
+        _Download = float(_magic.split(' / ')[1])  # 下载
+        if Upload <= _Upload and Download >= _Download:
+            print(f'ID:{_id} | 魔法已存在')
+            continue
+        if _Upload < Upload:
+            ur = str(Upload)
         else:
-            Magic((re.findall(re1, str(v)))[0], seeders)
+            ur = '1.00'
+        if _Download > Download:
+            dr = str(Download)
+        else:
+            dr = '1.00'
 
-
-def texit(t_id, mag):
-    if mag == 'FREE':
-        print(f'ID：{t_id} 已存在魔法：{mag}')
-    elif mag == '2X Free':
-        print(f'ID：{t_id} 已存在魔法：{mag}')
-    else:
-        print(f'ID：{t_id} 已存在魔法：{mag}')
-
-
-def Magic(torrent_id, seeders):
-    for v in seeders:
-        if str(v[0]) == str(torrent_id):
-            if int(v[1]) == 0:
-                print(f'ID：{torrent_id} 无人做种，暂不释放魔法')
-            else:
-                # 下面注释掉的参数，估计是用来计算所需uc的，反正有钱，不计算了
-                data = {
-                    'action': 'magic',
-                    # 'divergence':'6.974',#全站基数
-                    # 'base_everyone':'1200',
-                    # 'base_self':'350',
-                    # 'base_other':'500',
-                    'torrent': torrent_id,  # 种子ID
-                    # 'tsize':'3822707742',#种子大小
-                    # 'ttl':'4163',#种子已存在时间
-                    'user': 'SELF',  # 为自己放魔法
-                    # 'user_other':'',
-                    'start': '0',  # 魔法立即生效
-                    'hours': '24',  # 魔法有效期24小时
-                    'promotion': '8',  # 魔法类型为其他
-                    'ur': '1.00',  # 上传比率
-                    'dr': '0.00',  # 下载比率
-                    'comment': time.ctime()  # 评论
-                }
-                headers = {
-                    'Referer': f'https://u2.dmhy.org/promotion.php?action=magic&torrent={torrent_id}',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
-                    'cookie': cookie
-                }
-                # s = requests.Session()
-                # s.mount('http://', HTTPAdapter(max_retries=0))
-                # s.mount('https://', HTTPAdapter(max_retries=0))
-                # f = s.post(f'https://u2.dmhy.org/promotion.php?action=magic&torrent={torrent_id}', data=data, headers=headers)
-
-                i = 0
-                while i <= 5:
-                    try:
-            #            html = requests.get(url, headers=headers, proxies=proxies, timeout=10)
-                        # html = requests.get(url, headers=headers, timeout=10)
-                        f = requests.post(f'https://u2.dmhy.org/promotion.php?action=magic&torrent={torrent_id}', data=data, headers=headers, timeout=10)
-                        break
-                    except KeyboardInterrupt:
-                        exit(0)
-                    except:
-                        print('打开网页发生错误！')
-                        time.sleep(i*5)
-                        i += 1
-
-                    
-                status_code = f.status_code
-                if status_code == 200:
-                    print(f'ID：{torrent_id} 成功施加马猴 (')
-                else:
-                    print(f'ID：{torrent_id} 错误，code.{status_code}')
-                time.sleep(1)
+        if Send(_id, ur, dr) == 200:
+            print(f'ID：{_id} | 成功施加马猴烧酒')
+        else:
+            print(f'ID：{_id} | 发送错误')
 
 
 if __name__ == "__main__":
-    tlist()
+    Magic()
