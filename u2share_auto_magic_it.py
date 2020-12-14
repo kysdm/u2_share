@@ -149,8 +149,6 @@ def Send(_id, _ur, _dr):
                            proxies=proxies,
                            timeout=10)
     except Exception:
-        pass
-    finally:
         return f1.status_code
     JsonObj = json.loads(f1.text)
     if not JsonObj['status'] == 'operational':
