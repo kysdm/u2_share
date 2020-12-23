@@ -310,7 +310,7 @@ def main(limit):
             c = TransferUC(x, b, message)
             if c > 0:
                 log.info(f'[ {v} | {x} | {c} ] 成功！已完成转账。')
-                SQL().Update(f"pid={v}", f"ucoind={c}")
+                SQL().Update(f"pid={v}", f"ucoind={c+z}")
             else:
                 log.info(f'[ {v} | {x} | {c} ] 失败！接收人UID不存在或无法接受转账。')
                 SQL().Update(f"pid={v}", "ucoind=-1")
@@ -322,7 +322,7 @@ def main(limit):
                 if c > 0:
                     i_uc += c
                     log.info(f'[ {v} | {x} | {i_uc}/{y} ] 成功！已完成转账。')
-                    SQL().Update(f"pid={v}", f"ucoind={i_uc}")
+                    SQL().Update(f"pid={v}", f"ucoind={i_uc+z}")
                 else:
                     log.info(
                         f'[ {v} | {x} | {i_uc}/{y} ] 失败！接收人UID不存在或无法接受转账。')
@@ -333,7 +333,7 @@ def main(limit):
                 if c > 0:
                     i_uc += c
                     log.info(f'[ {v} | {x} | {i_uc}/{y} ] 成功！已完成转账。')
-                    SQL().Update(f"pid={v}", f"ucoind={i_uc}")
+                    SQL().Update(f"pid={v}", f"ucoind={i_uc+z}")
                 else:
                     log.info(
                         f'[ {v} | {x} | {i_uc}/{y} ] 失败！接收人UID不存在或无法接受转账。')
