@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      2.4
+// @version      2.5
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        none
@@ -10,6 +10,7 @@
 // @match        *://u2.dmhy.org/details.php?id=*
 // @match        *://u2.dmhy.org/offers.php?id=*
 // @match        *://u2.dmhy.org/userdetails.php?id=*
+// @match        *://u2.dmhy.org/request.php?action=viewreseed&id=*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://unpkg.com/xhook@latest/dist/xhook.min.js
 // @connect      cdn.jsdelivr.net
@@ -26,8 +27,6 @@
 
     // Ajax-hook 有点复杂，用 xhook 简单点...
     // 好像 Ajax-hook 的处理效率更高? 也可能我的写法有问题
-    // 列表如果上千了，就可以明显感觉到慢了，chrome任务管理器里直接99占用，wwwwwww
-    // 如果其他脚本也劫持了 ajax 请求，那可能会发生冲突!!!!!!!!
     xhook.after(function (request, response) {
         if (request.url.match(/getusertorrentlistajax\.php\?userid=\d+?&type=leeching/i)) {
             response.text = userdetails(response.text);
@@ -85,6 +84,8 @@
         new details();
     } else if (location.href.match(/u2\.dmhy\.org\/sendmessage\.php\?receiver=45940#\d+$/i)) { // 45940好像没法设置为变量
         new sendmessage();
+    } else if (location.href.match(/u2\.dmhy\.org\/request\.php\?action=viewreseed&id=/i)) {
+        new request();
     }
 
     function torrents() {
@@ -142,6 +143,35 @@ function checkemail(){\n\
         );
     }
 
+    function request() {
+        // 本来想在主界面里加的，但是主界面里没有种子ID信息，预建立数据挺麻烦的，ajax遍历也不怎么好(即使遍历后进行缓存)，u2本来就负载很高了，算了。
+        const _Table = document.querySelector("table.main > tbody > tr > td > table:nth-child(2) > tbody > tr > td > table > tbody");
+        let id = _Table.querySelector("tr:nth-child(1) > td.rowfollow > a").href.match(/id=(\d+)/i)[1]; // 获取种子ID
+        let Id_Data = gdList.findIndex((value) => value == Number(id)); // 查找数据库中是否有备份，没有返回-1
+        let SeederNum = _Table.querySelector("tr:nth-child(9) > td.rowfollow > b:nth-child(2)").innerHTML; // 获取当前做种人数
+        if (Id_Data != -1 && SeederNum <= Uploaders) {
+            _Table.insertAdjacentHTML('beforeend', '<tr><td class="rowhead nowrap" valign="top" align="right">备份</td>\
+            <td class="rowfollow" valign="top" align="left"><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">\
+            <a class="index" href="download.php?id=' + id + '">[下载种子]</a>\
+            <a class="index" href="sendmessage.php?receiver=' + userid + '#' + id + '" target="_blank">[' + txt1[lang] + ']</a>\
+            </bdo></span></td></tr>'
+            )
+        } else if (Id_Data != -1) {
+            _Table.insertAdjacentHTML('beforeend', '<tr><td class="rowhead nowrap" valign="top" align="right">备份</td>\
+            <td class="rowfollow" valign="top" align="left"><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">\
+            <a class="index" href="download.php?id=' + id + '">[下载种子]</a>\
+            [' + txt1[lang] + ']\
+            </bdo></span></td></tr>'
+            )
+        } else {
+            _Table.insertAdjacentHTML('beforeend', '<tr><td class="rowhead nowrap" valign="top" align="right">备份</td>\
+            <td class="rowfollow" valign="top" align="left"><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">\
+            <a class="index" href="download.php?id=' + id + '">[下载种子]</a>\
+            </bdo></span></td></tr>'
+            )
+        }
+    }
+
     function userdetails(msg) {
         // https://developer.mozilla.org/zh-CN/docs/Web/API/DOMParser
         let parser = new DOMParser();
@@ -153,27 +183,23 @@ function checkemail(){\n\
             let Id_Data = gdList.findIndex((value) => value == Number(id));
             let SeederNum = kaTable[i].querySelector("td:nth-child(4) > b > a").innerHTML;
             if (Id_Data != -1 && SeederNum <= Uploaders) {
-                $(ka).append(
-                    '<td width="40" class="embedded" style="text-align: right; width: 55px;" valign="middle">\
+                ka.insertAdjacentHTML('beforeend', '<td class="embedded" style="text-align: right; width: 55px;" valign="middle">\
         <a href="sendmessage.php?receiver=' + userid + '#' + id + '" target="_blank"><img src="//cdn.jsdelivr.net/gh/kysdm/u2_share@main/img/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px;" alt="request" title="' + txt1[lang] + '"></a>\
         <a href="download.php?id=' + id + '"><img class="download" src="pic/trans.gif" style="padding-bottom: 2px;" alt="download" title="' + txt5[lang] + '">\
         </a></td>'
                 );
             } else if (Id_Data != -1) {
-                $(ka).append(
-                    '<td width="40" class="embedded" style="text-align: right; width: 55px;" valign="middle">\
+                ka.insertAdjacentHTML('beforeend', '<td class="embedded" style="text-align: right; width: 55px;" valign="middle">\
                     <img src="//cdn.jsdelivr.net/gh/kysdm/u2_share@main/img/drive_2020q4_48dp.png" style="padding-bottom: 2px; width:16px;height:16px; filter: grayscale(100%);" alt="request" title="' + txt2[lang] + '">\
         <a href="download.php?id=' + id + '"><img class="download" src="pic/trans.gif" style="padding-bottom: 2px;" alt="download" title="' + txt5[lang] + '">\
         </a></td>'
                 );
             }
             else {
-                $(ka).append(
-                    '<td width="40" class="embedded" style="text-align: right; width: 55px;" valign="middle">\
+                ka.insertAdjacentHTML('beforeend', '<td class="embedded" style="text-align: right; width: 55px;" valign="middle">\
         <a href="download.php?id=' + id + '"><img class="download" src="pic/trans.gif" style="padding-bottom: 2px;" alt="download" title="' + txt5[lang] + '">\
-        </a></td>'
-                );
-            }
+        </a></td>')
+            };
         }
         return resXML.body.innerHTML
     }
@@ -205,7 +231,7 @@ function Appendzero(obj) {
 function getDateString() {
     const time = new Date();
     return time.getFullYear().toString() +
-        (Appendzero(time.getMonth() + 1)).toString() +
+        Appendzero(time.getMonth() + 1).toString() +
         Appendzero(time.getDate()).toString() +
         Appendzero(time.getHours())
 }
