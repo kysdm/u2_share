@@ -27,6 +27,11 @@
 
     // Ajax-hook 有点复杂，用 xhook 简单点...
     // 好像 Ajax-hook 的处理效率更高? 也可能我的写法有问题
+    // 当通过链接直接打开下载列表时，由于脚本载入时间的关系，是无法对列表进行修改的。
+    // https://u2.dmhy.org/userdetails.php?id=xxxxx&dllist=1#leechlist
+    // 启用参数 @run-at document-start 可以捕获到请求，但接下来的代码就回报错。
+    // 可能可以加个判断，仅当网页加载完毕才进行下一步操作？
+    // 暂时标记下，以后有时间再弄了。
     xhook.after(function (request, response) {
         if (request.url.match(/getusertorrentlistajax\.php\?userid=\d+?&type=leeching/i)) {
             response.text = userdetails(response.text);
