@@ -94,7 +94,7 @@ def tlist():
         else:
             _Magic_List.append([_id, seeders, '1.00 / 1.00'])
 
-    return _Magic_List
+    return sorted([list(t) for t in set(tuple(_) for _ in _Magic_List)], key=_Magic_List.index)
 
 
 def Send(_id, _ur, _dr):
@@ -195,6 +195,7 @@ def Magic():
             print(f'ID：{_id} | 成功施加马猴烧酒')
         else:
             print(f'ID：{_id} | 发送错误')
+        sleep(5)
 
 
 if __name__ == "__main__":
