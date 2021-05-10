@@ -121,8 +121,6 @@ function bbcode2html(bbcodestr) {
     const br_reg = new RegExp("[\\r\\n]", "g");
     const f_reg = new RegExp("^\"?\"?$");
 
-    bbcodestr = bbcodestr.replace(br_reg, function (s) { return '<br />' });
-
     var tempCode = new Array();
     var tempCodeCount = 0;
 
@@ -134,17 +132,23 @@ function bbcode2html(bbcodestr) {
     }
 
     // code 标签
-    const code_reg = new RegExp("\\[(code|mediainfo|info)\\](.+?)\\[\\/(\\1)\\]", "gis");
-    bbcodestr = bbcodestr.replace(code_reg, function (s, x, y) {
+    const code_reg = new RegExp("\\[code\\](.+?)\\[\\/code\\]", "gis");
+    bbcodestr = bbcodestr.replace(code_reg, function (s, x) {
+        return addTempCode('<br /><div class="codetop">代码</div><div class="codemain">' + x + '</div><br />');
+    });
+
+    bbcodestr = bbcodestr.replace(br_reg, function (s) { return '<br />' });
+
+    // info 标签
+    const info_reg = new RegExp("\\[(mediainfo|info)\\](.+?)\\[\\/(\\1)\\]", "gis");
+    bbcodestr = bbcodestr.replace(info_reg, function (s, x, y) {
         switch (x) {
-            case "code":
-                return addTempCode('<br /><div class="codetop">代码</div><div class="codemain">' + y + '</div><br />');
             case 'info':
-                return addTempCode('<fieldset class="pre"><legend><b><span style="color: blue">发布信息</span></b></legend>'
-                    + y + '</fieldset>');
+                return addTempCode('<fieldset class="pre"><legend><b><span style="color: blue">发布信息</span>'
+                    + '</b></legend>' + y + '</fieldset>');
             case 'mediainfo':
-                return addTempCode('<fieldset class="pre"><legend><b><span style="color: red">媒体信息</span></b></legend>'
-                    + y + '</fieldset>');
+                return addTempCode('<fieldset class="pre"><legend><b><span style="color: red">媒体信息</span>'
+                    + '</b></legend>' + y + '</fieldset>');
             default:
                 return s;
         }
@@ -313,7 +317,7 @@ function bbcode2html(bbcodestr) {
     })
 
     for (let i = 0, len = tempCode.length; i < len; i++) {
-        console.log(i + " : " + tempCode[i]);
+        // console.log(i + " : " + tempCode[i]);
         bbcodestr = bbcodestr.replace("<tempCode_" + i + ">", tempCode[i]);
     }
 
