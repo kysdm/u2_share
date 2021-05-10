@@ -6,11 +6,11 @@
 // @author       kysdm
 // @grant        none
 // @match        *://u2.dmhy.org/upload.php*
+// @match        *://u2.dmhy.org/edit.php*
 // @icon         https://u2.dmhy.org/favicon.ico
 // ==/UserScript==
 
-
-/* 
+/*
 无法显示的 Tag
     由U2自带上传工具上传的文件
     Flash 有关的 Tag <u2好像本来就不支持>
@@ -20,9 +20,15 @@
 /* 
 待实现的功能
     多语言支持
+    显示标题
 */
 
-/* 
+/*
+不会加入的功能
+    预览除了发布和编辑种子页面的BBCODE  https://u2.dmhy.org/upload.php || https://u2.dmhy.org/edit.php*
+*/
+
+/*
 与U2娘显示不同的标签 (非标准操作)
     [spoiler="剧透是不"可能的！"]真的！[/spoiler]
         U2      => "剧透是不"可能的！"
@@ -32,7 +38,7 @@
         Script  => http://u2.dmhy.or 视为url 'g/upload.php 视为 str
 */
 
-/* 
+/*
 [b]这是粗体。[/b]
 [i]这是斜体。[/i]
 [u]这是下划线。[/u]
@@ -69,7 +75,8 @@
 
     $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">'
         + '预览</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2">'
-        + '<div id="bbcode2" style="max-height: 350px; overflow-x:auto ;overflow-y: auto;"><div class="child">NULL</div></div></td></tr></tbody></table></td>');
+        + '<div id="bbcode2" style="min-height: 25px; max-height: 350px; overflow-x: auto ; overflow-y: auto;"><div class="child">'
+        + bbcode2html($('.bbcode').val()) + '</div></div></td></tr></tbody></table></td>');
 
     $('.bbcode').scroll(() => {
         if (currentTab !== 1) return;
@@ -137,7 +144,7 @@ function bbcode2html(bbcodestr) {
         return addTempCode('<br /><div class="codetop">代码</div><div class="codemain">' + x + '</div><br />');
     });
 
-    bbcodestr = bbcodestr.replace(br_reg, function (s) { return '<br />' });
+    bbcodestr = bbcodestr.replace(br_reg, () => { return '<br />' });
 
     // info 标签
     const info_reg = new RegExp("\\[(mediainfo|info)\\](.+?)\\[\\/(\\1)\\]", "gis");
