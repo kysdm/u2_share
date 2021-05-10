@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.1
+// @version      0.0.2
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -14,10 +14,11 @@
 无法显示的 Tag
     由U2自带上传工具上传的文件
     Flash 有关的 Tag <u2好像本来就不支持>
+    从弹窗添加表情 [https://u2.dmhy.org/moresmilies.php?form=upload&text=descr] <不知道能不能修>
     我不知道的特殊操作
 */
 
-/* 
+/*
 待实现的功能
     多语言支持
     显示标题
