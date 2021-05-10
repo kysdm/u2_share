@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.2
+// @version      0.0.3
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -251,14 +251,20 @@ function bbcode2html(bbcodestr) {
     }
 
     // 图片
-    const img_reg1 = new RegExp("\\[(?:img|imglnk)\\](https?://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])\\[\/(?:img|imglnk)\\]", "gi");
-    bbcodestr = bbcodestr.replace(img_reg1, function (s, x) {
-        return addTempCode('<img alt="image" src="' + x + '" style="height: auto; width: auto; max-width: 100%;">');
+    const img_reg1 = new RegExp("\\[(img|imglnk)\\](https?://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])\\[\/(?:\\1)\\]", "gi");
+    bbcodestr = bbcodestr.replace(img_reg1, function (s, x, y) {
+        switch (x) {
+            case 'img':
+                return addTempCode('<img alt="image" src="' + y + '" style="height: auto; width: auto; max-width: 100%;">');
+            case 'imglnk':
+                return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="'
+                    + y + '" style="height: auto; width: auto; max-width: 100%;"></a>');
+        }
     });
     const img_reg2 = new RegExp("\\[img=(https?://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])\\]", "gi");
     bbcodestr = bbcodestr.replace(img_reg2, function (s, x) {
-        return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '"><img alt="image" src="'
-            + x + '" style="height: auto; width: auto; max-width: 100%;"></a>');
+        return addTempCode('<img alt="image" src="' + x + '" style="height: auto; width: auto; max-width: 100%;">');
+
     });
 
     // 超链接
