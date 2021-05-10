@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.3
+// @version      0.0.4
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -135,7 +135,7 @@ function bbcode2html(bbcodestr) {
 
     function addTempCode(value) {
         tempCode[tempCodeCount] = value;
-        returnstr = "<tempCode_" + tempCodeCount + ">";
+        let returnstr = "<tempCode_" + tempCodeCount + ">";
         tempCodeCount++;
         return returnstr;
     }
@@ -179,20 +179,22 @@ function bbcode2html(bbcodestr) {
     })
 
     // 成对标签 带参
-    const d_reg = new RegExp("\\[(rt|font)=([^\\]]+)\\](.*?)\\[/(\\1)\\]", "gis");
+    const d_reg = new RegExp("\\[(rt|font)=([^\\]]+)\\](.*?)\\[(/\\1)\\]", "gis");
     while (d_reg.test(bbcodestr)) {
         bbcodestr = bbcodestr.replace(d_reg, function (s, w, x, y, z) {
             switch (w) {
                 case 'rt':
                     if (f_reg.test(x)) {
-                        return s;
+                        return '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + w) + '=' + x + ']'
+                            + y + '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + z) + ']'
                     }
                     else {
                         return '<ruby>' + y + '<rp>(</rp><rt>' + x.replace(/^"?(.*?)"?$/, "$1") + '</rt><rp>)</rp></ruby>';
                     }
                 case 'font':
                     if (f_reg.test(x)) {
-                        return s;
+                        return '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + w) + '=' + x + ']'
+                            + y + '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + z) + ']';
                     }
                     else {
                         return '<span style="font-family: ' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</span>';
@@ -225,28 +227,18 @@ function bbcode2html(bbcodestr) {
     };
 
     // 颜色
-    const color_reg = new RegExp("\\[color=([#0-9a-z]{1,15}|[a-z]+?)\\](.*?)\\[/color\\]", "gis");
+    const color_reg = new RegExp("\\[color=\"?([#0-9a-z]{1,15}|[a-z]+?)\"?\\](.*?)\\[/color\\]", "gis");
     while (color_reg.test(bbcodestr)) {
         bbcodestr = bbcodestr.replace(color_reg, function (s, x, y) {
-            if (f_reg.test(x)) {
-                return s;
-            }
-            else {
-                return '<span style="color: ' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</span>';
-            }
+            return '<span style="color: ' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</span>';
         })
     }
 
     // 文字大小
-    const size_reg = new RegExp("\\[size=([1-7])\\](.*?)\\[/size\\]", "gis");
+    const size_reg = new RegExp("\\[size=\"?([1-7])\"?\\](.*?)\\[/size\\]", "gis");
     while (size_reg.test(bbcodestr)) {
         bbcodestr = bbcodestr.replace(size_reg, function (s, x, y) {
-            if (f_reg.test(x)) {
-                return s;
-            }
-            else {
-                return '<font size="' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</font>';
-            }
+            return '<font size="' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</font>';
         })
     }
 
@@ -286,7 +278,7 @@ function bbcode2html(bbcodestr) {
     bbcodestr = bbcodestr.replace(quote_reg1, function (s, x) {
         return '<fieldset><legend>引用</legend>' + x + '</fieldset>';
     });
-    const quote_reg2 = new RegExp("\\[quote=([^\\]]+)\\](.*?)\\[/quote\\]", "gsi");
+    const quote_reg2 = new RegExp("\\[quote=([^\\]]*)\\](.*?)\\[/quote\\]", "gsi");
     bbcodestr = bbcodestr.replace(quote_reg2, function (s, x, y) {
         if (f_reg.test(x)) {
             return '<fieldset><legend>引用</legend>' + y + '</fieldset>';
@@ -335,6 +327,8 @@ function bbcode2html(bbcodestr) {
         // console.log(i + " : " + tempCode[i]);
         bbcodestr = bbcodestr.replace("<tempCode_" + i + ">", tempCode[i]);
     }
+
+    bbcodestr = bbcodestr.replace(/p3F#oW2@cEn_JHstp-&37DgD/g, "");
 
     // console.log(bbcodestr);
     // console.log(tempCode);
