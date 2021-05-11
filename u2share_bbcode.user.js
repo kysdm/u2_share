@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.4
+// @version      0.0.5
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -35,9 +35,6 @@
     [spoiler="剧透是不"可能的！"]真的！[/spoiler]
         U2      => "剧透是不"可能的！"
         Script  => 剧透是不"可能的！
-    http://u2.dmhy.or'g/upload.php || http://u2.dmhy.or"g/upload.php
-        U2      => http://u2.dmhy.or'g/upload.php 视为 url
-        Script  => http://u2.dmhy.or 视为url 'g/upload.php 视为 str
 */
 
 /*
@@ -127,7 +124,6 @@ async function sleep(interval) {
 
 
 function bbcode2html(bbcodestr) {
-    const br_reg = new RegExp("[\\r\\n]", "g");
     const f_reg = new RegExp("^\"?\"?$");
 
     var tempCode = new Array();
@@ -140,23 +136,42 @@ function bbcode2html(bbcodestr) {
         return returnstr;
     }
 
+    const escape_reg = new RegExp("[&\"\'<>]", "g");
+    bbcodestr = bbcodestr.replace(escape_reg, function (s, x) {
+        switch (s) {
+            case '&':
+                return '&amp;'
+            case '"':
+                return '&quot;'
+            case "'":
+                return '&#039;'
+            case '<':
+                return '&lt;'
+            case '>':
+                return '&gt;'
+            default:
+                return s
+        }
+    });
+
+    const br_reg = new RegExp("[\\r\\n]", "g");
+    bbcodestr = bbcodestr.replace(br_reg, function (s) { return '<br>' + s });
+
     // code 标签
     const code_reg = new RegExp("\\[code\\](.+?)\\[\\/code\\]", "gis");
     bbcodestr = bbcodestr.replace(code_reg, function (s, x) {
         return addTempCode('<br /><div class="codetop">代码</div><div class="codemain">' + x + '</div><br />');
     });
 
-    bbcodestr = bbcodestr.replace(br_reg, () => { return '<br />' });
-
     // info 标签
     const info_reg = new RegExp("\\[(mediainfo|info)\\](.+?)\\[\\/(\\1)\\]", "gis");
     bbcodestr = bbcodestr.replace(info_reg, function (s, x, y) {
         switch (x) {
             case 'info':
-                return addTempCode('<fieldset class="pre"><legend><b><span style="color: blue">发布信息</span>'
+                return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: blue">发布信息</span>'
                     + '</b></legend>' + y + '</fieldset>');
             case 'mediainfo':
-                return addTempCode('<fieldset class="pre"><legend><b><span style="color: red">媒体信息</span>'
+                return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">媒体信息</span>'
                     + '</b></legend>' + y + '</fieldset>');
             default:
                 return s;
@@ -176,7 +191,7 @@ function bbcode2html(bbcodestr) {
             default:
                 return s;
         }
-    })
+    });
 
     // 成对标签 带参
     const d_reg = new RegExp("\\[(rt|font)=([^\\]]+)\\](.*?)\\[(/\\1)\\]", "gis");
@@ -203,7 +218,7 @@ function bbcode2html(bbcodestr) {
                     return s;
             }
         })
-    }
+    };
 
     // 成对标签 不带参
     const a_reg = new RegExp("\\[(pre|b|i|u|s)\\](.*?)\\[/(\\1)\\]", "gs");
@@ -232,7 +247,7 @@ function bbcode2html(bbcodestr) {
         bbcodestr = bbcodestr.replace(color_reg, function (s, x, y) {
             return '<span style="color: ' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</span>';
         })
-    }
+    };
 
     // 文字大小
     const size_reg = new RegExp("\\[size=\"?([1-7])\"?\\](.*?)\\[/size\\]", "gis");
@@ -240,36 +255,41 @@ function bbcode2html(bbcodestr) {
         bbcodestr = bbcodestr.replace(size_reg, function (s, x, y) {
             return '<font size="' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</font>';
         })
-    }
+    };
 
     // 图片
-    const img_reg1 = new RegExp("\\[(img|imglnk)\\](https?://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])\\[\/(?:\\1)\\]", "gi");
-    bbcodestr = bbcodestr.replace(img_reg1, function (s, x, y) {
-        switch (x) {
-            case 'img':
-                return addTempCode('<img alt="image" src="' + y + '" style="height: auto; width: auto; max-width: 100%;">');
-            case 'imglnk':
-                return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="'
-                    + y + '" style="height: auto; width: auto; max-width: 100%;"></a>');
+    bbcodestr = bbcodestr.replace(/\[(img|imglnk)\]([^\]]+)\[\/(?:\1)\]/gi, function (s, x, y) {
+        if (/^https?:\/\/((?!&lt;|&gt;|\s|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(y)) {
+            switch (x) {
+                case 'img':
+                    return addTempCode('<img alt="image" src="' + y + '" style="height: auto; width: auto; max-width: 100%;">');
+                case 'imglnk':
+                    return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="'
+                        + y + '" style="height: auto; width: auto; max-width: 100%;"></a>');
+            }
+        } else {
+            return addTempCode(s)
         }
     });
-    const img_reg2 = new RegExp("\\[img=(https?://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])\\]", "gi");
-    bbcodestr = bbcodestr.replace(img_reg2, function (s, x) {
-        return addTempCode('<img alt="image" src="' + x + '" style="height: auto; width: auto; max-width: 100%;">');
 
+    bbcodestr = bbcodestr.replace(/\[img=([^\]]+)\]/gi, function (s, x) {
+        if (/^https?:\/\/((?!&lt;|&gt;|\s|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(x)) {
+            return addTempCode('<img alt="image" src="' + x + '" style="height: auto; width: auto; max-width: 100%;">');
+        } else {
+            return addTempCode(s)
+        }
     });
 
     // 超链接
-    const url_reg1 = new RegExp("\\[url=((?:https?|ftp|gopher|news|telnet|mms|rtsp)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])\\](.+?)\\[/url\\]", "gis");
-    bbcodestr = bbcodestr.replace(url_reg1, function (s, x, y) {
-        return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + y + '</a>');
+    bbcodestr = bbcodestr.replace(/\[url=((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\](.+?)\[\/url\]/gis, function (s, x, y,z) {
+        return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + z + '</a>');
     });
-    const url_reg2 = new RegExp("\\[url\\]((?:https?|ftp|gopher|news|telnet|mms|rtsp)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])\\[/url\\]", "gis");
-    bbcodestr = bbcodestr.replace(url_reg2, function (s, x) {
+
+    bbcodestr = bbcodestr.replace(/\[url\]((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\[\/url\]/gis, function (s, x) {
         return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + x + '</a>')
     });
-    const url_reg3 = new RegExp("(?:https?|ftp|gopher|news|telnet|mms|rtsp)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]", "gi");
-    bbcodestr = bbcodestr.replace(url_reg3, function (s, x) {
+
+    bbcodestr = bbcodestr.replace(/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)/gi, function (s, x) {
         return '<a class="faqlink" rel="nofollow noopener noreferer" href="' + s + '">' + s + '</a>';
     });
 
