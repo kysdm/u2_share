@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.5
+// @version      0.0.6
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -74,7 +74,7 @@
 
     $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">'
         + '预览</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2">'
-        + '<div id="bbcode2" style="min-height: 25px; max-height: 350px; overflow-x: auto ; overflow-y: auto;"><div class="child">'
+        + '<div id="bbcode2" style="min-height: 25px; max-height: 400px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;"><div class="child">'
         + bbcode2html($('.bbcode').val()) + '</div></div></td></tr></tbody></table></td>');
 
     $('.bbcode').scroll(() => {
@@ -155,7 +155,8 @@ function bbcode2html(bbcodestr) {
     });
 
     const br_reg = new RegExp("[\\r\\n]", "g");
-    bbcodestr = bbcodestr.replace(br_reg, function (s) { return '<br>' + s });
+    // bbcodestr = bbcodestr.replace(br_reg, function (s) { return '<br>' + s });
+    bbcodestr = bbcodestr.replace(br_reg, () => { return '<br />' });
 
     // code 标签
     const code_reg = new RegExp("\\[code\\](.+?)\\[\\/code\\]", "gis");
