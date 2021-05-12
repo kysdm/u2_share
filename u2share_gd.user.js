@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子备份查询
 // @namespace    https://u2.dmhy.org/
-// @version      2.5
+// @version      2.6
 // @description  在页面下载旁加入图标，支持一键发送请求。
 // @author       McHobby & kysdm
 // @grant        none
@@ -128,7 +128,13 @@
         const email = localStorage.getItem("u2_gd_email");
         $("td.rowfollow > input[type=text]").val("#request#");
         $(".bbcode").val('{ "id":"' + location.href.split("#")[1] + '" , "email":"' + email + '" }');
-        $('td.toolbox').append('<input type="checkbox" name="save_email" checked="checked">' + txt3[lang]);
+
+        if (localStorage.getItem("u2_gd_email_switch") === "1") {
+            $('td.toolbox').append('<input type="checkbox" name="save_email" checked="checked">' + txt3[lang]);
+        } else {
+            $('td.toolbox').append('<input type="checkbox" name="save_email">' + txt3[lang]);
+        };
+
         $('#compose').attr('onsubmit', 'return checkemail();');
         $('body').append(
             '<script>\n\
@@ -142,6 +148,11 @@ function checkemail(){\n\
     }\n\
     if ( email_switch ){\n\
         localStorage.setItem("u2_gd_email", newemail);\n\
+        localStorage.setItem("u2_gd_email_switch", "1");\n\
+        return true;\n\
+    }\n\ else {\n\
+        localStorage.removeItem("u2_gd_email");\n\
+        localStorage.setItem("u2_gd_email_switch", "0");\n\
         return true;\n\
     }\n\
 }</script>'
