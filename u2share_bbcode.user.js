@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.7
+// @version      0.0.8
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -375,7 +375,7 @@ function init() {
 
     const r_margin = $('.codebuttons').parents('table').eq(-3).width() - $('.codebuttons').parents('tbody').eq(0).width() - 8;
 
-    $('.codebuttons').parent().parent().parent().parent().parent().append('<div id="select_list" style="margin-top:4px; float:right;'
+    $('.codebuttons').parents('td').eq(-3).append('<div id="select_list" style="margin-top:4px; float:right;'
         + 'margin-right:' + r_margin + 'px"><table cellspacing="1" cellpadding="2" border="0"><tbody><tr><td class="embedded">'
         + h1
         + '</td><td class="embedded">'
