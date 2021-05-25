@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.9
+// @version      0.1.0
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -270,48 +270,56 @@ function bbcode2html(bbcodestr) {
 
     // 引用
     const quote_reg1 = new RegExp("\\[quote\\](.*?)\\[/quote\\]", "gsi");
-    bbcodestr = bbcodestr.replace(quote_reg1, function (s, x) {
-        return '<fieldset><legend>引用</legend>' + x + '</fieldset>';
-    });
+    while (quote_reg1.test(bbcodestr)) {
+        bbcodestr = bbcodestr.replace(quote_reg1, function (s, x) {
+            return '<fieldset><legend>引用</legend>' + x + '</fieldset>';
+        });
+    };
     const quote_reg2 = new RegExp("\\[quote=([^\\]]*)\\](.*?)\\[/quote\\]", "gsi");
-    bbcodestr = bbcodestr.replace(quote_reg2, function (s, x, y) {
-        if (f_reg.test(x)) {
-            return '<fieldset><legend>引用</legend>' + y + '</fieldset>';
-        }
-        else {
-            return '<fieldset><legend>引用: ' + x.replace(/^"(.*?)"?$/, "$1") + '</legend>' + y + '</fieldset>';
-        }
-    });
+    while (quote_reg2.test(bbcodestr)) {
+        bbcodestr = bbcodestr.replace(quote_reg2, function (s, x, y) {
+            if (f_reg.test(x)) {
+                return '<fieldset><legend>引用</legend>' + y + '</fieldset>';
+            }
+            else {
+                return '<fieldset><legend>引用: ' + x.replace(/^"(.*?)"?$/, "$1") + '</legend>' + y + '</fieldset>';
+            }
+        });
+    };
 
     // spoiler
     const spoiler_reg1 = new RegExp("\\[spoiler\\](.*?)\\[/spoiler\\]", "gsi");
     const spoiler_reg2 = new RegExp("\\[spoiler=([^\\]]+)\\](.*?)\\[/spoiler\\]", "gsi");
-    bbcodestr = bbcodestr.replace(spoiler_reg1, function (s, x) {
-        return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-            + '警告！下列文字很可能泄露剧情，请谨慎选择是否观看。&nbsp;&nbsp;'
-            + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
-            + '<button class="spoiler-button-hide">我真是手贱</button>'
-            + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
-            + x + '</span></td></tr></tbody></table>';
-    });
-    bbcodestr = bbcodestr.replace(spoiler_reg2, function (s, x, y) {
-        if (f_reg.test(x)) {
+    while (spoiler_reg1.test(bbcodestr)) {
+        bbcodestr = bbcodestr.replace(spoiler_reg1, function (s, x) {
             return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
                 + '警告！下列文字很可能泄露剧情，请谨慎选择是否观看。&nbsp;&nbsp;'
                 + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
                 + '<button class="spoiler-button-hide">我真是手贱</button>'
                 + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
-                + y + '</span></td></tr></tbody></table>';
-        }
-        else {
-            return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-                + x.replace(/^"(.*?)"?$/, "$1") + '&nbsp;&nbsp;'
-                + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
-                + '<button class="spoiler-button-hide">我真是手贱</button>'
-                + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
-                + y + '</span></td></tr></tbody></table>';
-        }
-    });
+                + x + '</span></td></tr></tbody></table>';
+        });
+    };
+    while (spoiler_reg2.test(bbcodestr)) {
+        bbcodestr = bbcodestr.replace(spoiler_reg2, function (s, x, y) {
+            if (f_reg.test(x)) {
+                return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
+                    + '警告！下列文字很可能泄露剧情，请谨慎选择是否观看。&nbsp;&nbsp;'
+                    + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
+                    + '<button class="spoiler-button-hide">我真是手贱</button>'
+                    + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
+                    + y + '</span></td></tr></tbody></table>';
+            }
+            else {
+                return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
+                    + x.replace(/^"(.*?)"?$/, "$1") + '&nbsp;&nbsp;'
+                    + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
+                    + '<button class="spoiler-button-hide">我真是手贱</button>'
+                    + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
+                    + y + '</span></td></tr></tbody></table>';
+            }
+        });
+    };
 
     // 表情
     const em_reg = new RegExp("\\[(em[1-9][0-9]*)\\]", "gi");
