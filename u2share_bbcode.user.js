@@ -7,6 +7,8 @@
 // @grant        none
 // @match        *://u2.dmhy.org/upload.php*
 // @match        *://u2.dmhy.org/edit.php*
+// @match        *://u2.dmhy.org/forums.php?action=*
+// @match        *://u2.dmhy.org/comment.php?action=*
 // @icon         https://u2.dmhy.org/favicon.ico
 // ==/UserScript==
 
@@ -371,10 +373,8 @@ function init() {
         .after('<td class="embedded"><input class="codebuttons" style="'
             + 'font-size:11px;margin-right:3px" type="button" value="QUOTE+" onclick="onEditorActionS(\'descr\', \'EDITOR_QUOTE+\')">');
 
-    const r_margin = $('.codebuttons').parents('table').eq(-3).width() - $('.codebuttons').parents('tbody').eq(0).width() - 8;
-
-    $('.codebuttons').parents('td').eq(-3).append('<div id="select_list" style="margin-top:4px; float:right;'
-        + 'margin-right:' + r_margin + 'px"><table cellspacing="1" cellpadding="2" border="0"><tbody><tr><td class="embedded">'
+    $('.codebuttons').parents('td:not(.embedded,.rowfollow,.text,.outer)').append('<div id="select_list" style="margin-top:4px; float:left;>'
+        + '<table cellspacing="1" cellpadding="2" border="0"><tbody><tr><td class="embedded">'
         + h1
         + '</td><td class="embedded">'
         + h2
@@ -382,10 +382,13 @@ function init() {
         + h3
         + '</td></tr></tbody></table></div>');
 
+    const margin = $('.codebuttons').parents('tbody').eq(0).width() - $("#select_list").width() - 2.6;
+    $("#select_list").css("margin-left", margin + "px");
+
     $('body').append(
         '<script type="text/javascript">\n\
 function onEditorActionS(textAreaId, action, param) {\n\
-    var textArea = document.getElementById(textAreaId);\n\
+    var textArea = document.querySelector(".bbcode");\n\
     var selStart = textArea.selectionStart;\n\
     var selEnd = textArea.selectionEnd;\n\
     var selectionText, url;\n\
