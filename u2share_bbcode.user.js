@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.8
+// @version      0.0.9
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -9,6 +9,11 @@
 // @match        *://u2.dmhy.org/edit.php*
 // @icon         https://u2.dmhy.org/favicon.ico
 // ==/UserScript==
+
+/*
+更新日志
+    https://github.com/kysdm/u2_share/commits/main/u2share_bbcode.user.js
+*/
 
 /*
 无法显示的 Tag
@@ -26,23 +31,10 @@
 */
 
 /*
-不会加入的功能
-    预览除了发布和编辑种子页面的BBCODE  https://u2.dmhy.org/upload.php || https://u2.dmhy.org/edit.php*
-*/
-
-/*
 与U2娘显示不同的标签 (非标准操作)
     [spoiler="剧透是不"可能的！"]真的！[/spoiler]
         U2      => "剧透是不"可能的！"
         Script  => 剧透是不"可能的！
-*/
-
-/*
-
-你真是个[rt=biàn]绅[/rt][rt=tài]士[/rt]。
-[quote="Azusa"]我爱U2分享園@動漫花園。[/quote]
-[spoiler="剧透是不可能的！"]真的！[/spoiler]
-
 */
 
 
@@ -294,22 +286,28 @@ function bbcode2html(bbcodestr) {
     const spoiler_reg2 = new RegExp("\\[spoiler=([^\\]]+)\\](.*?)\\[/spoiler\\]", "gsi");
     bbcodestr = bbcodestr.replace(spoiler_reg1, function (s, x) {
         return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-            + '警告！下列文字很可能泄露剧情，请谨慎选择是否观看。&nbsp;&nbsp;<button class="spoiler-button-show">'
-            + '我就是手贱</button><button class="spoiler-button-hide" style="display: none;">我真是手贱</button>'
-            + '</td></tr><tr><td><span class="spoiler-content">' + x + '</span></td></tr></tbody></table>';
+            + '警告！下列文字很可能泄露剧情，请谨慎选择是否观看。&nbsp;&nbsp;'
+            + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
+            + '<button class="spoiler-button-hide">我真是手贱</button>'
+            + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
+            + x + '</span></td></tr></tbody></table>';
     });
     bbcodestr = bbcodestr.replace(spoiler_reg2, function (s, x, y) {
         if (f_reg.test(x)) {
             return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-                + '警告！下列文字很可能泄露剧情，请谨慎选择是否观看。&nbsp;&nbsp;<button class="spoiler-button-show">'
-                + '我就是手贱</button><button class="spoiler-button-hide" style="display: none;">我真是手贱</button>'
-                + '</td></tr><tr><td><span class="spoiler-content">' + y + '</span></td></tr></tbody></table>';
+                + '警告！下列文字很可能泄露剧情，请谨慎选择是否观看。&nbsp;&nbsp;'
+                + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
+                + '<button class="spoiler-button-hide">我真是手贱</button>'
+                + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
+                + y + '</span></td></tr></tbody></table>';
         }
         else {
             return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-                + x.replace(/^"(.*?)"?$/, "$1") + '&nbsp;&nbsp;<button class="spoiler-button-show">我就是手贱</button>'
-                + '<button class="spoiler-button-hide" style="display: none;">我真是手贱</button>'
-                + '</td></tr><tr><td><span class="spoiler-content">' + y + '</span></td></tr></tbody></table>';
+                + x.replace(/^"(.*?)"?$/, "$1") + '&nbsp;&nbsp;'
+                + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
+                + '<button class="spoiler-button-hide">我真是手贱</button>'
+                + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
+                + y + '</span></td></tr></tbody></table>';
         }
     });
 
@@ -464,7 +462,8 @@ function onEditorActionS(textAreaId, action, param) {\n\
             if (selStart !== selEnd) {\n\
                 var title = window.prompt("请输入标题");\n\
                 if (title === null || title.length === 0) {\n\
-                    title = "";\n\
+                    addTag(textArea, "spoiler", null, "", true);\n\
+                    break;\n\
                 }\n\
                 selectionText = textArea.value.substring(selStart, selEnd);\n\
                 // addTag(textArea, "spoiler", null, "", true);\n\
@@ -477,6 +476,8 @@ function onEditorActionS(textAreaId, action, param) {\n\
                 var title = window.prompt("请输入标题");\n\
                 if (title === null || title.length === 0) {\n\
                     title = "";\n\
+                    addTag(textArea, "spoiler", null, text, false);\n\
+                    break;\n\
                 }\n\
                 addTag(textArea, "spoiler", title, text, false);\n\
             }\n\
@@ -484,7 +485,6 @@ function onEditorActionS(textAreaId, action, param) {\n\
         }\n\
         case "EDITOR_SPOILER": {\n\
             if (selStart !== selEnd) {\n\
-                selectionText = textArea.value.substring(selStart, selEnd);\n\
                 addTag(textArea, "spoiler", null, "", true);\n\
             } else {\n\
                 text = window.prompt("请输入正文");\n\
