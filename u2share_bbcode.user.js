@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.0
+// @version      0.1.1
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -48,8 +48,27 @@
 
     $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">'
         + '预览</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2">'
-        + '<div id="bbcode2" style="min-height: 25px; max-height: 400px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;"><div class="child">'
-        + bbcode2html($('.bbcode').val()) + '</div></div></td></tr></tbody></table></td>');
+        + '<div id="bbcode2" style="min-height: 25px; max-height: ' + ($('.bbcode').height() + 30) + 'px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;">'
+        + '<div class="child">' + bbcode2html($('.bbcode').val()) + '</div></div></td></tr></tbody></table></td>');
+
+    // https://developer.mozilla.org/zh-CN/docs/Web/API/MutationObserver
+    let MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
+    let element = document.querySelector('.bbcode');
+    var height_now, height_last;
+    var observer = new MutationObserver((mutations) => {
+        mutations.forEach(function (mutation) {
+            if (mutation.type == "attributes") {
+                height_now = Number(mutation.target.style.height.replace('px', '')) + 30;
+                if (height_last === height_now) { return } else { height_last = height_now; };
+                $("#bbcode2").css("max-height", height_now + "px");
+            }
+        })
+    });
+    observer.observe(element, {
+        attributes: true,
+        attributeFilter: ['style']
+    });
+
 
     $('.bbcode').scroll(() => {
         if (currentTab !== 1) return;
@@ -128,9 +147,9 @@ function bbcode2html(bbcodestr) {
         }
     });
 
-    const br_reg = new RegExp("[\\r\\n]", "g");
-    // bbcodestr = bbcodestr.replace(br_reg, function (s) { return '<br>' + s });
-    bbcodestr = bbcodestr.replace(br_reg, () => { return '<br />' });
+    bbcodestr = bbcodestr.replace(/\r\n/g, () => { return '<br>' });
+    bbcodestr = bbcodestr.replace(/\n/g, () => { return '<br>' });
+    bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
 
     // code 标签
     const code_reg = new RegExp("\\[code\\](.+?)\\[\\/code\\]", "gis");
@@ -338,6 +357,8 @@ function bbcode2html(bbcodestr) {
     }
 
     bbcodestr = bbcodestr.replace(/p3F#oW2@cEn_JHstp-&37DgD/g, "");
+
+    if (/(<br>)$/.test(bbcodestr)) { bbcodestr = bbcodestr + '<br>' }
 
     // console.log(bbcodestr);
     // console.log(tempCode);
