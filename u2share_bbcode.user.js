@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.1
+// @version      0.1.2
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -28,7 +28,6 @@
 /*
 待实现的功能
     多语言支持
-    显示标题
     使用原生JS实现 <本来是原生JS的，写着写着觉得好繁琐，就上jq了。>
 */
 
@@ -106,6 +105,90 @@
         $('#bbcode2').children('.child').html(html);
     });
 
+    if (location.href.match(/u2\.dmhy\.org\/upload\.php/i)) {
+
+        // 添加中括号
+        function add_brackets(txt) { if (txt === '') { return ''; } else { return '[' + txt + ']'; } };
+
+        // 检查重叠的中括号
+        function check_title(txt) {
+            if (/\[{2,}|\]{2,}/g.test(txt)) { return '<font color="red">' + txt + '</font>'; } else { return txt; }
+        };
+
+        var main_title = '<font color="red"><b>请选择分类...</b></font>';
+
+        function add_main_title() {
+            var type_id = $('#browsecat').val();
+            if (type_id === '0') {
+                // console.log('请选择分类...');
+                main_title = '<font color="red"><b>请选择分类...</b></font>';
+            } else if (['9', '411', '413', '12', '13', '14', '15', '16', '17', '410', '412'].indexOf(type_id) !== -1) {
+                // console.log('分类ID是： ' + type_id + ' anime');
+                main_title = '<b>'
+                    + add_brackets($('#anime_chinese').find("input").val())
+                    + add_brackets($('#anime_english').find("input").val())
+                    + add_brackets($('#anime_original').find("input").val())
+                    + add_brackets($('#anime_source').find("input").val())
+                    + add_brackets($('#anime_resolution').find("input").val())
+                    + add_brackets($('#anime_episode').find("input").val())
+                    + add_brackets($('#anime_container').find("input").val())
+                    + add_brackets($('#anime_extra').find("input").val())
+                    + '</b>';
+            } else if (['21', '22', '23'].indexOf(type_id) !== -1) {
+                // console.log('分类ID是： ' + type_id + ' manga');
+                main_title = '<b>'
+                    + add_brackets($('#manga_title').find("input").val())
+                    + add_brackets($('#manga_author').find("input").val())
+                    + add_brackets($('#manga_volume').find("input").val())
+                    + add_brackets($('#manga_ended').find("select").val())
+                    + add_brackets($('#manga_publisher').find("input").val())
+                    + add_brackets($('#manga_remark').find("input").val())
+                    + '</b>';
+            } else if (type_id === '30') {
+                // console.log('分类ID是： ' + type_id + ' music');
+                var prefix_1 = $('#music_prefix').find("select").val();
+                var prefix_2 = $('#music_collection').find("select").val();
+                if (['EAC', 'XLD'].indexOf(prefix_1) !== -1) { var music_quality = false; }
+                else if (['Hi-Res', 'Web'].indexOf(prefix_1) !== -1) { var music_quality = true; };
+                switch (prefix_2) {
+                    case "0": // 单张
+                        main_title = '<b>'
+                            + add_brackets(prefix_1)
+                            + add_brackets($('#music_date').find("input").val())
+                            + add_brackets($('#music_category').find("input").val())
+                            + add_brackets($('#music_artist').find("input").val())
+                            + add_brackets($('#music_title').find("input").val())
+                            + add_brackets($('#music_serial_number').find("input").val())
+                            + add_brackets((() => { if (music_quality) { return $('#music_quality').find("input").val(); } else { return ''; } })())
+                            + add_brackets($('#music_format').find("input").val())
+                            + '</b>';
+                        break;
+                    case "1": // 合集
+                        main_title = '<b>'
+                            + add_brackets(prefix_1)
+                            + add_brackets('合集')
+                            + add_brackets($('#music_category').find("input").val())
+                            + add_brackets($('#music_title').find("input").val())
+                            + add_brackets($('#music_quantity').find("input").val())
+                            + add_brackets((() => { if (music_quality) { return $('#music_quality').find("input").val(); } else { return ''; } })())
+                            + '</b>';
+                        break;
+                }
+            } else if (type_id === '40') {
+                // console.log('分类ID是： ' + type_id + ' other');
+                main_title = '<b>' + $('#other_title').find("input").val() + '</b>';
+            } else {
+                // console.log('分类ID是： ' + type_id);
+            }
+            $('#checktitle').html(check_title(main_title));
+        }
+
+        $("#browsecat").change(() => { new add_main_title; })
+        $(".torrent-info-input").bind('input propertychange', () => { new add_main_title; });
+        $('#other_title').after('<tr><td class="rowhead nowrap" valign="top" align="right">主标题</td>'
+            + '<td id="checktitle" class="rowfollow" valign="top" align="left" valign="middle">' + main_title + '</td></tr>'
+        );
+    };
 })();
 
 
