@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.5
+// @version      0.1.6
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -35,7 +35,6 @@
 
 /*
 待实现的功能
-    多语言支持
     使用原生JS实现 <本来是原生JS的，写着写着觉得好繁琐，就上jq了。>
 */
 
@@ -50,11 +49,12 @@
 (async () => {
     'use strict';
 
+    var lang = new lang_init($('#locale_selection').val());
     new init();
     let currentTab = 0;
 
-    $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">'
-        + '预览</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2">'
+    $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
+        + '</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2">'
         + '<div id="bbcode2" style="min-height: 25px; max-height: ' + ($('.bbcode').height() + 30) + 'px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;">'
         + '<div class="child">' + bbcode2html($('.bbcode').val()) + '</div></div></td></tr></tbody></table></td>');
 
@@ -123,13 +123,13 @@
             if (/\[{2,}|\]{2,}/g.test(txt)) { return '<font color="red">' + txt + '</font>'; } else { return txt; }
         };
 
-        var main_title = '<font color="red"><b>请选择分类...</b></font>';
+        var main_title = '<font color="red"><b>' + lang['select_type'] + '</b></font>';
 
         function add_main_title() {
             var type_id = $('#browsecat').val();
             if (type_id === '0') {
                 // console.log('请选择分类...');
-                main_title = '<font color="red"><b>请选择分类...</b></font>';
+                main_title = '<font color="red"><b>' + lang['select_type'] + '</b></font>';
             } else if (['9', '411', '413', '12', '13', '14', '15', '16', '17', '410', '412'].indexOf(type_id) !== -1) {
                 // console.log('分类ID是： ' + type_id + ' anime');
                 main_title = '<b>'
@@ -193,10 +193,497 @@
 
         $("#browsecat").change(() => { new add_main_title; })
         $(".torrent-info-input").bind('input propertychange', () => { new add_main_title; });
-        $('#other_title').after('<tr><td class="rowhead nowrap" valign="top" align="right">主标题</td>'
+        $('#other_title').after('<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['main_title'] + '</td>'
             + '<td id="checktitle" class="rowfollow" valign="top" align="left" valign="middle">' + main_title + '</td></tr>'
         );
     };
+
+    function bbcode2html(bbcodestr) {
+        const f_reg = new RegExp("^\"?\"?$");
+
+        var tempCode = new Array();
+        var tempCodeCount = 0;
+
+        function addTempCode(value) {
+            tempCode[tempCodeCount] = value;
+            let returnstr = "<tempCode_" + tempCodeCount + ">";
+            tempCodeCount++;
+            return returnstr;
+        }
+
+        const escape_reg = new RegExp("[&\"\'<>]", "g");
+        bbcodestr = bbcodestr.replace(escape_reg, function (s, x) {
+            switch (s) {
+                case '&':
+                    return '&amp;';
+                case '"':
+                    return '&quot;';
+                case "'":
+                    return '&#039;';
+                case '<':
+                    return '&lt;';
+                case '>':
+                    return '&gt;';
+                default:
+                    return s;
+            }
+        });
+
+        bbcodestr = bbcodestr.replace(/\r\n/g, () => { return '<br>' });
+        bbcodestr = bbcodestr.replace(/\n/g, () => { return '<br>' });
+        bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
+
+        // code 标签
+        const code_reg = new RegExp("\\[code\\](.+?)\\[\\/code\\]", "gis");
+        bbcodestr = bbcodestr.replace(code_reg, function (s, x) {
+            return addTempCode('<br /><div class="codetop">' + lang['code'] + '</div><div class="codemain">' + x + '</div><br />');
+        });
+
+        // info 标签
+        const info_reg = new RegExp("\\[(mediainfo|info)\\](.+?)\\[\\/(\\1)\\]", "gis");
+        bbcodestr = bbcodestr.replace(info_reg, function (s, x, y) {
+            switch (x) {
+                case 'info':
+                    return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: blue">'
+                        + lang['info'] + '</span></b></legend>' + y + '</fieldset>');
+                case 'mediainfo':
+                    return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">'
+                        + lang['mediainfo'] + '</span></b></legend>' + y + '</fieldset>');
+                default:
+                    return s;
+            }
+        });
+
+        // 单个标签 不带参
+        const o_reg = new RegExp("\\[(\\*|siteurl|site)\\]", "gi");
+        bbcodestr = bbcodestr.replace(o_reg, function (s, x, y) {
+            switch (x) {
+                case '*':
+                    return '<img class="listicon listitem" src="pic/trans.gif" alt="list">';
+                case 'site':
+                    return 'U2分享園@動漫花園';
+                case 'siteurl':
+                    return 'https://u2.dmhy.org';
+                default:
+                    return s;
+            }
+        });
+
+        // 成对标签 带参
+        const d_reg = new RegExp("\\[(rt|font)=([^\\]]+)\\](.*?)\\[(/\\1)\\]", "gis");
+        while (d_reg.test(bbcodestr)) {
+            bbcodestr = bbcodestr.replace(d_reg, function (s, w, x, y, z) {
+                switch (w) {
+                    case 'rt':
+                        if (f_reg.test(x)) {
+                            return '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + w) + '=' + x + ']'
+                                + y + '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + z) + ']'
+                        }
+                        else {
+                            return '<ruby>' + y + '<rp>(</rp><rt>' + x.replace(/^"?(.*?)"?$/, "$1") + '</rt><rp>)</rp></ruby>';
+                        }
+                    case 'font':
+                        if (f_reg.test(x)) {
+                            return '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + w) + '=' + x + ']'
+                                + y + '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + z) + ']';
+                        }
+                        else {
+                            return '<span style="font-family: ' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</span>';
+                        }
+                    default:
+                        return s;
+                }
+            })
+        };
+
+        // 成对标签 不带参
+        const a_reg = new RegExp("\\[(pre|b|i|u|s)\\](.*?)\\[/(\\1)\\]", "gs");
+        while (a_reg.test(bbcodestr)) {
+            bbcodestr = bbcodestr.replace(a_reg, function (s, x, y, z) {
+                switch (x) {
+                    case 'b':
+                        return '<b>' + y + '</b>';
+                    case 'i':
+                        return '<em>' + y + '</em>';
+                    case 'u':
+                        return '<u>' + y + '</u>';
+                    case 's':
+                        return '<s>' + y + '</s>';
+                    case 'pre':
+                        return '<pre>' + y + '</pre>';
+                    default:
+                        return s;
+                }
+            })
+        };
+
+        // 颜色
+        const color_reg = new RegExp("\\[color=\"?([#0-9a-z]{1,15}|[a-z]+?)\"?\\](.*?)\\[/color\\]", "gis");
+        while (color_reg.test(bbcodestr)) {
+            bbcodestr = bbcodestr.replace(color_reg, function (s, x, y) {
+                return '<span style="color: ' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</span>';
+            })
+        };
+
+        // 文字大小
+        const size_reg = new RegExp("\\[size=\"?([1-7])\"?\\](.*?)\\[/size\\]", "gis");
+        while (size_reg.test(bbcodestr)) {
+            bbcodestr = bbcodestr.replace(size_reg, function (s, x, y) {
+                return '<font size="' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</font>';
+            })
+        };
+
+        // 图片
+        bbcodestr = bbcodestr.replace(/\[(img|imglnk)\]([^\]]+)\[\/(?:\1)\]/gi, function (s, x, y) {
+            if (/^https?:\/\/((?!&lt;|&gt;|\s|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(y)) {
+                switch (x) {
+                    case 'img':
+                        return addTempCode('<img alt="image" src="' + y + '" style="height: auto; width: auto; max-width: 100%;">');
+                    case 'imglnk':
+                        return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="'
+                            + y + '" style="height: auto; width: auto; max-width: 100%;"></a>');
+                }
+            } else {
+                return addTempCode(s)
+            }
+        });
+
+        bbcodestr = bbcodestr.replace(/\[img=([^\]]+)\]/gi, function (s, x) {
+            if (/^https?:\/\/((?!&lt;|&gt;|\s|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(x)) {
+                return addTempCode('<img alt="image" src="' + x + '" style="height: auto; width: auto; max-width: 100%;">');
+            } else {
+                return addTempCode(s)
+            }
+        });
+
+        // 超链接
+        bbcodestr = bbcodestr.replace(/\[url=((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\](.+?)\[\/url\]/gis, function (s, x, y, z) {
+            return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + z + '</a>');
+        });
+
+        bbcodestr = bbcodestr.replace(/\[url\]((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\[\/url\]/gis, function (s, x) {
+            return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + x + '</a>')
+        });
+
+        bbcodestr = bbcodestr.replace(/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)/gi, function (s, x) {
+            return '<a class="faqlink" rel="nofollow noopener noreferer" href="' + s + '">' + s + '</a>';
+        });
+
+        // 引用
+        const quote_reg1 = new RegExp("\\[quote\\](.*?)\\[/quote\\]", "gsi");
+        while (quote_reg1.test(bbcodestr)) {
+            bbcodestr = bbcodestr.replace(quote_reg1, function (s, x) {
+                return '<fieldset><legend>' + lang['quote'] + '</legend>' + x + '</fieldset>';
+            });
+        };
+        const quote_reg2 = new RegExp("\\[quote=([^\\]]*)\\](.*?)\\[/quote\\]", "gsi");
+        while (quote_reg2.test(bbcodestr)) {
+            bbcodestr = bbcodestr.replace(quote_reg2, function (s, x, y) {
+                if (f_reg.test(x)) {
+                    return '<fieldset><legend>' + lang['quote'] + '</legend>' + y + '</fieldset>';
+                }
+                else {
+                    return '<fieldset><legend>' + lang['quote'] + ': ' + x.replace(/^"(.*?)"?$/, "$1") + '</legend>' + y + '</fieldset>';
+                }
+            });
+        };
+
+        // spoiler
+        const spoiler_reg1 = new RegExp("\\[spoiler\\](.*?)\\[/spoiler\\]", "gsi");
+        const spoiler_reg2 = new RegExp("\\[spoiler=([^\\]]+)\\](.*?)\\[/spoiler\\]", "gsi");
+        while (spoiler_reg1.test(bbcodestr)) {
+            bbcodestr = bbcodestr.replace(spoiler_reg1, function (s, x) {
+                return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
+                    + lang['spoiler'] + '&nbsp;&nbsp;'
+                    + '<button class="spoiler-button-show" style="display: none;">' + lang['spoiler_button_1'] + '</button>'
+                    + '<button class="spoiler-button-hide">' + lang['spoiler_button_2'] + '</button>'
+                    + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
+                    + x + '</span></td></tr></tbody></table>';
+            });
+        };
+        while (spoiler_reg2.test(bbcodestr)) {
+            bbcodestr = bbcodestr.replace(spoiler_reg2, function (s, x, y) {
+                if (f_reg.test(x)) {
+                    return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
+                        + lang['spoiler'] + '&nbsp;&nbsp;'
+                        + '<button class="spoiler-button-show" style="display: none;">' + lang['spoiler_button_1'] + '</button>'
+                        + '<button class="spoiler-button-hide">' + lang['spoiler_button_2'] + '</button>'
+                        + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
+                        + y + '</span></td></tr></tbody></table>';
+                }
+                else {
+                    return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
+                        + x.replace(/^"(.*?)"?$/, "$1") + '&nbsp;&nbsp;'
+                        + '<button class="spoiler-button-show" style="display: none;">' + lang['spoiler_button_1'] + '</button>'
+                        + '<button class="spoiler-button-hide">' + lang['spoiler_button_2'] + '</button>'
+                        + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
+                        + y + '</span></td></tr></tbody></table>';
+                }
+            });
+        };
+
+        // 表情
+        const em_reg = new RegExp("\\[(em[1-9][0-9]*)\\]", "gi");
+        bbcodestr = bbcodestr.replace(em_reg, function (s, x) {
+            switch (x) {
+                case (x.match(/^em[1-9][0-9]*/i) || {}).input:
+                    return '<img src="pic/smilies/' + x.replace("em", "") + '.gif" alt="[' + x + ']">';
+                default:
+                    return s;
+            }
+        })
+
+        for (let i = 0, len = tempCode.length; i < len; i++) {
+            // console.log(i + " : " + tempCode[i]);
+            bbcodestr = bbcodestr.replace("<tempCode_" + i + ">", tempCode[i]);
+        }
+
+        bbcodestr = bbcodestr.replace(/p3F#oW2@cEn_JHstp-&37DgD/g, "");
+
+        if (/(<br>)$/.test(bbcodestr)) { bbcodestr = bbcodestr + '<br>' }
+
+        // console.log(bbcodestr);
+        // console.log(tempCode);
+
+        return bbcodestr;
+    }
+
+    function init() {
+        var h1 = $('.codebuttons').eq(6).parent().html();
+        var h2 = $('.codebuttons').eq(7).parent().html();
+        var h3 = $('.codebuttons').eq(8).parent().html();
+        $('.codebuttons').eq(8).parent().remove();
+        $('.codebuttons').eq(7).parent().remove();
+        $('.codebuttons').eq(6).parent().remove();
+
+        $('.codebuttons').eq(2).parent().after('<td class="embedded"><input class="codebuttons" style="text-decoration: line-through;'
+            + 'font-size:11px;margin-right:3px" type="button" value="S" onclick="onEditorActionS(\'descr\', \'EDITOR_S\')">');
+
+        $('.codebuttons').eq(5).parent()
+            .after('<td class="embedded"><input class="codebuttons" style="'
+                + 'font-size:11px;margin-right:3px" type="button" value="CODE" onclick="onEditorActionS(\'descr\', \'EDITOR_CODE\')">')
+            .after('<td class="embedded"><input class="codebuttons" style="'
+                + 'font-size:11px;margin-right:3px" type="button" value="PRE" onclick="onEditorActionS(\'descr\', \'EDITOR_PRE\')">')
+            .after('<td class="embedded"><input class="codebuttons" style="'
+                + 'font-size:11px;margin-right:3px" type="button" value="LIST" onclick="onEditorActionS(\'descr\', \'EDITOR_LIST\')">')
+            .after('<td class="embedded"><input class="codebuttons" style="'
+                + 'font-size:11px;margin-right:3px" type="button" value="RT*" onclick="onEditorActionS(\'descr\', \'EDITOR_RT\')">');
+
+        $('.codebuttons').eq(10).attr("onclick", "onEditorActionS('descr','EDITOR_QUOTE')");
+
+        $('.codebuttons').eq(10).parent()
+            .after('<td class="embedded"><input class="codebuttons" style="'
+                + 'font-size:11px;margin-right:3px" type="button" value="SPOILER*" onclick="onEditorActionS(\'descr\', \'EDITOR_SPOILER+\')">')
+            .after('<td class="embedded"><input class="codebuttons" style="'
+                + 'font-size:11px;margin-right:3px" type="button" value="SPOILER" onclick="onEditorActionS(\'descr\', \'EDITOR_SPOILER\')">')
+            .after('<td class="embedded"><input class="codebuttons" style="'
+                + 'font-size:11px;margin-right:3px" type="button" value="MEDIAINFO" onclick="onEditorActionS(\'descr\', \'EDITOR_MEDIAINFO\')">')
+            .after('<td class="embedded"><input class="codebuttons" style="'
+                + 'font-size:11px;margin-right:3px" type="button" value="INFO" onclick="onEditorActionS(\'descr\', \'EDITOR_INFO\')">')
+            .after('<td class="embedded"><input class="codebuttons" style="'
+                + 'font-size:11px;margin-right:3px" type="button" value="QUOTE*" onclick="onEditorActionS(\'descr\', \'EDITOR_QUOTE+\')">');
+
+        $('.codebuttons').eq(4)
+            .attr("onclick", "onEditorActionS('descr','EDITOR_URL')")
+            .parent().after('<td class="embedded"><input class="codebuttons" style="'
+                + 'font-size:11px;margin-right:3px" type="button" value="URL*" onclick="onEditorActionS(\'descr\', \'EDITOR_URL+\')">');
+
+        $('.codebuttons').parents('td:not(.embedded,.rowfollow,.text,.outer)').append('<div id="select_list" style="margin-top:4px; float:left;>'
+            + '<table cellspacing="1" cellpadding="2" border="0"><tbody><tr><td class="embedded">'
+            + h1
+            + '</td><td class="embedded">'
+            + h2
+            + '</td><td class="embedded">'
+            + h3
+            + '</td></tr></tbody></table></div>');
+
+        const margin = $('.codebuttons').parents('tbody').eq(0).width() - $("#select_list").width() - 2.6;
+        $("#select_list").css("margin-left", margin + "px");
+
+        $('body').append(
+            '<script type="text/javascript">\n\
+    function onEditorActionS(textAreaId, action, param) {\n\
+        var textArea = document.querySelector(".bbcode");\n\
+        var selStart = textArea.selectionStart;\n\
+        var selEnd = textArea.selectionEnd;\n\
+        var selectionText, url;\n\
+        if (selStart === null || selEnd === null) {\n\
+            selStart = selEnd = textArea.value.length;\n\
+        }\n\
+        switch (action) {\n\
+            case "EDITOR_S": {\n\
+                addTag(textArea, "s", null, "", true);\n\
+                break;\n\
+            }\n\
+            case "EDITOR_INFO": {\n\
+                addTag(textArea, "info", null, "", true);\n\
+                break;\n\
+            }\n\
+            case "EDITOR_MEDIAINFO": {\n\
+                addTag(textArea, "mediainfo", null, "", true);\n\
+                break;\n\
+            }\n\
+            case "EDITOR_PRE": {\n\
+                addTag(textArea, "pre", null, "", true);\n\
+                break;\n\
+            }\n\
+            case "EDITOR_CODE": {\n\
+                addTag(textArea, "code", null, "", true);\n\
+                break;\n\
+            }\n\
+            case "EDITOR_RT": {\n\
+                if (selStart !== selEnd) {\n\
+                    var title = window.prompt("'+ lang['rt_text'] + '");\n\
+                    if (title === null || title.length === 0) {\n\
+                        break;\n\
+                    }\n\
+                    selectionText = textArea.value.substring(selStart, selEnd);\n\
+                    console.log(selectionText);\n\
+                    addTag(textArea, "rt", title, selectionText, false);\n\
+                    // break;\n\
+                } else {\n\
+                    text = window.prompt("'+ lang['main_body'] + '");\n\
+                    if (text === null || text.length === 0) {\n\
+                        break;\n\
+                    }\n\
+                    var title = window.prompt("'+ lang['rt_text'] + '");\n\
+                    if (title === null || title.length === 0) {\n\
+                        break;\n\
+                    }\n\
+                    addTag(textArea, "rt", title, text, false);\n\
+                }\n\
+                break;\n\
+            }\n\
+            case "EDITOR_QUOTE+": {\n\
+                if (selStart !== selEnd) {\n\
+                    var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
+                    if (title === null || title.length === 0) {\n\
+                        title = "";\n\
+                    }\n\
+                    selectionText = textArea.value.substring(selStart, selEnd);\n\
+                    // addTag(textArea, "quote", null, "", true);\n\
+                    addTag(textArea, "quote", title, selectionText, false);\n\
+                } else {\n\
+                    text = window.prompt("' + lang['main_body'] + '");\n\
+                    if (text === null || text.length === 0) {\n\
+                        break;\n\
+                    }\n\
+                    var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
+                    if (title === null || title.length === 0) {\n\
+                        title = "";\n\
+                    }\n\
+                    addTag(textArea, "quote", title, text, false);\n\
+                }\n\
+                break;\n\
+            }\n\
+            case "EDITOR_URL+": {\n\
+                if (selStart !== selEnd) {\n\
+                    var title = window.prompt("' + lang['url_name'] + '");\n\
+                    if (title === null || title.length === 0) {\n\
+                        // selectionText = textArea.value.substring(selStart, selEnd);\n\
+                        addTag(textArea, "url", null, "", true);\n\
+                        break;\n\
+                    }\n\
+                    selectionText = textArea.value.substring(selStart, selEnd);\n\
+                    addTag(textArea, "url", selectionText, title, false);\n\
+                } else {\n\
+                    text = window.prompt("' + lang['url_link'] + '");\n\
+                    if (text === null || text.length === 0) {\n\
+                        break;\n\
+                    }\n\
+                    var title = window.prompt("' + lang['url_name'] + '");\n\
+                    if (title === null || title.length === 0) {\n\
+                        title = "";\n\
+                        addTag(textArea, "url", null, text, false);\n\
+                        break;\n\
+                    }\n\
+                    addTag(textArea, "url", text, title, false);\n\
+                }\n\
+                break;\n\
+            }\n\
+            case "EDITOR_SPOILER+": {\n\
+                if (selStart !== selEnd) {\n\
+                    var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
+                    if (title === null || title.length === 0) {\n\
+                        addTag(textArea, "spoiler", null, "", true);\n\
+                        break;\n\
+                    }\n\
+                    selectionText = textArea.value.substring(selStart, selEnd);\n\
+                    // addTag(textArea, "spoiler", null, "", true);\n\
+                    addTag(textArea, "spoiler", title, selectionText, false);\n\
+                } else {\n\
+                    text = window.prompt("' + lang['main_body'] + '");\n\
+                    if (text === null || text.length === 0) {\n\
+                        break;\n\
+                    }\n\
+                    var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
+                    if (title === null || title.length === 0) {\n\
+                        title = "";\n\
+                        addTag(textArea, "spoiler", null, text, false);\n\
+                        break;\n\
+                    }\n\
+                    addTag(textArea, "spoiler", title, text, false);\n\
+                }\n\
+                break;\n\
+            }\n\
+            case "EDITOR_SPOILER": {\n\
+                if (selStart !== selEnd) {\n\
+                    addTag(textArea, "spoiler", null, "", true);\n\
+                } else {\n\
+                    text = window.prompt("' + lang['main_body'] + '");\n\
+                    if (text === null || text.length === 0) {\n\
+                        break;\n\
+                    }\n\
+                    // var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
+                    // if (title === null || title.length === 0) {\n\
+                    //     title = "";\n\
+                    // }\n\
+                    addTag(textArea, "spoiler", null, text, false);\n\
+                }\n\
+                break;\n\
+            }\n\
+            case "EDITOR_QUOTE": {\n\
+                if (selStart !== selEnd) {\n\
+                    selectionText = textArea.value.substring(selStart, selEnd);\n\
+                    addTag(textArea, "quote", null, "", true);\n\
+                } else {\n\
+                    text = window.prompt("' + lang['main_body'] + '");\n\
+                    if (text === null || text.length === 0) {\n\
+                        break;\n\
+                    }\n\
+                    // var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
+                    // if (title === null || title.length === 0) {\n\
+                    //     title = "";\n\
+                    // }\n\
+                    addTag(textArea, "quote", null, text, false);\n\
+                }\n\
+                break;\n\
+            }\n\
+            case "EDITOR_URL": {\n\
+                if (selStart !== selEnd) {\n\
+                    // selectionText = textArea.value.substring(selStart, selEnd);\n\
+                    addTag(textArea, "url", null, "", true);\n\
+                } else {\n\
+                    text = window.prompt("' + lang['url_link'] + '");\n\
+                    if (text === null || text.length === 0) {\n\
+                        break;\n\
+                    }\n\
+                    addTag(textArea, "url", null, text, false);\n\
+                }\n\
+                break;\n\
+            }\n\
+            case "EDITOR_LIST": {\n\
+                if (selStart !== selEnd) {\n\
+                    break;\n\
+                }\n\
+                addTag(textArea, "*", null, null, true);\n\
+                break;\n\
+            }\n\
+        }\n\
+        textArea.focus();\n\
+    }</script>'
+        );
+    }
 })();
 
 
@@ -207,490 +694,93 @@ async function sleep(interval) {
 }
 
 
-function bbcode2html(bbcodestr) {
-    const f_reg = new RegExp("^\"?\"?$");
-
-    var tempCode = new Array();
-    var tempCodeCount = 0;
-
-    function addTempCode(value) {
-        tempCode[tempCodeCount] = value;
-        let returnstr = "<tempCode_" + tempCodeCount + ">";
-        tempCodeCount++;
-        return returnstr;
+function lang_init(lang) {
+    var lang_json = {
+        "zh_CN": {
+            "quote": "引用",
+            "info": "发布信息",
+            "mediainfo": "媒体信息",
+            "code": "代码",
+            "spoiler": "警告！下列文字很可能泄露剧情，请谨慎选择是否观看。",
+            "spoiler_button_1": "我就是手贱",
+            "spoiler_button_2": "我真是手贱",
+            "main_title": "主标题",
+            "rt_text": "请输入上标",
+            "main_body": "请输入正文",
+            "main_body_prefix": "请输入标题",
+            "url_name": "请输入网址名称",
+            "url_link": "请输入网址链接",
+            "select_type": "请选择分类...",
+            "preview": "预览"
+        },
+        "zh_TW": {
+            "quote": "引用",
+            "info": "發佈訊息",
+            "mediainfo": "媒體訊息",
+            "code": "代碼",
+            "spoiler": "警告！下列文字很可能洩露劇情，請謹慎選擇是否觀看。",
+            "spoiler_button_1": "我就是手賤",
+            "spoiler_button_2": "我真是手賤",
+            "main_title": "主標題",
+            "rt_text": "請輸入上標",
+            "main_body": "請輸入正文",
+            "main_body_prefix": "請輸入標題",
+            "url_name": "請輸入網址名稱",
+            "url_link": "請輸入網址連結",
+            "select_type": "請選擇分類...",
+            "preview": "預覽"
+        },
+        "zh_HK": {
+            "quote": "引用",
+            "info": "發佈訊息",
+            "mediainfo": "媒體訊息",
+            "code": "代碼",
+            "spoiler": "警告！下列文字很可能洩露劇情，請謹慎選擇是否觀看。",
+            "spoiler_button_1": "我就是手賤",
+            "spoiler_button_2": "我真是手賤",
+            "main_title": "主標題",
+            "rt_text": "請輸入上標",
+            "main_body": "請輸入正文",
+            "main_body_prefix": "請輸入標題",
+            "url_name": "請輸入網址名稱",
+            "url_link": "請輸入網址鏈接",
+            "select_type": "請選擇分類...",
+            "preview": "預覽"
+        },
+        "en_US": {
+            "quote": "Quote",
+            "info": "Infobox",
+            "mediainfo": "Media Info",
+            "code": "CODE",
+            "spoiler": "Warning! This section contains spoiler!",
+            "spoiler_button_1": "I agree to view this.",
+            "spoiler_button_2": "Hide this.",
+            "main_title": "Main Title",
+            "rt_text": "Please enter superscript",
+            "main_body": "Please enter the text",
+            "main_body_prefix": "Please enter a title",
+            "url_name": "Please enter the URL name",
+            "url_link": "Please enter the URL link",
+            "select_type": "Please select a type.",
+            "preview": "Preview"
+        },
+        "ru_RU": {
+            "quote": "Цитата",
+            "info": "Отправленные",
+            "mediainfo": "Данные о Медиа",
+            "code": "CODE",
+            "spoiler": "Предупреждение! Данный раздел содержит СПОЙЛЕРЫ!",
+            "spoiler_button_1": "I agree to view this.",
+            "spoiler_button_2": "Hide this.",
+            "main_title": "Основное название",
+            "rt_text": "请输入上标",
+            "main_body": "Пожалуйста, введите надстрочный индекс",
+            "main_body_prefix": "请输入标题",
+            "url_name": "Пожалуйста, введите название",
+            "url_link": "Пожалуйста, введите URL-ссылку",
+            "select_type": "выберите тип ...",
+            "preview": "Предварительный просмотр"
+        }
     }
-
-    const escape_reg = new RegExp("[&\"\'<>]", "g");
-    bbcodestr = bbcodestr.replace(escape_reg, function (s, x) {
-        switch (s) {
-            case '&':
-                return '&amp;';
-            case '"':
-                return '&quot;';
-            case "'":
-                return '&#039;';
-            case '<':
-                return '&lt;';
-            case '>':
-                return '&gt;';
-            default:
-                return s;
-        }
-    });
-
-    bbcodestr = bbcodestr.replace(/\r\n/g, () => { return '<br>' });
-    bbcodestr = bbcodestr.replace(/\n/g, () => { return '<br>' });
-    bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
-
-    // code 标签
-    const code_reg = new RegExp("\\[code\\](.+?)\\[\\/code\\]", "gis");
-    bbcodestr = bbcodestr.replace(code_reg, function (s, x) {
-        return addTempCode('<br /><div class="codetop">代码</div><div class="codemain">' + x + '</div><br />');
-    });
-
-    // info 标签
-    const info_reg = new RegExp("\\[(mediainfo|info)\\](.+?)\\[\\/(\\1)\\]", "gis");
-    bbcodestr = bbcodestr.replace(info_reg, function (s, x, y) {
-        switch (x) {
-            case 'info':
-                return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: blue">发布信息</span>'
-                    + '</b></legend>' + y + '</fieldset>');
-            case 'mediainfo':
-                return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">媒体信息</span>'
-                    + '</b></legend>' + y + '</fieldset>');
-            default:
-                return s;
-        }
-    });
-
-    // 单个标签 不带参
-    const o_reg = new RegExp("\\[(\\*|siteurl|site)\\]", "gi");
-    bbcodestr = bbcodestr.replace(o_reg, function (s, x, y) {
-        switch (x) {
-            case '*':
-                return '<img class="listicon listitem" src="pic/trans.gif" alt="list">';
-            case 'site':
-                return 'U2分享園@動漫花園';
-            case 'siteurl':
-                return 'https://u2.dmhy.org';
-            default:
-                return s;
-        }
-    });
-
-    // 成对标签 带参
-    const d_reg = new RegExp("\\[(rt|font)=([^\\]]+)\\](.*?)\\[(/\\1)\\]", "gis");
-    while (d_reg.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(d_reg, function (s, w, x, y, z) {
-            switch (w) {
-                case 'rt':
-                    if (f_reg.test(x)) {
-                        return '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + w) + '=' + x + ']'
-                            + y + '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + z) + ']'
-                    }
-                    else {
-                        return '<ruby>' + y + '<rp>(</rp><rt>' + x.replace(/^"?(.*?)"?$/, "$1") + '</rt><rp>)</rp></ruby>';
-                    }
-                case 'font':
-                    if (f_reg.test(x)) {
-                        return '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + w) + '=' + x + ']'
-                            + y + '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + z) + ']';
-                    }
-                    else {
-                        return '<span style="font-family: ' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</span>';
-                    }
-                default:
-                    return s;
-            }
-        })
-    };
-
-    // 成对标签 不带参
-    const a_reg = new RegExp("\\[(pre|b|i|u|s)\\](.*?)\\[/(\\1)\\]", "gs");
-    while (a_reg.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(a_reg, function (s, x, y, z) {
-            switch (x) {
-                case 'b':
-                    return '<b>' + y + '</b>';
-                case 'i':
-                    return '<em>' + y + '</em>';
-                case 'u':
-                    return '<u>' + y + '</u>';
-                case 's':
-                    return '<s>' + y + '</s>';
-                case 'pre':
-                    return '<pre>' + y + '</pre>';
-                default:
-                    return s;
-            }
-        })
-    };
-
-    // 颜色
-    const color_reg = new RegExp("\\[color=\"?([#0-9a-z]{1,15}|[a-z]+?)\"?\\](.*?)\\[/color\\]", "gis");
-    while (color_reg.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(color_reg, function (s, x, y) {
-            return '<span style="color: ' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</span>';
-        })
-    };
-
-    // 文字大小
-    const size_reg = new RegExp("\\[size=\"?([1-7])\"?\\](.*?)\\[/size\\]", "gis");
-    while (size_reg.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(size_reg, function (s, x, y) {
-            return '<font size="' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</font>';
-        })
-    };
-
-    // 图片
-    bbcodestr = bbcodestr.replace(/\[(img|imglnk)\]([^\]]+)\[\/(?:\1)\]/gi, function (s, x, y) {
-        if (/^https?:\/\/((?!&lt;|&gt;|\s|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(y)) {
-            switch (x) {
-                case 'img':
-                    return addTempCode('<img alt="image" src="' + y + '" style="height: auto; width: auto; max-width: 100%;">');
-                case 'imglnk':
-                    return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="'
-                        + y + '" style="height: auto; width: auto; max-width: 100%;"></a>');
-            }
-        } else {
-            return addTempCode(s)
-        }
-    });
-
-    bbcodestr = bbcodestr.replace(/\[img=([^\]]+)\]/gi, function (s, x) {
-        if (/^https?:\/\/((?!&lt;|&gt;|\s|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(x)) {
-            return addTempCode('<img alt="image" src="' + x + '" style="height: auto; width: auto; max-width: 100%;">');
-        } else {
-            return addTempCode(s)
-        }
-    });
-
-    // 超链接
-    bbcodestr = bbcodestr.replace(/\[url=((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\](.+?)\[\/url\]/gis, function (s, x, y, z) {
-        return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + z + '</a>');
-    });
-
-    bbcodestr = bbcodestr.replace(/\[url\]((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\[\/url\]/gis, function (s, x) {
-        return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + x + '</a>')
-    });
-
-    bbcodestr = bbcodestr.replace(/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)/gi, function (s, x) {
-        return '<a class="faqlink" rel="nofollow noopener noreferer" href="' + s + '">' + s + '</a>';
-    });
-
-    // 引用
-    const quote_reg1 = new RegExp("\\[quote\\](.*?)\\[/quote\\]", "gsi");
-    while (quote_reg1.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(quote_reg1, function (s, x) {
-            return '<fieldset><legend>引用</legend>' + x + '</fieldset>';
-        });
-    };
-    const quote_reg2 = new RegExp("\\[quote=([^\\]]*)\\](.*?)\\[/quote\\]", "gsi");
-    while (quote_reg2.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(quote_reg2, function (s, x, y) {
-            if (f_reg.test(x)) {
-                return '<fieldset><legend>引用</legend>' + y + '</fieldset>';
-            }
-            else {
-                return '<fieldset><legend>引用: ' + x.replace(/^"(.*?)"?$/, "$1") + '</legend>' + y + '</fieldset>';
-            }
-        });
-    };
-
-    // spoiler
-    const spoiler_reg1 = new RegExp("\\[spoiler\\](.*?)\\[/spoiler\\]", "gsi");
-    const spoiler_reg2 = new RegExp("\\[spoiler=([^\\]]+)\\](.*?)\\[/spoiler\\]", "gsi");
-    while (spoiler_reg1.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(spoiler_reg1, function (s, x) {
-            return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-                + '警告！下列文字很可能泄露剧情，请谨慎选择是否观看。&nbsp;&nbsp;'
-                + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
-                + '<button class="spoiler-button-hide">我真是手贱</button>'
-                + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
-                + x + '</span></td></tr></tbody></table>';
-        });
-    };
-    while (spoiler_reg2.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(spoiler_reg2, function (s, x, y) {
-            if (f_reg.test(x)) {
-                return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-                    + '警告！下列文字很可能泄露剧情，请谨慎选择是否观看。&nbsp;&nbsp;'
-                    + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
-                    + '<button class="spoiler-button-hide">我真是手贱</button>'
-                    + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
-                    + y + '</span></td></tr></tbody></table>';
-            }
-            else {
-                return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-                    + x.replace(/^"(.*?)"?$/, "$1") + '&nbsp;&nbsp;'
-                    + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
-                    + '<button class="spoiler-button-hide">我真是手贱</button>'
-                    + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
-                    + y + '</span></td></tr></tbody></table>';
-            }
-        });
-    };
-
-    // 表情
-    const em_reg = new RegExp("\\[(em[1-9][0-9]*)\\]", "gi");
-    bbcodestr = bbcodestr.replace(em_reg, function (s, x) {
-        switch (x) {
-            case (x.match(/^em[1-9][0-9]*/i) || {}).input:
-                return '<img src="pic/smilies/' + x.replace("em", "") + '.gif" alt="[' + x + ']">';
-            default:
-                return s;
-        }
-    })
-
-    for (let i = 0, len = tempCode.length; i < len; i++) {
-        // console.log(i + " : " + tempCode[i]);
-        bbcodestr = bbcodestr.replace("<tempCode_" + i + ">", tempCode[i]);
-    }
-
-    bbcodestr = bbcodestr.replace(/p3F#oW2@cEn_JHstp-&37DgD/g, "");
-
-    if (/(<br>)$/.test(bbcodestr)) { bbcodestr = bbcodestr + '<br>' }
-
-    // console.log(bbcodestr);
-    // console.log(tempCode);
-
-    return bbcodestr;
-}
-
-
-function init() {
-    var h1 = $('.codebuttons').eq(6).parent().html();
-    var h2 = $('.codebuttons').eq(7).parent().html();
-    var h3 = $('.codebuttons').eq(8).parent().html();
-    $('.codebuttons').eq(8).parent().remove();
-    $('.codebuttons').eq(7).parent().remove();
-    $('.codebuttons').eq(6).parent().remove();
-
-    $('.codebuttons').eq(2).parent().after('<td class="embedded"><input class="codebuttons" style="text-decoration: line-through;'
-        + 'font-size:11px;margin-right:3px" type="button" value="S" onclick="onEditorActionS(\'descr\', \'EDITOR_S\')">');
-
-    $('.codebuttons').eq(5).parent()
-        .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="CODE" onclick="onEditorActionS(\'descr\', \'EDITOR_CODE\')">')
-        .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="PRE" onclick="onEditorActionS(\'descr\', \'EDITOR_PRE\')">')
-        .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="LIST" onclick="onEditorActionS(\'descr\', \'EDITOR_LIST\')">')
-        .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="RT*" onclick="onEditorActionS(\'descr\', \'EDITOR_RT\')">');
-
-    $('.codebuttons').eq(10).attr("onclick", "onEditorActionS('descr','EDITOR_QUOTE')");
-
-    $('.codebuttons').eq(10).parent()
-        .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="SPOILER*" onclick="onEditorActionS(\'descr\', \'EDITOR_SPOILER+\')">')
-        .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="SPOILER" onclick="onEditorActionS(\'descr\', \'EDITOR_SPOILER\')">')
-        .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="MEDIAINFO" onclick="onEditorActionS(\'descr\', \'EDITOR_MEDIAINFO\')">')
-        .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="INFO" onclick="onEditorActionS(\'descr\', \'EDITOR_INFO\')">')
-        .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="QUOTE*" onclick="onEditorActionS(\'descr\', \'EDITOR_QUOTE+\')">');
-
-    $('.codebuttons').eq(4)
-        .attr("onclick", "onEditorActionS('descr','EDITOR_URL')")
-        .parent().after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="URL*" onclick="onEditorActionS(\'descr\', \'EDITOR_URL+\')">');
-
-    $('.codebuttons').parents('td:not(.embedded,.rowfollow,.text,.outer)').append('<div id="select_list" style="margin-top:4px; float:left;>'
-        + '<table cellspacing="1" cellpadding="2" border="0"><tbody><tr><td class="embedded">'
-        + h1
-        + '</td><td class="embedded">'
-        + h2
-        + '</td><td class="embedded">'
-        + h3
-        + '</td></tr></tbody></table></div>');
-
-    const margin = $('.codebuttons').parents('tbody').eq(0).width() - $("#select_list").width() - 2.6;
-    $("#select_list").css("margin-left", margin + "px");
-
-    $('body').append(
-        '<script type="text/javascript">\n\
-function onEditorActionS(textAreaId, action, param) {\n\
-    var textArea = document.querySelector(".bbcode");\n\
-    var selStart = textArea.selectionStart;\n\
-    var selEnd = textArea.selectionEnd;\n\
-    var selectionText, url;\n\
-    if (selStart === null || selEnd === null) {\n\
-        selStart = selEnd = textArea.value.length; //选中区域右边界\n\
-    }\n\
-    switch (action) {\n\
-        case "EDITOR_S": {\n\
-            addTag(textArea, "s", null, "", true);\n\
-            break;\n\
-        }\n\
-        case "EDITOR_INFO": {\n\
-            addTag(textArea, "info", null, "", true);\n\
-            break;\n\
-        }\n\
-        case "EDITOR_MEDIAINFO": {\n\
-            addTag(textArea, "mediainfo", null, "", true);\n\
-            break;\n\
-        }\n\
-        case "EDITOR_PRE": {\n\
-            addTag(textArea, "pre", null, "", true);\n\
-            break;\n\
-        }\n\
-        case "EDITOR_CODE": {\n\
-            addTag(textArea, "code", null, "", true);\n\
-            break;\n\
-        }\n\
-        case "EDITOR_RT": {\n\
-            if (selStart !== selEnd) {\n\
-                var title = window.prompt("请输入上标");\n\
-                if (title === null || title.length === 0) {\n\
-                    break;\n\
-                }\n\
-                selectionText = textArea.value.substring(selStart, selEnd);\n\
-                console.log(selectionText);\n\
-                addTag(textArea, "rt", title, selectionText, false);\n\
-                // break;\n\
-            } else {\n\
-                text = window.prompt("请输入正文");\n\
-                if (text === null || text.length === 0) {\n\
-                    break;\n\
-                }\n\
-                var title = window.prompt("请输入上标");\n\
-                if (title === null || title.length === 0) {\n\
-                    break;\n\
-                }\n\
-                addTag(textArea, "rt", title, text, false);\n\
-            }\n\
-            break;\n\
-        }\n\
-        case "EDITOR_QUOTE+": {\n\
-            if (selStart !== selEnd) {\n\
-                var title = window.prompt("请输入标题");\n\
-                if (title === null || title.length === 0) {\n\
-                    title = "";\n\
-                }\n\
-                selectionText = textArea.value.substring(selStart, selEnd);\n\
-                // addTag(textArea, "quote", null, "", true);\n\
-                addTag(textArea, "quote", title, selectionText, false);\n\
-            } else {\n\
-                text = window.prompt("请输入正文");\n\
-                if (text === null || text.length === 0) {\n\
-                    break;\n\
-                }\n\
-                var title = window.prompt("请输入标题");\n\
-                if (title === null || title.length === 0) {\n\
-                    title = "";\n\
-                }\n\
-                addTag(textArea, "quote", title, text, false);\n\
-            }\n\
-            break;\n\
-        }\n\
-        case "EDITOR_URL+": {\n\
-            if (selStart !== selEnd) {\n\
-                var title = window.prompt("请输入网址名称");\n\
-                if (title === null || title.length === 0) {\n\
-                    // selectionText = textArea.value.substring(selStart, selEnd);\n\
-                    addTag(textArea, "url", null, "", true);\n\
-                    break;\n\
-                }\n\
-                selectionText = textArea.value.substring(selStart, selEnd);\n\
-                addTag(textArea, "url", selectionText, title, false);\n\
-            } else {\n\
-                text = window.prompt("请输入网址链接");\n\
-                if (text === null || text.length === 0) {\n\
-                    break;\n\
-                }\n\
-                var title = window.prompt("请输入网址名称");\n\
-                if (title === null || title.length === 0) {\n\
-                    title = "";\n\
-                    addTag(textArea, "url", null, text, false);\n\
-                    break;\n\
-                }\n\
-                addTag(textArea, "url", text, title, false);\n\
-            }\n\
-            break;\n\
-        }\n\
-        case "EDITOR_SPOILER+": {\n\
-            if (selStart !== selEnd) {\n\
-                var title = window.prompt("请输入标题");\n\
-                if (title === null || title.length === 0) {\n\
-                    addTag(textArea, "spoiler", null, "", true);\n\
-                    break;\n\
-                }\n\
-                selectionText = textArea.value.substring(selStart, selEnd);\n\
-                // addTag(textArea, "spoiler", null, "", true);\n\
-                addTag(textArea, "spoiler", title, selectionText, false);\n\
-            } else {\n\
-                text = window.prompt("请输入正文");\n\
-                if (text === null || text.length === 0) {\n\
-                    break;\n\
-                }\n\
-                var title = window.prompt("请输入标题");\n\
-                if (title === null || title.length === 0) {\n\
-                    title = "";\n\
-                    addTag(textArea, "spoiler", null, text, false);\n\
-                    break;\n\
-                }\n\
-                addTag(textArea, "spoiler", title, text, false);\n\
-            }\n\
-            break;\n\
-        }\n\
-        case "EDITOR_SPOILER": {\n\
-            if (selStart !== selEnd) {\n\
-                addTag(textArea, "spoiler", null, "", true);\n\
-            } else {\n\
-                text = window.prompt("请输入正文");\n\
-                if (text === null || text.length === 0) {\n\
-                    break;\n\
-                }\n\
-                // var title = window.prompt("请输入标题");\n\
-                // if (title === null || title.length === 0) {\n\
-                //     title = "";\n\
-                // }\n\
-                addTag(textArea, "spoiler", null, text, false);\n\
-            }\n\
-            break;\n\
-        }\n\
-        case "EDITOR_QUOTE": {\n\
-            if (selStart !== selEnd) {\n\
-                selectionText = textArea.value.substring(selStart, selEnd);\n\
-                addTag(textArea, "quote", null, "", true);\n\
-            } else {\n\
-                text = window.prompt("请输入正文");\n\
-                if (text === null || text.length === 0) {\n\
-                    break;\n\
-                }\n\
-                // var title = window.prompt("请输入标题");\n\
-                // if (title === null || title.length === 0) {\n\
-                //     title = "";\n\
-                // }\n\
-                addTag(textArea, "quote", null, text, false);\n\
-            }\n\
-            break;\n\
-        }\n\
-        case "EDITOR_URL": {\n\
-            if (selStart !== selEnd) {\n\
-                // selectionText = textArea.value.substring(selStart, selEnd);\n\
-                addTag(textArea, "url", null, "", true);\n\
-            } else {\n\
-                text = window.prompt("请输入网址链接");\n\
-                if (text === null || text.length === 0) {\n\
-                    break;\n\
-                }\n\
-                addTag(textArea, "url", null, text, false);\n\
-            }\n\
-            break;\n\
-        }\n\
-        case "EDITOR_LIST": {\n\
-            if (selStart !== selEnd) {\n\
-                break;\n\
-            }\n\
-            addTag(textArea, "*", null, null, true);\n\
-            break;\n\
-        }\n\
-    }\n\
-    textArea.focus();\n\
-}</script>'
-    );
+    return lang_json[lang]
 }
