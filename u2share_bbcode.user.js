@@ -477,13 +477,13 @@ function init() {
         .after('<td class="embedded"><input class="codebuttons" style="'
             + 'font-size:11px;margin-right:3px" type="button" value="LIST" onclick="onEditorActionS(\'descr\', \'EDITOR_LIST\')">')
         .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="RT+" onclick="onEditorActionS(\'descr\', \'EDITOR_RT\')">');
+            + 'font-size:11px;margin-right:3px" type="button" value="RT*" onclick="onEditorActionS(\'descr\', \'EDITOR_RT\')">');
 
     $('.codebuttons').eq(10).attr("onclick", "onEditorActionS('descr','EDITOR_QUOTE')");
 
     $('.codebuttons').eq(10).parent()
         .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="SPOILER+" onclick="onEditorActionS(\'descr\', \'EDITOR_SPOILER+\')">')
+            + 'font-size:11px;margin-right:3px" type="button" value="SPOILER*" onclick="onEditorActionS(\'descr\', \'EDITOR_SPOILER+\')">')
         .after('<td class="embedded"><input class="codebuttons" style="'
             + 'font-size:11px;margin-right:3px" type="button" value="SPOILER" onclick="onEditorActionS(\'descr\', \'EDITOR_SPOILER\')">')
         .after('<td class="embedded"><input class="codebuttons" style="'
@@ -491,7 +491,7 @@ function init() {
         .after('<td class="embedded"><input class="codebuttons" style="'
             + 'font-size:11px;margin-right:3px" type="button" value="INFO" onclick="onEditorActionS(\'descr\', \'EDITOR_INFO\')">')
         .after('<td class="embedded"><input class="codebuttons" style="'
-            + 'font-size:11px;margin-right:3px" type="button" value="QUOTE+" onclick="onEditorActionS(\'descr\', \'EDITOR_QUOTE+\')">');
+            + 'font-size:11px;margin-right:3px" type="button" value="QUOTE*" onclick="onEditorActionS(\'descr\', \'EDITOR_QUOTE+\')">');
 
     $('.codebuttons').eq(4)
         .attr("onclick", "onEditorActionS('descr','EDITOR_URL')")
