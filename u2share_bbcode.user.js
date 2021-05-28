@@ -1,15 +1,21 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.2
+// @version      0.1.3
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
 // @match        *://u2.dmhy.org/upload.php*
 // @match        *://u2.dmhy.org/edit.php*
-// @match        *://u2.dmhy.org/forums.php?action=*
+// @match        *://u2.dmhy.org/forums.php?action=editpost*
+// @match        *://u2.dmhy.org/forums.php?action=reply*
+// @match        *://u2.dmhy.org/forums.php?action=quotepost*
 // @match        *://u2.dmhy.org/comment.php?action=*
 // @icon         https://u2.dmhy.org/favicon.ico
+// @updateURL    https://github.com/kysdm/u2_share/raw/main/u2share_bbcode.user.js
+// @installURL   https://github.com/kysdm/u2_share/raw/main/u2share_bbcode.user.js
+// @downloadURL  https://github.com/kysdm/u2_share/raw/main/u2share_bbcode.user.js
+// @license      Apache-2.0
 // ==/UserScript==
 
 /*
