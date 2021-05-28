@@ -11,6 +11,7 @@
 // @match        *://u2.dmhy.org/forums.php?action=reply*
 // @match        *://u2.dmhy.org/forums.php?action=quotepost*
 // @match        *://u2.dmhy.org/comment.php?action=*
+// @match        *://u2.dmhy.org/contactstaff.php
 // @icon         https://u2.dmhy.org/favicon.ico
 // @updateURL    https://github.com/kysdm/u2_share/raw/main/u2share_bbcode.user.js
 // @installURL   https://github.com/kysdm/u2_share/raw/main/u2share_bbcode.user.js
