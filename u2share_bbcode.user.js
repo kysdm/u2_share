@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.4
+// @version      0.1.5
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -493,6 +493,11 @@ function init() {
         .after('<td class="embedded"><input class="codebuttons" style="'
             + 'font-size:11px;margin-right:3px" type="button" value="QUOTE+" onclick="onEditorActionS(\'descr\', \'EDITOR_QUOTE+\')">');
 
+    $('.codebuttons').eq(4)
+        .attr("onclick", "onEditorActionS('descr','EDITOR_URL')")
+        .parent().after('<td class="embedded"><input class="codebuttons" style="'
+            + 'font-size:11px;margin-right:3px" type="button" value="URL*" onclick="onEditorActionS(\'descr\', \'EDITOR_URL+\')">');
+
     $('.codebuttons').parents('td:not(.embedded,.rowfollow,.text,.outer)').append('<div id="select_list" style="margin-top:4px; float:left;>'
         + '<table cellspacing="1" cellpadding="2" border="0"><tbody><tr><td class="embedded">'
         + h1
@@ -581,6 +586,31 @@ function onEditorActionS(textAreaId, action, param) {\n\
             }\n\
             break;\n\
         }\n\
+        case "EDITOR_URL+": {\n\
+            if (selStart !== selEnd) {\n\
+                var title = window.prompt("请输入网址名称");\n\
+                if (title === null || title.length === 0) {\n\
+                    // selectionText = textArea.value.substring(selStart, selEnd);\n\
+                    addTag(textArea, "url", null, "", true);\n\
+                    break;\n\
+                }\n\
+                selectionText = textArea.value.substring(selStart, selEnd);\n\
+                addTag(textArea, "url", selectionText, title, false);\n\
+            } else {\n\
+                text = window.prompt("请输入网址链接");\n\
+                if (text === null || text.length === 0) {\n\
+                    break;\n\
+                }\n\
+                var title = window.prompt("请输入网址名称");\n\
+                if (title === null || title.length === 0) {\n\
+                    title = "";\n\
+                    addTag(textArea, "url", null, text, false);\n\
+                    break;\n\
+                }\n\
+                addTag(textArea, "url", text, title, false);\n\
+            }\n\
+            break;\n\
+        }\n\
         case "EDITOR_SPOILER+": {\n\
             if (selStart !== selEnd) {\n\
                 var title = window.prompt("请输入标题");\n\
@@ -636,6 +666,19 @@ function onEditorActionS(textAreaId, action, param) {\n\
                 //     title = "";\n\
                 // }\n\
                 addTag(textArea, "quote", null, text, false);\n\
+            }\n\
+            break;\n\
+        }\n\
+        case "EDITOR_URL": {\n\
+            if (selStart !== selEnd) {\n\
+                // selectionText = textArea.value.substring(selStart, selEnd);\n\
+                addTag(textArea, "url", null, "", true);\n\
+            } else {\n\
+                text = window.prompt("请输入网址链接");\n\
+                if (text === null || text.length === 0) {\n\
+                    break;\n\
+                }\n\
+                addTag(textArea, "url", null, text, false);\n\
             }\n\
             break;\n\
         }\n\
