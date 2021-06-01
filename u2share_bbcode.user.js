@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.6
+// @version      0.1.7
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -576,14 +576,28 @@
             }\n\
             case "EDITOR_URL+": {\n\
                 if (selStart !== selEnd) {\n\
-                    var title = window.prompt("' + lang['url_name'] + '");\n\
-                    if (title === null || title.length === 0) {\n\
-                        // selectionText = textArea.value.substring(selStart, selEnd);\n\
-                        addTag(textArea, "url", null, "", true);\n\
-                        break;\n\
+                    selectionText = textArea.value.substring(selStart, selEnd); // 选中的文字\n\
+                    if (/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\\/\\/((?!&lt;|&gt;|\\s|"|>|\'|<|\\(|\\)|\\[|\\]).)+)/gi.test(selectionText)) {\n\
+                        // 选中的是URL时\n\
+                        var title = window.prompt("' + lang['url_name'] + '");\n\
+                        if (title === null || title.length === 0) {\n\
+                            // selectionText = textArea.value.substring(selStart, selEnd);\n\
+                            addTag(textArea, "url", null, "", true);\n\
+                            break;\n\
+                        } else {\n\
+                            addTag(textArea, "url", selectionText, title, false);\n\
+                        }\n\
+                    } else {\n\
+                        // 选中的是文字时\n\
+                        var url_link = window.prompt("' + lang['url_link'] + '");\n\
+                        if (url_link === null || url_link.length === 0) {\n\
+                            // selectionText = textArea.value.substring(selStart, selEnd);\n\
+                            // addTag(textArea, "url", null, "", true);\n\
+                            break;\n\
+                        } else {\n\
+                            addTag(textArea, "url", url_link, selectionText, false);\n\
+                        }\n\
                     }\n\
-                    selectionText = textArea.value.substring(selStart, selEnd);\n\
-                    addTag(textArea, "url", selectionText, title, false);\n\
                 } else {\n\
                     text = window.prompt("' + lang['url_link'] + '");\n\
                     if (text === null || text.length === 0) {\n\
