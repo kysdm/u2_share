@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.7
+// @version      0.1.8
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -577,12 +577,12 @@
             case "EDITOR_URL+": {\n\
                 if (selStart !== selEnd) {\n\
                     selectionText = textArea.value.substring(selStart, selEnd); // 选中的文字\n\
-                    if (/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\\/\\/((?!&lt;|&gt;|\\s|"|>|\'|<|\\(|\\)|\\[|\\]).)+)/gi.test(selectionText)) {\n\
+                    if (/^(?:https?|ftp|gopher|news|telnet|mms|rtsp):\\/\\/((?!&lt;|&gt;|\\s|"|>|\'|<|\\(|\\)|\\[|\\]).)+/gi.test(selectionText)) {\n\
                         // 选中的是URL时\n\
                         var title = window.prompt("' + lang['url_name'] + '");\n\
                         if (title === null || title.length === 0) {\n\
                             // selectionText = textArea.value.substring(selStart, selEnd);\n\
-                            addTag(textArea, "url", null, "", true);\n\
+                            // addTag(textArea, "url", null, "", true);\n\
                             break;\n\
                         } else {\n\
                             addTag(textArea, "url", selectionText, title, false);\n\
