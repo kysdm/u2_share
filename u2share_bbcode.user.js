@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.8
+// @version      0.1.9
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -367,6 +367,34 @@
             return '<a class="faqlink" rel="nofollow noopener noreferer" href="' + s + '">' + s + '</a>';
         });
 
+        // 暂时先这样，复杂的套嵌会出问题
+        // bbcodestr = bbcodestr.replace(/((?:\[quote(?:[^\[\]]*)\].*?){3})(\[quote(?:[^\[\]]*)\].*?\[\/quote].*?)((?:\[\/quote\]((?!\[quote(?:[^\[\]]*)\]).)*){3})/gis, function (s, x, y, z) {
+        //     // bbcodestr = bbcodestr.replace(/((?:\[quote(?:[^\[\]]*)\].*?){3})(\[quote(?:[^\[\]]*)\].*?\[\/quote])((?:\[\/quote\]((?!\[quote(?:[^\[\]]*)\]).)*){3})/gis, function (s, x, y, z) {
+        //     return x + y.replace(/\[quote=?([^\[\]]*)\](.*)\[\/quote\]/gi, function (s, x, y) {
+        //         if (x === '') {
+        //             return '<fieldset><legend>引用</legend>'
+        //                 + '<table class="spoiler" width="100%"><tbody>'
+        //                 + '<tr><td class="colhead">过深引用自动折叠&nbsp;&nbsp;'
+        //                 + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
+        //                 + '<button class="spoiler-button-hide" style="">我真是手贱</button>'
+        //                 + '</td></tr><tr><td>'
+        //                 + '<span class="spoiler-content" style="display: inline;">' + y + '</span>'
+        //                 + '</td></tr></tbody></table>'
+        //                 + '</fieldset>'
+        //         } else {
+        //             return '<fieldset><legend>' + lang['quote'] + ': ' + x.replace(/^"(.*?)"?$/, "$1") + '</legend>'
+        //                 + '<table class="spoiler" width="100%"><tbody>'
+        //                 + '<tr><td class="colhead">过深引用自动折叠&nbsp;&nbsp;'
+        //                 + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
+        //                 + '<button class="spoiler-button-hide" style="">我真是手贱</button>'
+        //                 + '</td></tr><tr><td>'
+        //                 + '<span class="spoiler-content" style="display: inline;">' + y + '</span>'
+        //                 + '</td></tr></tbody></table>'
+        //                 + '</fieldset>'
+        //         }
+        //     }) + z;
+        // });
+
         // 引用
         const quote_reg1 = new RegExp("\\[quote\\](.*?)\\[/quote\\]", "gsi");
         while (quote_reg1.test(bbcodestr)) {
@@ -374,7 +402,7 @@
                 return '<fieldset><legend>' + lang['quote'] + '</legend>' + x + '</fieldset>';
             });
         };
-        const quote_reg2 = new RegExp("\\[quote=([^\\]]*)\\](.*?)\\[/quote\\]", "gsi");
+        const quote_reg2 = new RegExp("\\[quote=([^\\[\\]]*)\\](.*?)\\[/quote\\]", "gsi");
         while (quote_reg2.test(bbcodestr)) {
             bbcodestr = bbcodestr.replace(quote_reg2, function (s, x, y) {
                 if (f_reg.test(x)) {
@@ -385,6 +413,15 @@
                 }
             });
         };
+
+        // <fieldset><legend>引用: 15</legend>415</fieldset>
+        // <fieldset><legend>引用</legend>tjt<fieldset><legend>引用</legend>tjt</fieldset></fieldset>
+
+        // <fieldset><legend>引用: 11</legend>11 <fieldset><legend>引用</legend>2 <fieldset><legend>引用: 3</legend>33
+        // <fieldset><legend>引用: 4</legend>55<fieldset><legend>引用: s</legend>heshreshe </fieldset>5<fieldset><legend>引用</legend>gege</fieldset></fieldset></fieldset>
+        //  22</fieldset> 11</fieldset>
+
+
 
         // spoiler
         const spoiler_reg1 = new RegExp("\\[spoiler\\](.*?)\\[/spoiler\\]", "gsi");
@@ -467,7 +504,7 @@
             .after('<td class="embedded"><input class="codebuttons" style="'
                 + 'font-size:11px;margin-right:3px" type="button" value="RT*" onclick="onEditorActionS(\'descr\', \'EDITOR_RT\')">');
 
-        $('.codebuttons').eq(10).attr("onclick", "onEditorActionS('descr','EDITOR_QUOTE')");
+        // $('.codebuttons').eq(10).attr("onclick", "onEditorActionS('descr','EDITOR_QUOTE')");
 
         $('.codebuttons').eq(10).parent()
             .after('<td class="embedded"><input class="codebuttons" style="'
@@ -639,24 +676,11 @@
                 break;\n\
             }\n\
             case "EDITOR_SPOILER": {\n\
-                if (selStart !== selEnd) {\n\
-                    addTag(textArea, "spoiler", null, "", true);\n\
-                } else {\n\
-                    text = window.prompt("' + lang['main_body'] + '");\n\
-                    if (text === null || text.length === 0) {\n\
-                        break;\n\
-                    }\n\
-                    // var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
-                    // if (title === null || title.length === 0) {\n\
-                    //     title = "";\n\
-                    // }\n\
-                    addTag(textArea, "spoiler", null, text, false);\n\
-                }\n\
+                addTag(textArea, "spoiler", null, "", true);\n\
                 break;\n\
             }\n\
             case "EDITOR_QUOTE": {\n\
                 if (selStart !== selEnd) {\n\
-                    selectionText = textArea.value.substring(selStart, selEnd);\n\
                     addTag(textArea, "quote", null, "", true);\n\
                 } else {\n\
                     text = window.prompt("' + lang['main_body'] + '");\n\
@@ -673,7 +697,6 @@
             }\n\
             case "EDITOR_URL": {\n\
                 if (selStart !== selEnd) {\n\
-                    // selectionText = textArea.value.substring(selStart, selEnd);\n\
                     addTag(textArea, "url", null, "", true);\n\
                 } else {\n\
                     text = window.prompt("' + lang['url_link'] + '");\n\
