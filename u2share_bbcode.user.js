@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.9
+// @version      0.2.0
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -367,34 +367,6 @@
             return '<a class="faqlink" rel="nofollow noopener noreferer" href="' + s + '">' + s + '</a>';
         });
 
-        // 暂时先这样，复杂的套嵌会出问题
-        // bbcodestr = bbcodestr.replace(/((?:\[quote(?:[^\[\]]*)\].*?){3})(\[quote(?:[^\[\]]*)\].*?\[\/quote].*?)((?:\[\/quote\]((?!\[quote(?:[^\[\]]*)\]).)*){3})/gis, function (s, x, y, z) {
-        //     // bbcodestr = bbcodestr.replace(/((?:\[quote(?:[^\[\]]*)\].*?){3})(\[quote(?:[^\[\]]*)\].*?\[\/quote])((?:\[\/quote\]((?!\[quote(?:[^\[\]]*)\]).)*){3})/gis, function (s, x, y, z) {
-        //     return x + y.replace(/\[quote=?([^\[\]]*)\](.*)\[\/quote\]/gi, function (s, x, y) {
-        //         if (x === '') {
-        //             return '<fieldset><legend>引用</legend>'
-        //                 + '<table class="spoiler" width="100%"><tbody>'
-        //                 + '<tr><td class="colhead">过深引用自动折叠&nbsp;&nbsp;'
-        //                 + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
-        //                 + '<button class="spoiler-button-hide" style="">我真是手贱</button>'
-        //                 + '</td></tr><tr><td>'
-        //                 + '<span class="spoiler-content" style="display: inline;">' + y + '</span>'
-        //                 + '</td></tr></tbody></table>'
-        //                 + '</fieldset>'
-        //         } else {
-        //             return '<fieldset><legend>' + lang['quote'] + ': ' + x.replace(/^"(.*?)"?$/, "$1") + '</legend>'
-        //                 + '<table class="spoiler" width="100%"><tbody>'
-        //                 + '<tr><td class="colhead">过深引用自动折叠&nbsp;&nbsp;'
-        //                 + '<button class="spoiler-button-show" style="display: none;">我就是手贱</button>'
-        //                 + '<button class="spoiler-button-hide" style="">我真是手贱</button>'
-        //                 + '</td></tr><tr><td>'
-        //                 + '<span class="spoiler-content" style="display: inline;">' + y + '</span>'
-        //                 + '</td></tr></tbody></table>'
-        //                 + '</fieldset>'
-        //         }
-        //     }) + z;
-        // });
-
         // 引用
         const quote_reg1 = new RegExp("\\[quote\\](.*?)\\[/quote\\]", "gsi");
         while (quote_reg1.test(bbcodestr)) {
@@ -413,15 +385,6 @@
                 }
             });
         };
-
-        // <fieldset><legend>引用: 15</legend>415</fieldset>
-        // <fieldset><legend>引用</legend>tjt<fieldset><legend>引用</legend>tjt</fieldset></fieldset>
-
-        // <fieldset><legend>引用: 11</legend>11 <fieldset><legend>引用</legend>2 <fieldset><legend>引用: 3</legend>33
-        // <fieldset><legend>引用: 4</legend>55<fieldset><legend>引用: s</legend>heshreshe </fieldset>5<fieldset><legend>引用</legend>gege</fieldset></fieldset></fieldset>
-        //  22</fieldset> 11</fieldset>
-
-
 
         // spoiler
         const spoiler_reg1 = new RegExp("\\[spoiler\\](.*?)\\[/spoiler\\]", "gsi");
@@ -475,13 +438,23 @@
 
         bbcodestr = bbcodestr.replace(/p3F#oW2@cEn_JHstp-&37DgD/g, "");
 
-        if (/(<br>)$/.test(bbcodestr)) { bbcodestr = bbcodestr + '<br>' }
+        if (/(<br>)$/.test(bbcodestr)) { bbcodestr = bbcodestr + '<br>' };
 
-        // console.log(bbcodestr);
-        // console.log(tempCode);
+        var htmlobj = $.parseHTML('<div>' + bbcodestr + '</div>');
 
-        return bbcodestr;
-    }
+        $(htmlobj).children('fieldset').children('fieldset').children('fieldset').children('fieldset').each(function () {
+            $(this).html($(this).html().replace(/(^<legend>[^<]*?<\/legend>)(.*)/i, function (s, x, y) {
+                return x + '<table class="spoiler" width="100%"><tbody>'
+                    + '<tr><td class="colhead">' + lang['auto_fold'] + '&nbsp;&nbsp;'
+                    + '<button class="spoiler-button-show" style="display: none;">' + lang['spoiler_button_1'] + '</button>'
+                    + '<button class="spoiler-button-hide" style="">' + lang['spoiler_button_2'] + '</button>'
+                    + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
+                    + y + '</span></td></tr></tbody></table>';
+            }))
+        });
+
+        return $(htmlobj).html();
+    };
 
     function init() {
         var h1 = $('.codebuttons').eq(6).parent().html();
@@ -726,7 +699,7 @@ async function sleep(interval) {
     return new Promise(resolve => {
         setTimeout(resolve, interval);
     })
-}
+};
 
 
 function lang_init(lang) {
@@ -746,7 +719,8 @@ function lang_init(lang) {
             "url_name": "请输入网址名称",
             "url_link": "请输入网址链接",
             "select_type": "请选择分类...",
-            "preview": "预览"
+            "preview": "预览",
+            "auto_fold": "过深引用自动折叠"
         },
         "zh_TW": {
             "quote": "引用",
@@ -763,7 +737,8 @@ function lang_init(lang) {
             "url_name": "請輸入網址名稱",
             "url_link": "請輸入網址連結",
             "select_type": "請選擇分類...",
-            "preview": "預覽"
+            "preview": "預覽",
+            "auto_fold": "過深引用自動摺疊"
         },
         "zh_HK": {
             "quote": "引用",
@@ -780,7 +755,8 @@ function lang_init(lang) {
             "url_name": "請輸入網址名稱",
             "url_link": "請輸入網址鏈接",
             "select_type": "請選擇分類...",
-            "preview": "預覽"
+            "preview": "預覽",
+            "auto_fold": "過深引用自動摺疊"
         },
         "en_US": {
             "quote": "Quote",
@@ -797,7 +773,8 @@ function lang_init(lang) {
             "url_name": "Please enter the URL name",
             "url_link": "Please enter the URL link",
             "select_type": "Please select a type.",
-            "preview": "Preview"
+            "preview": "Preview",
+            "auto_fold": "Over quote auto fold"
         },
         "ru_RU": {
             "quote": "Цитата",
@@ -814,8 +791,9 @@ function lang_init(lang) {
             "url_name": "Пожалуйста, введите имя URL",
             "url_link": "Пожалуйста, введите URL-ссылку",
             "select_type": "выберите тип ...",
-            "preview": "Предварительный просмотр"
+            "preview": "Предварительный просмотр",
+            "auto_fold": "Автоматическое складывание для более глубоких ссылок"
         }
-    }
-    return lang_json[lang]
-}
+    };
+    return lang_json[lang];
+};
