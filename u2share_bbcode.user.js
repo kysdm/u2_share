@@ -136,24 +136,24 @@
             } else if (['9', '411', '413', '12', '13', '14', '15', '16', '17', '410', '412'].indexOf(type_id) !== -1) {
                 // console.log('分类ID是： ' + type_id + ' anime');
                 main_title = '<b>'
-                    + add_brackets($('#anime_chinese').find("input").val())
-                    + add_brackets($('#anime_english').find("input").val())
-                    + add_brackets($('#anime_original').find("input").val())
-                    + add_brackets($('#anime_source').find("input").val())
-                    + add_brackets($('#anime_resolution').find("input").val())
-                    + add_brackets($('#anime_episode').find("input").val())
-                    + add_brackets($('#anime_container').find("input").val())
-                    + add_brackets($('#anime_extra').find("input").val())
+                    + add_brackets($('#anime_chinese-input').val())
+                    + add_brackets($('#anime_english-input').val())
+                    + add_brackets($('#anime_original-input').val())
+                    + add_brackets($('#anime_source-input').val())
+                    + add_brackets($('#anime_resolution-input').val())
+                    + add_brackets($('#anime_episode-input').val())
+                    + add_brackets($('#anime_container-input').val())
+                    + add_brackets($('#anime_extra-input').val())
                     + '</b>';
             } else if (['21', '22', '23'].indexOf(type_id) !== -1) {
                 // console.log('分类ID是： ' + type_id + ' manga');
                 main_title = '<b>'
-                    + add_brackets($('#manga_title').find("input").val())
-                    + add_brackets($('#manga_author').find("input").val())
-                    + add_brackets($('#manga_volume').find("input").val())
+                    + add_brackets($('#manga_title-input').val())
+                    + add_brackets($('#manga_author-input').val())
+                    + add_brackets($('#manga_volume-input').val())
                     + add_brackets($('#manga_ended').find("select").val())
-                    + add_brackets($('#manga_publisher').find("input").val())
-                    + add_brackets($('#manga_remark').find("input").val())
+                    + add_brackets($('#manga_publisher-input').val())
+                    + add_brackets($('#manga_remark-input').val())
                     + '</b>';
             } else if (type_id === '30') {
                 // console.log('分类ID是： ' + type_id + ' music');
@@ -165,29 +165,29 @@
                     case "0": // 单张
                         main_title = '<b>'
                             + add_brackets(prefix_1)
-                            + add_brackets($('#music_date').find("input").val())
-                            + add_brackets($('#music_category').find("input").val())
-                            + add_brackets($('#music_artist').find("input").val())
-                            + add_brackets($('#music_title').find("input").val())
-                            + add_brackets($('#music_serial_number').find("input").val())
-                            + add_brackets((() => { if (music_quality) { return $('#music_quality').find("input").val(); } else { return ''; } })())
-                            + add_brackets($('#music_format').find("input").val())
+                            + add_brackets($('#music_date-input').val())
+                            + add_brackets($('#music_category-input').val())
+                            + add_brackets($('#music_artist-input').val())
+                            + add_brackets($('#music_title-input').val())
+                            + add_brackets($('#music_serial_number-input').val())
+                            + add_brackets((() => { if (music_quality) { return $('#music_quality-input').val(); } else { return ''; } })())
+                            + add_brackets($('#music_format-input').val())
                             + '</b>';
                         break;
                     case "1": // 合集
                         main_title = '<b>'
                             + add_brackets(prefix_1)
                             + add_brackets('合集')
-                            + add_brackets($('#music_category').find("input").val())
-                            + add_brackets($('#music_title').find("input").val())
-                            + add_brackets($('#music_quantity').find("input").val())
-                            + add_brackets((() => { if (music_quality) { return $('#music_quality').find("input").val(); } else { return ''; } })())
+                            + add_brackets($('#music_category-input').val())
+                            + add_brackets($('#music_title-input').val())
+                            + add_brackets($('#music_quantity-input').val())
+                            + add_brackets((() => { if (music_quality) { return $('#music_quality-input').val(); } else { return ''; } })())
                             + '</b>';
                         break;
                 }
             } else if (type_id === '40') {
                 // console.log('分类ID是： ' + type_id + ' other');
-                main_title = '<b>' + $('#other_title').find("input").val() + '</b>';
+                main_title = '<b>' + $('#other_title-input').val() + '</b>';
             } else {
                 // console.log('分类ID是： ' + type_id);
             }
