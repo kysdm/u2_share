@@ -54,7 +54,7 @@
 
     var lang = new lang_init($('#locale_selection').val());
     new init();
-    if (location.href.match(/u2\.dmhy\.org\/upload\.php/i)) { new auto_save_upload(); } else { new auto_save_message(); };
+    if (location.href.match(/u2\.dmhy\.org\/(upload|edit)\.php/i)) { new auto_save_upload(); } else { new auto_save_message(); };
     let currentTab = 0;
 
     $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
@@ -956,6 +956,7 @@ function auto_save_upload() {
         db.removeItem('poster');
         db.removeItem('anidb_url');
         db.removeItem('info');
+        db.removeItem('main_title');
         console.log('已清空保存的记录');
     }
 
@@ -969,12 +970,13 @@ function auto_save_upload() {
             console.log('发布页自动保存已开启');
             // 检查输入框内是否已经存在字符串
             let _input_bool = true
-            $("#compose input[id$='-input']").add('#browsecat').add('.bbcode').each(function () {
+            $("#compose input[id$='-input']").add('#browsecat').add('.bbcode').add('input[name="name"]').each(function () {
                 let _input = $(this).val()
                 if (_input !== "" && _input !== "0") { _input_bool = false; return; } // 把input和select一起做判断了 总没人在标题里单独打个0吧
             });
             // 当输入框是空白时 还原上次备份内容
             if (_input_bool) {
+                db.getItem('main_title').then((value) => { $('input[name="name"]').val(value); })
                 db.getItem('small_descr').then((value) => { $('[name="small_descr"]').val(value); })
                 db.getItem('poster').then((value) => { $('[name="poster"]').val(value); });
                 db.getItem('anidb_url').then((value) => { $('[name="anidburl"]').val(value); });
@@ -1015,6 +1017,7 @@ function auto_save_upload() {
         if (num <= 0) {
             $("#auto_save_text").fadeIn(2000);
             db.setItem('time', getDateString()) // 记录保存数据的时间 string
+            await db.setItem('main_title', $('input[name="name"]').val()) // 保存主标题 (仅在种子编辑页面存在)
             await db.setItem('bbcode', $('.bbcode').val()) // 保存 bbcode 输入框内容
             // 倒是可以跑循环 直接拿到数据 就不用写这么大一堆了 (
             let upload_info = {
