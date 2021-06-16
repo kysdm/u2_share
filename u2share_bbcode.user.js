@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.2
+// @version      0.2.3
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -266,10 +266,6 @@
             return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + x + '</a>')
         });
 
-        bbcodestr = bbcodestr.replace(/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)/gi, function (s, x) {
-            return '<a class="faqlink" rel="nofollow noopener noreferer" href="' + s + '">' + s + '</a>';
-        });
-
         // 单个标签 不带参
         const o_reg = new RegExp("\\[(\\*|siteurl|site)\\]", "gi");
         bbcodestr = bbcodestr.replace(o_reg, function (s, x, y) {
@@ -370,6 +366,11 @@
             } else {
                 return addTempCode(s);
             }
+        });
+
+        // 没有bbcode包裹的超链接
+        bbcodestr = bbcodestr.replace(/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)/gi, function (s, x) {
+            return '<a class="faqlink" rel="nofollow noopener noreferer" href="' + s + '">' + s + '</a>';
         });
 
         // 引用
