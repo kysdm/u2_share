@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.4
+// @version      0.2.5
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -54,9 +54,8 @@
 
     var lang = new lang_init($('#locale_selection').val());
     new init();
-    if (location.href.match(/u2\.dmhy\.org\/upload\.php/i)) new auto_save_upload();
-    if (location.href.match(/u2\.dmhy\.org\/(forums|comment|contactstaff|sendmessage)\.php/i)) new auto_save_message();
-    // 除非有人要求把 论坛 种子评论 管理信箱 PM 的数据独立，不然有生之年才会会支持。
+    const url = location.href.match(/u2\.dmhy\.org\/(upload|forums|comment|contactstaff|sendmessage)\.php/i) || ['', ''];
+    if (url[1] === 'upload') { new auto_save_upload(); } else { new auto_save_message(url[1]); }
     let currentTab = 0;
 
     $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
@@ -118,7 +117,7 @@
         $('#bbcode2').children('.child').html(html);
     });
 
-    if (location.href.match(/u2\.dmhy\.org\/upload\.php/i)) {
+    if (/u2\.dmhy\.org\/upload\.php/i.test(location.href)) {
 
         // 添加中括号
         function add_brackets(txt) { if (txt === '') { return ''; } else { return '[' + txt + ']'; } };
@@ -804,8 +803,9 @@ function lang_init(lang) {
     return lang_json[lang];
 };
 
-function auto_save_message() {
-    let num_global = num = 10 // 设置自动保存时间间隔
+function auto_save_message(url) {
+    let db;
+    let num_global = num = 10;// 设置自动保存时间间隔
     $('#select_list').append('<div id="auto_save_on" style="position:absolute; margin-top:4px; display: none;">'
         + '<input id="switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">'
         + '<input id="clean" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="清空缓存">'
@@ -814,8 +814,13 @@ function auto_save_message() {
         + '<input class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已关闭"></div>'
     )
 
-    var db = localforage.createInstance({ name: "message" });
-    console.log('启用message数据库');
+    switch (url) {
+        case 'forums': db = localforage.createInstance({ name: "forums" }); console.log('启用forums数据库'); break;
+        case 'comment': db = localforage.createInstance({ name: "comment" }); console.log('启用comment数据库'); break;
+        case 'contactstaff': db = localforage.createInstance({ name: "staff" }); console.log('启用staff数据库'); break;
+        case 'sendmessage': db = localforage.createInstance({ name: "message" }); console.log('启用message数据库'); break;
+        default: return;
+    }
 
     // 为自动保存按钮绑定事件
     $("#auto_save_on").click(function (ev) {
@@ -987,7 +992,7 @@ function auto_save_upload() {
                     $('#browsecat').change(); // 手动触发列表更改事件
                     $('#autocheck_placeholder').children().eq(0).prop("checked", value['auto_pass']);
                     $('#autocheck_placeholder').children().eq(1).prop("checked", !value['auto_pass']);
-                    for (var key in value) { if (key.match(/^(anime|manga|music|other)/)) { $('#' + key + '-input').val(value[key]); }; };
+                    for (var key in value) { if (/^(anime|manga|music|other)/.test(key)) { $('#' + key + '-input').val(value[key]); }; };
                 });
                 await db.getItem('bbcode').then((value) => { $('.bbcode').val(value); }) // 还原bbcode输入框内容
                 $('[class^="torrent-info-input"]').trigger("input"); // 手动触发标题更改
