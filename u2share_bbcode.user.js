@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.5
+// @version      0.2.6
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -10,6 +10,7 @@
 // @match        *://u2.dmhy.org/forums.php?action=editpost*
 // @match        *://u2.dmhy.org/forums.php?action=reply*
 // @match        *://u2.dmhy.org/forums.php?action=quotepost*
+// @match        *://u2.dmhy.org/forums.php?action=newtopic*
 // @match        *://u2.dmhy.org/comment.php?action=*
 // @match        *://u2.dmhy.org/contactstaff.php
 // @match        *://u2.dmhy.org/sendmessage.php?receiver=*
