@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.6
+// @version      0.2.7
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -349,7 +349,7 @@
 
         // 图片
         bbcodestr = bbcodestr.replace(/\[(img|imglnk)\]([^\]]+)\[\/(?:\1)\]/gi, function (s, x, y) {
-            if (/^https?:\/\/((?!&lt;|&gt;|\s|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(y)) {
+            if (/^https?:\/\/((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(y)) {
                 switch (x) {
                     case 'img':
                         return addTempCode('<img alt="image" src="' + y + '" style="height: auto; width: auto; max-width: 100%;">');
@@ -363,7 +363,7 @@
         });
 
         bbcodestr = bbcodestr.replace(/\[img=([^\]]+)\]/gi, function (s, x) {
-            if (/^https?:\/\/((?!&lt;|&gt;|\s|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(x)) {
+            if (/^https?:\/\/((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(x)) {
                 return addTempCode('<img alt="image" src="' + x + '" style="height: auto; width: auto; max-width: 100%;">');
             } else {
                 return addTempCode(s);
