@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.1
+// @version      0.0.2
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -18,6 +18,7 @@
 /*
 本脚本基于 Bamboo Green 界面风格进行修改
 /*
+
 /*
 更新日志
     https://github.com/kysdm/u2_share/commits/main/u2share_torrents_history.user.js
@@ -132,9 +133,11 @@ async function history1() {
     if ($('h3').length === 1) { // 插入 select 基本框架
         const right = ($('#outer').width() - $('h3').next().width()) / 2 + 5; // 计算偏移量
         $('#top').after('<div id="hsty" style="position: relative;"><div id="history" style="position: absolute; right:' + right + 'px; margin-top: 4px;"><select name="type" id="history_select"></div></div>');
+        $(window).resize(function () { $('#history').css("right", ($('#outer').width() - $('h3').next().width()) / 2 + 5); });
     } else {
         const right = ($('#outer').width() - $('#top').next().width()) / 2 + 5; // 计算偏移量
         $('#top').after('<div id="history" style="position: relative; float: right; margin-bottom: 10px; margin-right: ' + right + 'px"><select name="type" id="history_select"></div>');
+        $(window).resize(function () { $('#history').css("margin-right", ($('#outer').width() - $('#history').next().width()) / 2 + 5 + 'px'); });
     };
 
     $("#history_select").append('<option>正在努力加载中...</option>');
