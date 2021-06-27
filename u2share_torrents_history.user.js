@@ -2,7 +2,7 @@
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
 // @version      0.0.1
-// @description  U2种子历史记录
+// @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
 // @match        *://u2.dmhy.org/details.php?id=*
