@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.7
+// @version      0.2.8
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -294,7 +294,7 @@
                                 + y + '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + z) + ']'
                         }
                         else {
-                            return addTempCode('<ruby>' + y + '<rp>(</rp><rt>' + x.replace(/^"?(.*?)"?$/, "$1") + '</rt><rp>)</rp></ruby>');
+                            return addTempCode('<ruby>' + y + '<rp>(</rp><rt>' + x.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1") + '</rt><rp>)</rp></ruby>');
                         }
                     case 'font':
                         if (f_reg.test(x)) {
@@ -302,7 +302,7 @@
                                 + y + '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + z) + ']';
                         }
                         else {
-                            return '<span style="font-family: ' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</span>';
+                            return '<span style="font-family: ' + x.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1") + '">' + y + '</span>';
                         }
                     default:
                         return s;
@@ -332,18 +332,18 @@
         };
 
         // 颜色
-        const color_reg = new RegExp("\\[color=\"?([#0-9a-z]{1,15}|[a-z]+?)\"?\\](.*?)\\[/color\\]", "gis");
+        const color_reg = new RegExp("\\[color=(?:&quot;)?([#0-9a-z]{1,15}|[a-z]+?)(?:&quot;)?\\](.*?)\\[/color\\]", "gis");
         while (color_reg.test(bbcodestr)) {
             bbcodestr = bbcodestr.replace(color_reg, function (s, x, y) {
-                return '<span style="color: ' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</span>';
+                return '<span style="color: ' + x + '">' + y + '</span>';
             })
         };
 
         // 文字大小
-        const size_reg = new RegExp("\\[size=\"?([1-7])\"?\\](.*?)\\[/size\\]", "gis");
+        const size_reg = new RegExp("\\[size=(?:&quot;)?([1-7])(?:&quot;)?\\](.*?)\\[/size\\]", "gis");
         while (size_reg.test(bbcodestr)) {
             bbcodestr = bbcodestr.replace(size_reg, function (s, x, y) {
-                return '<font size="' + x.replace(/^"?(.*?)"?$/, "$1") + '">' + y + '</font>';
+                return '<font size="' + x + '">' + y + '</font>';
             })
         };
 
@@ -419,7 +419,7 @@
                 }
                 else {
                     return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-                        + x.replace(/^"(.*?)"?$/, "$1") + '&nbsp;&nbsp;'
+                        + x.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1") + '&nbsp;&nbsp;'
                         + '<button class="spoiler-button-show" style="display: none;">' + lang['spoiler_button_1'] + '</button>'
                         + '<button class="spoiler-button-hide">' + lang['spoiler_button_2'] + '</button>'
                         + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
