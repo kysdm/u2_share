@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.2
+// @version      0.0.3
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -32,12 +32,12 @@ var lang, torrent_id, db, user_id, key, token;
     // 初始化
     lang = new lang_init($('#locale_selection').val()); // 获取当前网页语言
     torrent_id = location.href.match(/\.php\?id=(\d{3,5})/i) || ['', '']; if (torrent_id[1] !== '') torrent_id = torrent_id[1]; // 当前种子ID
-    user_id = $('#info_block').find('a:first').attr('href').match(/\.php\?id=(\d{3,5})/i) || ['', '']; if (user_id[1] !== '') user_id = user_id[1]; // 当前种子ID
+    user_id = $('#info_block').find('a:first').attr('href').match(/\.php\?id=(\d{3,5})/i) || ['', '']; if (user_id[1] !== '') user_id = user_id[1]; // 当前用户ID
     db = localforage.createInstance({ name: "history" });
 
     key = await db.getItem('key');
     token = await db.getItem('token');
-    if (key === null) { new auth_key(); } else if (token === null) { new auth_token(key); };
+    if (key === null) { new auth_key(); return; } else if (token === null) { new auth_token(key); return; };
 
     // 为已经删除的种子显示历史
     if ($('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { history2(); } else { history1(); };
@@ -58,7 +58,7 @@ function auth_key() {
 
     $("#auth_key_d").click(function () {
         let __key = window.prompt("请输入key"); // 弹窗提示输入key
-        if (__key === null || __key.length === 0) return; // 没有任何输入时 无视本地操作
+        if (__key === null || __key.length === 0) return; // 没有任何输入时 无视本次操作
         $('#auth_value').text(__key);
         db.setItem('key', __key);
     });
@@ -100,7 +100,7 @@ function auth_token(__key) {
 
     $("#auth_token_d").click(function () {
         let __token = window.prompt("请输入token"); // 弹窗提示输入token
-        if (__token === null || __token.length === 0) return; // 没有任何输入时 无视本地操作
+        if (__token === null || __token.length === 0) return; // 没有任何输入时 无视本次操作
         $('#auth_value').text(__token);
         db.setItem('token', __token);
     });
