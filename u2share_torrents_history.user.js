@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.3
+// @version      0.0.4
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -37,7 +37,7 @@ var lang, torrent_id, db, user_id, key, token;
 
     key = await db.getItem('key');
     token = await db.getItem('token');
-    if (key === null) { new auth_key(); return; } else if (token === null) { new auth_token(key); return; };
+    if (key === null || key.length !== 32) { new auth_key(); return; } else if (token === null || token.length !== 96) { new auth_token(key); return; };
 
     // 为已经删除的种子显示历史
     if ($('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { history2(); } else { history1(); };
@@ -45,12 +45,12 @@ var lang, torrent_id, db, user_id, key, token;
 
 function auth_key() {
     'use strict';
-    $('#outer').html('<h1 align="center">U2种子历史记录 KEY初始化</h1><table class="" border="0" align="center" cellspacing="0" cellpadding="5">'
-        + '<tbody><tr><td class="" valign="top" width="500" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
-        + '<bdo dir="ltr">点击按钮，请求key，key需写在<a href="usercp.php?action=personal" target="_blank"><b>个人说明</b></a>中，'
+    $('#outer').html('<h1 align="center">U2种子历史记录 KEY初始化</h1><table border="0" align="center" cellspacing="0" cellpadding="5">'
+        + '<tbody><tr><td valign="top" width="500" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
+        + '<bdo dir="ltr">点击按钮，请求key，key需写在<a href="usercp.php?action=personal" target="_blank" style="color:#FF0000"><b>个人说明</b></a>中，'
         + '填写完成请刷新界面。<br></bdo></span></td></tr>'
-        + '<tr><td class="" valign="top" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
-        + '<bdo id="auth_value" dir="ltr">~</bdo></span></td></tr><tr><td align="center">'
+        + '<tr><td valign="top" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
+        + '<bdo id="auth_value" dir="ltr">32位长度的key会显示在这里 (不是32位就是失败)</bdo></span></td></tr><tr><td align="center">'
         + '<button id="auth_key" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" >获取KEY</button>'
         + '<button id="auth_key_d" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" >已有KEY</button>'
         + '</td></tr></tbody></table>'
@@ -72,8 +72,9 @@ function auth_key() {
             data: JSON.stringify({ "uid": user_id }),
             success: function (d) {
                 if (d.msg === 'success') {
-                    $('#auth_value').text(d.data.key);
-                    db.setItem('key', d.data.key);
+                    let __key = d.data.key
+                    $('#auth_value').text(__key);
+                    db.setItem('key', __key);
                 } else {
                     $('#auth_value').text(d);
                 };
@@ -88,11 +89,11 @@ function auth_key() {
 
 function auth_token(__key) {
     'use strict';
-    $('#outer').html('<h1 align="center">U2种子历史记录 TOKEN初始化</h1><table class="" border="0" align="center" cellspacing="0" cellpadding="5">'
-        + '<tbody><tr><td class="" valign="top" width="500" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
+    $('#outer').html('<h1 align="center">U2种子历史记录 TOKEN初始化</h1><table border="0" align="center" cellspacing="0" cellpadding="5">'
+        + '<tbody><tr><td valign="top" width="500" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
         + '<bdo dir="ltr">点击按钮，请求token，token会自动记录在本地数据库中，完成后请刷新界面。<br></bdo></span></td></tr>'
-        + '<tr><td class="" valign="top" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
-        + '<bdo id="auth_value" dir="ltr">~</bdo></span></td></tr><tr><td align="center">'
+        + '<tr><td  valign="top" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
+        + '<bdo id="auth_value" dir="ltr">96位长度的token会显示在这里 (不是96位就是失败)</bdo></span></td></tr><tr><td align="center">'
         + '<button id="auth_token" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" >获取TOKEN</button>'
         + '<button id="auth_token_d" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" >已有TOKEN</button>'
         + '</td></tr></tbody></table>'
@@ -114,10 +115,11 @@ function auth_token(__key) {
             data: JSON.stringify({ "uid": user_id, "key": __key }),
             success: function (d) {
                 if (d.msg === 'success') {
-                    $('#auth_value').text(d.data.token);
-                    db.setItem('token', d.data.token)
+                    let __token = d.data.token
+                    $('#auth_value').text(__token);
+                    db.setItem('token', __token)
                 } else {
-                    $('#auth_value').text(d);
+                    $('#auth_value').html('可能没有把key写入<a href="usercp.php?action=personal" target="_blank" style="color:#FF0000">个人说明</a><br>key: ' + __key + '<br>错误信息: ' + JSON.stringify(d));
                 };
             },
             error: function (d) {
