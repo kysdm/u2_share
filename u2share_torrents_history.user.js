@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.4
+// @version      0.0.5
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -244,7 +244,9 @@ async function history2() {
         + '<td class="rowfollow" width="87%" align="left">'
         + '<b>[U2].' + history_data[0].torrent_name + '.torrent</b></td></tr>'
         + '<tr><td class="rowhead nowrap" valign="top" align="right">副标题</td>'
-        + '<td class="rowfollow" valign="top" align="left">' + history_data[0].subtitle + '</td></tr>'
+        + '<td class="rowfollow" valign="top" align="left">'
+        + (() => { if (history_data[0].subtitle) { return history_data[0].subtitle } else { return ''; } })()
+        + '</td></tr>'
         + '</td></tr><tr><td class="rowhead nowrap" valign="top" align="right">基本信息</td>'
         + '<td class="rowfollow" valign="top" align="left"><b>提供者</b>:&nbsp;'
         + ((p) => {
@@ -252,7 +254,9 @@ async function history2() {
             if (p.uploader_id !== null && p.uploader_name !== '匿名') return '<a href="userdetails.php?id=' + p.uploader_id + '"><b>' + p.uploader_name + '</b></a>'; // 正常显示
         })(history_data[0])
         + '&nbsp;&nbsp;&nbsp;<b>提交时间</b>:&nbsp;<time>' + history_data[0].uploaded_at.replace('T', ' ')
-        + '</time>&nbsp;&nbsp;&nbsp;<b>类型</b>:&nbsp;' + history_data[0].category
+        + '</time>'
+        + (() => { if (history_data[0].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>大小:</b>&nbsp;' + convert(history_data[0].torrent_size) } else { return ''; } })()
+        + '&nbsp;&nbsp;&nbsp;<b>类型</b>:&nbsp;' + history_data[0].category
         + '</td></tr>'
         + '<tr><td class="rowhead nowrap" valign="top" align="right">'
         + '<a href="javascript: klappe_news(\'descr\')"><span class="nowrap">'
@@ -283,7 +287,10 @@ async function history2() {
                     if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>匿名</i>'; // 匿名发布
                     if (p.uploader_id !== null && p.uploader_name !== '匿名') return '<a href="userdetails.php?id=' + p.uploader_id + '"><b>' + p.uploader_name + '</b></a>'; // 正常显示
                 })(history_data[i])
-                + '&nbsp;&nbsp;&nbsp;<b>提交时间</b>:&nbsp;<time>' + history_data[i].uploaded_at.replace('T', ' ') + '</time>&nbsp;&nbsp;&nbsp;<b>类型</b>:&nbsp;' + history_data[i].category
+                + '&nbsp;&nbsp;&nbsp;<b>提交时间</b>:&nbsp;<time>' + history_data[i].uploaded_at.replace('T', ' ')
+                + '</time>'
+                + (() => { if (history_data[i].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>大小:</b>&nbsp;' + convert(history_data[i].torrent_size) } else { return ''; } })()
+                + '&nbsp;&nbsp;&nbsp;<b>类型</b>:&nbsp;' + history_data[i].category
             );
         };
     });
