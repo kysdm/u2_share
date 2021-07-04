@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.8
+// @version      0.2.9
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -56,8 +56,8 @@
     var lang = new lang_init($('#locale_selection').val());
     new init();
     const url = location.href.match(/u2\.dmhy\.org\/(upload|forums|comment|contactstaff|sendmessage)\.php/i) || ['', ''];
+    sync_scroll(); // 同步窗口滚动
     if (url[1] === 'upload') { new auto_save_upload(); } else { new auto_save_message(url[1]); }
-    let currentTab = 0;
 
     $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
         + '</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2">'
@@ -80,26 +80,6 @@
     observer.observe(element, {
         attributes: true,
         attributeFilter: ['style']
-    });
-
-    $('.bbcode').scroll(() => {
-        if (currentTab !== 1) return;
-        let scale = ($('#bbcode2').children('.child').get(0).offsetHeight - $('#bbcode2').get(0).offsetHeight) / ($('.bbcode').get(0).scrollHeight - $('.bbcode').get(0).offsetHeight);
-        $('#bbcode2').scrollTop($('.bbcode').scrollTop() * scale);
-    });
-
-    $('#bbcode2').scroll(() => {
-        if (currentTab !== 2) return;
-        let scale = ($('#bbcode2').children('.child').get(0).offsetHeight - $('#bbcode2').get(0).offsetHeight) / ($('.bbcode').get(0).scrollHeight - $('.bbcode').get(0).offsetHeight);
-        $('.bbcode').scrollTop($('#bbcode2').scrollTop() / scale);
-    });
-
-    $('.bbcode').mouseover(() => {
-        currentTab = 1;
-    });
-
-    $('#bbcode2').mouseover(() => {
-        currentTab = 2;
     });
 
     $('.bbcode').bind('input propertychange', async function updateValue() {
@@ -502,17 +482,15 @@
         $('.codebuttons').eq(4)
             .attr("onclick", "onEditorActionS('descr','EDITOR_URL')")
             .parent().after('<td class="embedded"><input class="codebuttons" style="'
-                + 'font-size:11px;margin-right:3px" type="button" value="URL*" onclick="onEditorActionS(\'descr\', \'EDITOR_URL+\')">');
+                + 'font-size:11px;margin-right:3px" type="button" value="URL*" onclick="onEditorActionS(\'descr\', \'EDITOR_URL+\')">'
+            );
 
-        $('.codebuttons').parents('td:not(.embedded,.rowfollow,.text,.outer)').append('<div id="select_list" style="position:relative;">'
-            + '<div id="select_list1" style="margin-top:5px;margin-bottom:2px; float:left;>'
-            + '<table cellspacing="1" cellpadding="2" border="0"><tbody><tr><td class="embedded">'
-            + h1 + '</td><td class="embedded">'
-            + h2 + '</td><td class="embedded">'
-            + h3 + '</td></tr></tbody></table></div></div>');
+        $('.codebuttons').parents('table').eq(0).after('<div id="bbcodejs_tbody" style="position:relative; margin-top: 4px"></div>');
 
-        const margin = $('.codebuttons').parents('tbody').eq(0).width() - $("#select_list1").width() - 2.6;
-        $("#select_list1").css("margin-left", margin + "px");
+        $('#bbcodejs_tbody').append('<div id="bbcodejs_select" style="position: absolute; margin-top:2px; margin-bottom:2px; float: left;">' + h1 + h2 + h3 + '</div>');
+
+        const margin = $('.codebuttons').parents('tbody').eq(0).width() - $("#bbcodejs_select").width() - 2.6;
+        $("#bbcodejs_select").css("margin-left", margin + "px");
 
         $('body').append(
             '<script type="text/javascript">\n\
@@ -804,15 +782,17 @@ function lang_init(lang) {
     return lang_json[lang];
 };
 
+
 function auto_save_message(url) {
     let db;
     let num_global = num = 10;// 设置自动保存时间间隔
-    $('#select_list').append('<div id="auto_save_on" style="position:absolute; margin-top:4px; display: none;">'
+
+    $('#bbcodejs_tbody').append('<span id="auto_save_on" style="margin-top:4px; display: none;">'
         + '<input id="switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">'
         + '<input id="clean" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="清空缓存">'
-        + '<span id="auto_save_text" style="display: none;">&nbsp;&nbsp;正在保存...</span></div>'
-        + '<div id="auto_save_off" style="position:absolute; margin-top:4px; display: none;">'
-        + '<input class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已关闭"></div>'
+        + '<span id="auto_save_text" style="display: none;">&nbsp;&nbsp;正在保存...</span></span>'
+        + '<span id="auto_save_off" style="margin-top:4px; display: none;">'
+        + '<input class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已关闭"></span>'
     )
 
     switch (url) {
@@ -828,7 +808,7 @@ function auto_save_message(url) {
         let button_id = $(ev.target).attr('id');
         switch (button_id) {
             case 'switch':
-                $(this).fadeOut(200) // 渐出按钮
+                $(this).hide(); // 隐藏按钮
                 $("#auto_save_off").fadeIn(200); // 渐入按钮
                 clearInterval($("#auto_save_text").attr('title')); // 清除setInterval函数
                 db.setItem('switch', false)
@@ -841,7 +821,7 @@ function auto_save_message(url) {
     });
 
     $("#auto_save_off").click(function () {
-        $(this).fadeOut(200)
+        $(this).hide(); // 隐藏按钮
         $("#auto_save_on").fadeIn(200);
         $("#auto_save_text").attr("title", setInterval(auto_save, 1000));  // 设置setInterval函数
         db.setItem('switch', true)
@@ -916,12 +896,13 @@ function auto_save_message(url) {
 
 function auto_save_upload() {
     let num_global = num = 10 // 设置自动保存时间间隔
-    $('#select_list').append('<div id="auto_save_on" style="position:absolute; margin-top:4px; display: none;">'
+
+    $('#bbcodejs_tbody').append('<span id="auto_save_on" style="margin-top:4px; display: none;">'
         + '<input id="switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">'
         + '<input id="clean" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="清空缓存">'
-        + '<span id="auto_save_text" style="display: none;">&nbsp;&nbsp;正在保存...</span></div>'
-        + '<div id="auto_save_off" style="position:absolute; margin-top:4px; display: none;">'
-        + '<input class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已关闭"></div>'
+        + '<span id="auto_save_text" style="display: none;">&nbsp;&nbsp;正在保存...</span></span>'
+        + '<span id="auto_save_off" style="margin-top:4px; display: none;">'
+        + '<input class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已关闭"></span>'
     )
 
     var db = localforage.createInstance({ name: "upload" });
@@ -932,7 +913,7 @@ function auto_save_upload() {
         let button_id = $(ev.target).attr('id');
         switch (button_id) {
             case 'switch':
-                $(this).fadeOut(200) // 渐出按钮
+                $(this).hide(); // 隐藏按钮
                 $("#auto_save_off").fadeIn(200); // 渐入按钮
                 clearInterval($("#auto_save_text").attr('title')); // 清除setInterval函数
                 db.setItem('switch', false)
@@ -945,7 +926,7 @@ function auto_save_upload() {
     });
 
     $("#auto_save_off").click(function () {
-        $(this).fadeOut(200)
+        $(this).hide();
         $("#auto_save_on").fadeIn(200);
         $("#auto_save_text").attr("title", setInterval(auto_save, 1000));  // 设置setInterval函数
         db.setItem('switch', true)
@@ -1063,6 +1044,71 @@ function auto_save_upload() {
             $("#auto_save_text").fadeOut(2000);
         };
     }
+};
+
+
+async function sync_scroll() {
+    'use strict';
+
+    let db = localforage.createInstance({ name: "bbcodejs" });  // 为以后统一数据库做准备
+    console.log('启用bbcodejs数据库');
+
+    $('#bbcodejs_tbody').append('<input id="sync_scroll_on" class="codebuttons" style="font-size:11px; margin-right:3px;; display: none;" type="button" value="同步滚动已开启"></input>'
+        + '<input id="sync_scroll_off" class="codebuttons" style="font-size: 11px; margin-right:3px; display: none;" type="button" value="同步滚动已关闭"></input>'
+    );
+
+    await db.getItem('sync_scroll_switch').then(async (value) => {
+        if (value) {
+            $("#sync_scroll_on").show();
+            new scroll_on();
+            console.log('同步滚动已打开');
+        } else {
+            $("#sync_scroll_off").show();
+            console.log('同步滚动已关闭');
+        };
+    });
+
+    // 为按钮绑定事件
+    $("#sync_scroll_off").click(function () {
+        $(this).hide();
+        $("#sync_scroll_on").fadeIn(200); // 渐入按钮
+        db.setItem('sync_scroll_switch', true)
+        new scroll_on();
+        console.log('同步滚动已打开');
+    });
+
+    $("#sync_scroll_on").click(function () {
+        $(this).hide();
+        $("#sync_scroll_off").fadeIn(200); // 渐入按钮
+        db.setItem('sync_scroll_switch', false)
+        new scroll_off();
+        console.log('同步滚动已关闭');
+    });
+
+    // 绑定鼠标事件
+    function scroll_on() {
+        let currentTab = 0;
+        $('.bbcode').mouseover(() => { currentTab = 1; });
+        $('#bbcode2').mouseover(() => { currentTab = 2; });
+
+        $('.bbcode').scroll(() => {
+            if (currentTab !== 1) return;
+            let scale = ($('#bbcode2').children('.child').get(0).offsetHeight - $('#bbcode2').get(0).offsetHeight) / ($('.bbcode').get(0).scrollHeight - $('.bbcode').get(0).offsetHeight);
+            $('#bbcode2').scrollTop($('.bbcode').scrollTop() * scale);
+        });
+
+        $('#bbcode2').scroll(() => {
+            if (currentTab !== 2) return;
+            let scale = ($('#bbcode2').children('.child').get(0).offsetHeight - $('#bbcode2').get(0).offsetHeight) / ($('.bbcode').get(0).scrollHeight - $('.bbcode').get(0).offsetHeight);
+            $('.bbcode').scrollTop($('#bbcode2').scrollTop() / scale);
+        });
+    };
+
+    // 解除鼠标事件
+    function scroll_off() {
+        $('.bbcode').off("scroll").off("mouseover");
+        $('#bbcode2').off("scroll").off("mouseover");
+    };
 };
 
 // 当前时间 字符串格式
