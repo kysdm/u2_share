@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.5
+// @version      0.0.6
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -117,7 +117,7 @@ function auth_token(__key) {
                 if (d.msg === 'success') {
                     let __token = d.data.token
                     $('#auth_value').text(__token);
-                    db.setItem('token', __token)
+                    db.setItem('token', __token);
                 } else {
                     $('#auth_value').html('可能没有把key写入<a href="usercp.php?action=personal" target="_blank" style="color:#FF0000">个人说明</a><br>key: ' + __key + '<br>错误信息: ' + JSON.stringify(d));
                 };
@@ -142,14 +142,14 @@ async function history1() {
         $(window).resize(function () { $('#history').css("margin-right", ($('#outer').width() - $('#history').next().width()) / 2 + 5 + 'px'); });
     };
 
-    $("#history_select").append('<option>正在努力加载中...</option>');
+    $("#history_select").append("<option>" + lang['history_select_loading'] + "</option>");
 
     const __json = await getapi(); // 从 API 获取数据
 
     if (__json.msg !== 'success') { // 加载失败时
         console.log('获取历史记录失败.');
         $("#history_select").empty(); // 插入前先清空 option
-        $("#history_select").append('<option>加载失败啦 (ノДＴ)</option>'); // 希望你不要看到这个 (ノДＴ)
+        $("#history_select").append('<option>' + lang['history_select_error'] + '</option>'); // 希望你不要看到这个 (ノДＴ)
         return;
     };
 
@@ -159,9 +159,9 @@ async function history1() {
     var now_data = {
         self: 0, // 唯一标识符
         title: $('#top').text(), // 主标题
-        subtitle: $("td[class='rowhead nowrap']:contains(副标题)").next().html(), // 副标题
-        uploaded: $("td[class='rowhead nowrap']:contains(发布人)").next().html(), // 发布人
-        basic_info: $("td[class='rowhead nowrap']:contains(基本信息)").next().html(), // 基本信息
+        subtitle: $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().html(), // 副标题
+        uploaded: $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(), // 发布人
+        basic_info: $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html(), // 基本信息
         description_info: $('#kdescr').html(), // 描述 <HTML>
         get_time: getDateString(), // 数据获取时间  这里是当前时间
     };
@@ -180,33 +180,33 @@ async function history1() {
             if (self !== history_data[i].self) continue;
             if (self === 0) { // 还原现在的页面
                 $('#top').text(history_data[i].title); // 主标题
-                $("td[class='rowhead nowrap']:contains(副标题)").next().html(history_data[i].subtitle);  // 副标题
-                $("td[class='rowhead nowrap']:contains(发布人)").next().html(history_data[i].uploaded); // 发布人一栏
-                $("td[class='rowhead nowrap']:contains(基本信息)").next().html(history_data[i].basic_info); // 基本信息一栏
+                $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().html(history_data[i].subtitle);  // 副标题
+                $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(history_data[i].uploaded); // 发布人一栏
+                $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html(history_data[i].basic_info); // 基本信息一栏
                 $('#kdescr').html(history_data[i].description_info); // 描述
                 return;
             }
             $('#top').text(history_data[i].title); // 主标题
-            $("td[class='rowhead nowrap']:contains(副标题)").next().text(history_data[i].subtitle); // 副标题
-            $("td[class='rowhead nowrap']:contains(描述)").next().html('<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + bbcode2html(history_data[i].description_info) + '</bdo></span>'); // 描述
+            $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().text(history_data[i].subtitle); // 副标题
+            $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").last().next().html('<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + bbcode2html(history_data[i].description_info) + '</bdo></span>'); // 描述
             if ($('h3').length === 1) { // 已经通过候选的种子
-                $("td[class='rowhead nowrap']:contains(发布人)").next().html(((p) => {
-                    if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>匿名</i>'; // 匿名发布
+                $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(((p) => {
+                    if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>' + lang['anonymous'] + '</i>'; // 匿名发布
                     if (p.uploader_id === null && p.uploader_name !== '匿名') return p.uploader_name; // 自定义署名 不带UID
                     if (p.uploader_id !== null && p.uploader_name !== '匿名') return '<a href="userdetails.php?id=' + p.uploader_id + '"><b>' + p.uploader_name + '</b></a>'; // 正常显示 || 自定义署名 带UID
                 })(history_data[i])); // 发布人
-                $("td[class='rowhead nowrap']:contains(基本信息)").next().html('<b>发布时间:</b> ' + history_data[i].uploaded_at.replace('T', ' ')
-                    + (() => { if (history_data[i].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>大小:</b>&nbsp;' + convert(history_data[i].torrent_size) } else { return ''; } })()
-                    + '&nbsp;&nbsp;&nbsp;<b>类型:</b> ' + history_data[i].category)
+                $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html('<b>' + lang['uploaded_at'] + ':</b> ' + history_data[i].uploaded_at.replace('T', ' ')
+                    + (() => { if (history_data[i].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>' + lang['size'] + ':</b>&nbsp;' + convert(history_data[i].torrent_size) } else { return ''; } })()
+                    + '&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + ':</b> ' + history_data[i].category)
             } else { // 还在候选的种子
-                $("td[class='rowhead nowrap']:contains(基本信息)").next().html('<b>提供者</b>:&nbsp;'
+                $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html('<b>' + lang['submitted_by'] + '</b>:&nbsp;'
                     + ((p) => {
-                        if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>匿名</i>'; // 匿名发布
+                        if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>' + lang['anonymous'] + '</i>'; // 匿名发布
                         if (p.uploader_id !== null && p.uploader_name !== '匿名') return '<a href="userdetails.php?id=' + p.uploader_id + '"><b>' + p.uploader_name + '</b></a>'; // 正常显示
                     })(history_data[i])
-                    + '&nbsp;&nbsp;&nbsp;<b>提交时间</b>:&nbsp;<time>'
+                    + '&nbsp;&nbsp;&nbsp;<b>' + lang['submitted_at'] + '</b>:&nbsp;<time>'
                     + history_data[i].uploaded_at.replace('T', ' ')
-                    + '</time>&nbsp;&nbsp;&nbsp;<b>类型</b>:&nbsp;'
+                    + '</time>&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + '</b>:&nbsp;'
                     + history_data[i].category
                 );
             };
@@ -219,17 +219,17 @@ async function history2() {
     'use strict';
     const errorstr = $('#outer').find('td.text').text();
     // 正在努力加载中...
-    $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<i>~~正在检查历史数据中~~</i>');
+    $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>' + lang['history_text_loading'] + '</i>');
 
     const __json = await getapi(); // 从 API 获取数据
 
     if (__json.msg !== 'success') { // 加载失败时
         console.log('获取历史记录失败.');
-        $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<i>加载失败啦 (ノДＴ) %%</i>');
+        $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + lang['history_text_error'] + '</i>');
         return;
     } else if (__json.data.history.length === 0) { // 获取成功 但没有历史记录时
         console.log('没有历史记录.');
-        $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<i>半条历史记录都没有 (ノДＴ) @@</i>');
+        $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + lang['history_text_empty'] + '</i>');
         return;
     };
 
@@ -240,34 +240,34 @@ async function history2() {
         + '<div id="hsty" style="position: relative;"><div id="history" style="position: absolute; right:56px; margin-top: 4px;">'
         + '<select name="type" id="history_select" style="visibility: visible;"></select></div></div>'
         + '<h3>(#' + torrent_id + ')</h3>'
-        + '<table width="90%" min-width="940px" cellspacing="0" cellpadding="5"><tbody><tr><td class="rowhead" width="13%">种子名</td>'
+        + '<table width="90%" min-width="940px" cellspacing="0" cellpadding="5"><tbody><tr><td class="rowhead" width="13%">' + lang['torrent_title'] + '</td>'
         + '<td class="rowfollow" width="87%" align="left">'
         + '<b>[U2].' + history_data[0].torrent_name + '.torrent</b></td></tr>'
-        + '<tr><td class="rowhead nowrap" valign="top" align="right">副标题</td>'
+        + '<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['subtitle'] + '</td>'
         + '<td class="rowfollow" valign="top" align="left">'
         + (() => { if (history_data[0].subtitle) { return history_data[0].subtitle } else { return ''; } })()
         + '</td></tr>'
-        + '</td></tr><tr><td class="rowhead nowrap" valign="top" align="right">基本信息</td>'
-        + '<td class="rowfollow" valign="top" align="left"><b>提供者</b>:&nbsp;'
+        + '</td></tr><tr><td class="rowhead nowrap" valign="top" align="right">' + lang['basic_info'] + '</td>'
+        + '<td class="rowfollow" valign="top" align="left"><b>' + lang['submitted_by'] + '</b>:&nbsp;'
         + ((p) => {
-            if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>匿名</i>'; // 匿名发布
+            if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>' + lang['anonymous'] + '</i>'; // 匿名发布
             if (p.uploader_id !== null && p.uploader_name !== '匿名') return '<a href="userdetails.php?id=' + p.uploader_id + '"><b>' + p.uploader_name + '</b></a>'; // 正常显示
         })(history_data[0])
-        + '&nbsp;&nbsp;&nbsp;<b>提交时间</b>:&nbsp;<time>' + history_data[0].uploaded_at.replace('T', ' ')
+        + '&nbsp;&nbsp;&nbsp;<b>' + lang['submitted_at'] + '</b>:&nbsp;<time>' + history_data[0].uploaded_at.replace('T', ' ')
         + '</time>'
         + (() => { if (history_data[0].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>大小:</b>&nbsp;' + convert(history_data[0].torrent_size) } else { return ''; } })()
-        + '&nbsp;&nbsp;&nbsp;<b>类型</b>:&nbsp;' + history_data[0].category
+        + '&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + '</b>:&nbsp;' + history_data[0].category
         + '</td></tr>'
         + '<tr><td class="rowhead nowrap" valign="top" align="right">'
         + '<a href="javascript: klappe_news(\'descr\')"><span class="nowrap">'
-        + '<img class="minus" src="pic/trans.gif" alt="Show/Hide" id="picdescr" title="显示&nbsp;/&nbsp;隐藏"> 描述</span></a></td>'
+        + '<img class="minus" src="pic/trans.gif" alt="Show/Hide" id="picdescr" title="' + lang['show_or_hide'] + '"> ' + lang['description'] + '</span></a></td>'
         + '<td class="rowfollow" valign="top" align="left">'
         + '<div id="kdescr"><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">'
         + bbcode2html(history_data[0].description_info) + '</bdo></span></div></td></tr><tr>'
-        + '<td class="rowhead nowrap" valign="top" align="right">种子信息</td>'
+        + '<td class="rowhead nowrap" valign="top" align="right">' + lang['torrent_info'] + '</td>'
         + '<td class="rowfollow" valign="top" align="left"><table><tbody><tr>'
-        + '<td class="no_border_wide"><b>文件数</b>: ' + history_data[0].torrent_files_qty
-        + '<br></td><td class="no_border_wide"><b>种子散列值:</b>&nbsp;' + history_data[0].torrent_hash
+        + '<td class="no_border_wide"><b>' + lang['files'] + '</b>: ' + history_data[0].torrent_files_qty
+        + '<br></td><td class="no_border_wide"><b>' + lang['info_hash'] + ':</b>&nbsp;' + history_data[0].torrent_hash
         + '</td></tr></tbody></table></td></tr></tbody></table><br><br></br>'
     );
 
@@ -280,17 +280,17 @@ async function history2() {
         for (let i = 0, len = history_data.length; i < len; i++) {
             if (self !== history_data[i].self) continue;
             $('#top').text(history_data[i].title); // 主标题
-            $("td[class='rowhead nowrap']:contains(副标题)").next().text(history_data[i].subtitle); // 副标题
-            $("td[class='rowhead nowrap']:contains(描述)").next().html('<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + bbcode2html(history_data[i].description_info) + '</bdo></span>'); // 描述
-            $("td[class='rowhead nowrap']:contains(基本信息)").next().html('<b>提供者</b>:&nbsp;'
+            $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().text(history_data[i].subtitle); // 副标题
+            $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").last().next().html('<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + bbcode2html(history_data[i].description_info) + '</bdo></span>'); // 描述
+            $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html('<b>' + lang['submitted_by'] + '</b>:&nbsp;'
                 + ((p) => {
-                    if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>匿名</i>'; // 匿名发布
+                    if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>' + lang['anonymous'] + '</i>'; // 匿名发布
                     if (p.uploader_id !== null && p.uploader_name !== '匿名') return '<a href="userdetails.php?id=' + p.uploader_id + '"><b>' + p.uploader_name + '</b></a>'; // 正常显示
                 })(history_data[i])
-                + '&nbsp;&nbsp;&nbsp;<b>提交时间</b>:&nbsp;<time>' + history_data[i].uploaded_at.replace('T', ' ')
+                + '&nbsp;&nbsp;&nbsp;<b>' + lang['submitted_at'] + '</b>:&nbsp;<time>' + history_data[i].uploaded_at.replace('T', ' ')
                 + '</time>'
-                + (() => { if (history_data[i].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>大小:</b>&nbsp;' + convert(history_data[i].torrent_size) } else { return ''; } })()
-                + '&nbsp;&nbsp;&nbsp;<b>类型</b>:&nbsp;' + history_data[i].category
+                + (() => { if (history_data[i].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>' + lang['size'] + ':</b>&nbsp;' + convert(history_data[i].torrent_size) } else { return ''; } })()
+                + '&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + '</b>:&nbsp;' + history_data[i].category
             );
         };
     });
@@ -599,7 +599,31 @@ function lang_init(lang) {
             "url_link": "请输入网址链接",
             "select_type": "请选择分类...",
             "preview": "预览",
-            "auto_fold": "过深引用自动折叠"
+            "auto_fold": "过深引用自动折叠",
+            "subtitle": "副标题",
+            "uploaded": "发布人",
+            "basic_info": "基本信息",
+            "description": "描述",
+            "history_select_loading": "正在努力加载中...",
+            "history_select_error": "加载失败啦 (ノДＴ)",
+            "anonymous": "匿名",
+            "uploaded_at": "发布时间",
+            "size": "大小",
+            "category": "类型",
+            "submitted_by": "提供者",
+            "submitted_at": "提交时间",
+            "history_text_loading": "~~正在检查历史数据中~~",
+            "history_text_error": "加载失败啦 (ノДＴ) %%",
+            "history_text_empty": "半条历史记录都没有 (ノДＴ) @@",
+            "torrent_title": "种子标题",
+            "torrent_info": "种子信息",
+            "files": "文件数",
+            "info_hash": "种子散列值",
+            "show_or_hide": "显示&nbsp;/&nbsp;隐藏",
+            "KiB": " KiB",
+            "MiB": " MiB",
+            "GiB": " GiB",
+            "TiB": " TiB",
         },
         "zh_TW": {
             "quote": "引用",
@@ -617,7 +641,31 @@ function lang_init(lang) {
             "url_link": "請輸入網址連結",
             "select_type": "請選擇分類...",
             "preview": "預覽",
-            "auto_fold": "過深引用自動摺疊"
+            "auto_fold": "過深引用自動摺疊",
+            "subtitle": "副標題",
+            "uploaded": "發布人",
+            "basic_info": "基本訊息",
+            "description": "描述",
+            "history_select_loading": "正在努力載入中...",
+            "history_select_error": "載入失敗啦 (ノДＴ)",
+            "anonymous": "匿名",
+            "uploaded_at": "發布時間",
+            "size": "大小",
+            "category": "類型",
+            "submitted_by": "提供者",
+            "submitted_at": "提交時間",
+            "history_text_loading": "~~正在檢查歷史數據中~~",
+            "history_text_error": "載入失敗啦 (ノДＴ) %%",
+            "history_text_empty": "半條歷史記錄都沒有 (ノДＴ) @@",
+            "torrent_title": "種子標題",
+            "torrent_info": "種子訊息",
+            "files": "文件數",
+            "info_hash": "種子散列值",
+            "show_or_hide": "顯示&nbsp;/&nbsp;隱藏",
+            "KiB": " KiB",
+            "MiB": " MiB",
+            "GiB": " GiB",
+            "TiB": " TiB",
         },
         "zh_HK": {
             "quote": "引用",
@@ -635,7 +683,31 @@ function lang_init(lang) {
             "url_link": "請輸入網址鏈接",
             "select_type": "請選擇分類...",
             "preview": "預覽",
-            "auto_fold": "過深引用自動摺疊"
+            "auto_fold": "過深引用自動摺疊",
+            "subtitle": "副標題",
+            "uploaded": "發布人",
+            "basic_info": "基本訊息",
+            "description": "描述",
+            "history_select_loading": "正在努力加載中...",
+            "history_select_error": "加載失敗啦 (ノДＴ)",
+            "anonymous": "匿名",
+            "uploaded_at": "發佈時間",
+            "size": "大小",
+            "category": "類型",
+            "submitted_by": "提供者",
+            "submitted_at": "提交時間",
+            "history_text_loading": "~~正在檢查歷史數據中~~",
+            "history_text_error": "加載失敗啦 (ノДＴ) %%",
+            "history_text_empty": "半條歷史記錄都沒有 (ノДＴ) @@",
+            "torrent_title": "種子標題",
+            "torrent_info": "種子訊息",
+            "files": "文件數",
+            "info_hash": "種子散列值",
+            "show_or_hide": "顯示&nbsp;/&nbsp;隱藏",
+            "KiB": " KiB",
+            "MiB": " MiB",
+            "GiB": " GiB",
+            "TiB": " TiB",
         },
         "en_US": {
             "quote": "Quote",
@@ -653,7 +725,31 @@ function lang_init(lang) {
             "url_link": "Please enter the URL link",
             "select_type": "Please select a type.",
             "preview": "Preview",
-            "auto_fold": "Over quote auto fold"
+            "auto_fold": "Over quote auto fold",
+            "subtitle": "Small Description",
+            "uploaded": "Uploader",
+            "basic_info": "Basic Info",
+            "description": "Description",
+            "history_select_loading": "Trying to load now ...",
+            "history_select_error": "Load failure (ノДＴ)",
+            "anonymous": "Anonymous",
+            "uploaded_at": "Uploaded at",
+            "size": "Size",
+            "category": "Category",
+            "submitted_by": "Submitted by",
+            "submitted_at": "Submitted at",
+            "history_text_loading": "~~Checking historical data now~~",
+            "history_text_error": "Load failure (ノДＴ) %%",
+            "history_text_empty": "Half of the history is missing (ノДＴ) @@",
+            "torrent_title": "Torrent Title",
+            "torrent_info": "Torrent Info",
+            "files": "Files",
+            "info_hash": "Info hash",
+            "show_or_hide": "Show&nbsp;or&nbsp;Hide",
+            "KiB": " KiB",
+            "MiB": " MiB",
+            "GiB": " GiB",
+            "TiB": " TiB",
         },
         "ru_RU": {
             "quote": "Цитата",
@@ -671,7 +767,31 @@ function lang_init(lang) {
             "url_link": "Пожалуйста, введите URL-ссылку",
             "select_type": "выберите тип ...",
             "preview": "Предварительный просмотр",
-            "auto_fold": "Автоматическое складывание для более глубоких ссылок"
+            "auto_fold": "Автоматическое складывание для более глубоких ссылок",
+            "subtitle": "Краткое Описание",
+            "uploaded": "Загрузил",
+            "basic_info": "Базовая инф.",
+            "description": "Описание",
+            "history_select_loading": "Пытаюсь загрузить сейчас ...",
+            "history_select_error": "Отказ нагрузки (ノДＴ)",
+            "anonymous": "Анонимно",
+            "uploaded_at": "Загружен",
+            "size": "Размер",
+            "category": "Категория",
+            "submitted_by": "Разместивший Запрос",
+            "submitted_at": "Дата размещения",
+            "history_text_loading": "~~Проверка исторических данных сейчас~~",
+            "history_text_error": "Отказ нагрузки (ノДＴ) %%",
+            "history_text_empty": "Половина истории отсутствует (ノДＴ) @@",
+            "torrent_title": "Имя торрента",
+            "torrent_info": "Информация о торренте	",
+            "files": "Файлов в торренте",
+            "info_hash": "Информация о ХЕШЕ",
+            "show_or_hide": "Показать&nbsp;/&nbsp;Скрыть",
+            "KiB": " KiБ",
+            "MiB": " MiБ",
+            "GiB": " GiБ",
+            "TiB": " TiБ",
         }
     };
     return lang_json[lang];
@@ -688,8 +808,8 @@ function getDateString() {
 
 
 function convert(s) {
-    if (s / 1024 < 1024) return (s / 1024).toFixed(3) + ' KiB'
-    if (s / 1024 / 1024 < 1024) return (s / 1024 / 1024).toFixed(3) + ' MiB'
-    if (s / 1024 / 1024 / 1024 < 1024) return (s / 1024 / 1024 / 1024).toFixed(3) + ' GiB'
-    if (s / 1024 / 1024 / 1024 / 1024 < 1024) return (s / 1024 / 1024 / 1024 / 1024).toFixed(3) + ' TiB'
+    if (s / 1024 < 1024) return (s / 1024).toFixed(3) + lang['KiB']
+    if (s / 1024 / 1024 < 1024) return (s / 1024 / 1024).toFixed(3) + lang['MiB']
+    if (s / 1024 / 1024 / 1024 < 1024) return (s / 1024 / 1024 / 1024).toFixed(3) + lang['GiB']
+    if (s / 1024 / 1024 / 1024 / 1024 < 1024) return (s / 1024 / 1024 / 1024 / 1024).toFixed(3) + lang['TiB']
 };
