@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.7
+// @version      0.0.8
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
 // @match        *://u2.dmhy.org/details.php?id=*
 // @match        *://u2.dmhy.org/offers.php?id=*
+// @exclude      *://u2.dmhy.org/details.php?id=*&cmtpage=*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdn.jsdelivr.net/npm/localforage@1.9.0/dist/localforage.min.js
 // @updateURL    https://github.com/kysdm/u2_share/raw/main/u2share_torrents_history.user.js
