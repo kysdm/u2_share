@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.8
+// @version      0.0.9
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -150,7 +150,24 @@ async function history1() {
     if (__json.msg !== 'success') { // 加载失败时
         console.log('获取历史记录失败.');
         $("#history_select").empty(); // 插入前先清空 option
-        $("#history_select").append('<option>' + lang['history_select_error'] + '</option>'); // 希望你不要看到这个 (ノДＴ)
+        $("#history_select").append('<option value="80000">' + lang['history_select_error'] + '</option>'); // 希望你不要看到这个 (ノДＴ)
+        $("#history_select").append('<option value="90000">' + '重置Token (・_・)ヾ' + '</option>'); // 删除本地授权信息
+        $("#history_select").change(function () { // 监听菜单选择
+            let self = Number($(this).val());
+            if (self === 90000) {
+                let confirm = prompt("输入 YES 确认本次操作");
+                if (confirm === 'YES') {
+                    db.removeItem('key');
+                    db.removeItem('token');
+                    $('#history_select').val(80000); // 将焦点设置到 80000
+                    $('#history_select').change(); // 手动触发列表更改事件
+                    alert("成功");
+                } else {
+                    $('#history_select').val(80000); // 将焦点设置到 80000
+                    $('#history_select').change(); // 手动触发列表更改事件
+                };
+            };
+        });
         return;
     };
 
@@ -226,7 +243,17 @@ async function history2() {
 
     if (__json.msg !== 'success') { // 加载失败时
         console.log('获取历史记录失败.');
-        $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + lang['history_text_error'] + '</i>');
+        $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>' + lang['history_text_error']
+            + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<a id="apifailure" href="javascript:void(0);" style="color:#FF1212">重置Token (・_・)ヾ</a>' + '</i>');
+        $("#apifailure").click(function () {
+            let confirm = prompt("输入 YES 确认本次操作");
+            if (confirm === 'YES') {
+                db.removeItem('key');
+                db.removeItem('token');
+                alert("成功");
+            };
+        });
+
         return;
     } else if (__json.data.history.length === 0) { // 获取成功 但没有历史记录时
         console.log('没有历史记录.');
@@ -584,9 +611,9 @@ function getapi() {
             error: r => {
                 console.log('发生错误，HTTP状态码[' + r.status + ']。');
                 reject(r.status)
-            }
+            },
         });
-    });
+    }).catch(() => { return { "state": "404", "msg": "failure", "data": { "history": [] } }; });
 };
 
 
