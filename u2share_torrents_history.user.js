@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.9
+// @version      0.1.0
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -188,7 +188,16 @@ async function history1() {
 
     $("#history_select").empty(); // 插入前先清空 option
     for (let i = 0, len = history_data.length; i < len; i++) { // 循环插入到选择列表中
-        $("#history_select").append("<option value='" + history_data[i].self + "'>" + history_data[i].get_time.replace('T', ' ') + "</option>");
+        $("#history_select").append("<option value='" + history_data[i].self + "'>"
+            + history_data[i].get_time.replace('T', ' ')
+            + (() => {
+                if (history_data[i].self === 0) return ' 当前时间'
+                else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
+                else if (history_data[i].edited_name === 'Anonymous' && history_data[i].edited_id === null) return ' 匿名用户'
+                else if (history_data[i].edited_name !== null && history_data[i].edited_id !== null) return ' ' + history_data[i].edited_name + '(' + history_data[i].edited_id + ')'
+                else return ' @BUG@'
+            })()
+            + "</option>");
     };
 
     // 草 为什么会这样呢 明明原来很整齐的
@@ -300,7 +309,16 @@ async function history2() {
     );
 
     for (let i = 0, len = history_data.length; i < len; i++) { // 循环插入到选择列表中
-        $("#history_select").append("<option value='" + history_data[i].self + "'>" + history_data[i].get_time.replace('T', ' ') + "</option>");
+        $("#history_select").append("<option value='" + history_data[i].self + "'>"
+            + history_data[i].get_time.replace('T', ' ')
+            + (() => {
+                if (history_data[i].self === 0) return ' 当前时间'
+                else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
+                else if (history_data[i].edited_name === 'Anonymous' && history_data[i].edited_id === null) return ' 匿名用户'
+                else if (history_data[i].edited_name !== null && history_data[i].edited_id !== null) return ' ' + history_data[i].edited_name + '(' + history_data[i].edited_id + ')'
+                else return ' @BUG@'
+            })()
+            + "</option>");
     };
 
     $("#history_select").change(function () { // 监听菜单选择
@@ -386,7 +404,7 @@ function bbcode2html(bbcodestr) {
     bbcodestr = bbcodestr.replace(/\[url=((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\](.+?)\[\/url\]/gis, function (s, x, y, z) {
         return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + z + '</a>');
     });
-    
+
     bbcodestr = bbcodestr.replace(/\[url\]((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\[\/url\]/gis, function (s, x) {
         return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + x + '</a>')
     });
