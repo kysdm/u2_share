@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.1
+// @version      0.1.2
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -215,6 +215,13 @@ async function history1() {
                 return;
             }
             $('#top').text(history_data[i].title); // 主标题
+            // 检查副标题一栏是否存在
+            if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 0 && history_data[i].subtitle !== null) {
+                $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").parent().before('<tr><td class="rowhead nowrap" valign="top" align="right">副标题</td><td class="rowfollow" valign="top" align="left"></td></tr>');
+            }
+            else if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 1 && history_data[i].subtitle === null) {
+                $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").parent().remove();
+            };
             $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().text(history_data[i].subtitle); // 副标题
             $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").last().next().html('<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + bbcode2html(history_data[i].description_info) + '</bdo></span>'); // 描述
             if ($('h3').length === 1) { // 已经通过候选的种子
@@ -281,11 +288,13 @@ async function history2() {
         + '<table width="90%" min-width="940px" cellspacing="0" cellpadding="5"><tbody><tr><td class="rowhead" width="13%">' + lang['torrent_title'] + '</td>'
         + '<td class="rowfollow" width="87%" align="left">'
         + '<b>[U2].' + history_data[0].torrent_name + '.torrent</b></td></tr>'
-        + '<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['subtitle'] + '</td>'
-        + '<td class="rowfollow" valign="top" align="left">'
-        + (() => { if (history_data[0].subtitle) { return history_data[0].subtitle } else { return ''; } })()
-        + '</td></tr>'
-        + '</td></tr><tr><td class="rowhead nowrap" valign="top" align="right">' + lang['basic_info'] + '</td>'
+        + (() => {
+            if (history_data[0].subtitle) {
+                return '<tr><td class="rowhead nowrap" valign="top" align="right">'
+                    + lang['subtitle'] + '</td><td class="rowfollow" valign="top" align="left">' + history_data[0].subtitle + '</td></tr></td></tr>';
+            } else return '';
+        })()
+        + '<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['basic_info'] + '</td>'
         + '<td class="rowfollow" valign="top" align="left"><b>' + lang['submitted_by'] + '</b>:&nbsp;'
         + ((p) => {
             if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>' + lang['anonymous'] + '</i>'; // 匿名发布
@@ -328,6 +337,13 @@ async function history2() {
         for (let i = 0, len = history_data.length; i < len; i++) {
             if (self !== history_data[i].self) continue;
             $('#top').text(history_data[i].title); // 主标题
+            // 检查副标题一栏是否存在
+            if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 0 && history_data[i].subtitle !== null) {
+                $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").parent().before('<tr><td class="rowhead nowrap" valign="top" align="right">副标题</td><td class="rowfollow" valign="top" align="left"></td></tr>');
+            }
+            else if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 1 && history_data[i].subtitle === null) {
+                $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").parent().remove();
+            };
             $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().text(history_data[i].subtitle); // 副标题
             $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").last().next().html('<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + bbcode2html(history_data[i].description_info) + '</bdo></span>'); // 描述
             $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html('<b>' + lang['submitted_by'] + '</b>:&nbsp;'
