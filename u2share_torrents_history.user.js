@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.2
+// @version      0.1.3
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -192,9 +192,9 @@ async function history1() {
             + history_data[i].get_time.replace('T', ' ')
             + (() => { return history_data[i].self === 0 ? ' N' : history_data[i].torrent_hash === null ? ' H' : ' T' })()
             + (() => {
-                if (history_data[i].self === 0) return ' 当前时间'
+                if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
-                else if (history_data[i].edited_name === 'Anonymous' && history_data[i].edited_id === null) return ' 匿名用户'
+                else if (history_data[i].edited_name === 'Anonymous' && history_data[i].edited_id === null) return lang['anonymous_user']
                 else if (history_data[i].edited_name !== null && history_data[i].edited_id !== null) return ' ' + history_data[i].edited_name + '(' + history_data[i].edited_id + ')'
                 else return ' @BUG@'
             })()
@@ -217,7 +217,7 @@ async function history1() {
             $('#top').text(history_data[i].title); // 主标题
             // 检查副标题一栏是否存在
             if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 0 && history_data[i].subtitle !== null) {
-                $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").parent().before('<tr><td class="rowhead nowrap" valign="top" align="right">副标题</td><td class="rowfollow" valign="top" align="left"></td></tr>');
+                $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").parent().before('<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['subtitle'] + '</td><td class="rowfollow" valign="top" align="left"></td></tr>');
             }
             else if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 1 && history_data[i].subtitle === null) {
                 $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").parent().remove();
@@ -323,9 +323,9 @@ async function history2() {
             + history_data[i].get_time.replace('T', ' ')
             + (() => { return history_data[i].self === 0 ? ' N' : history_data[i].torrent_hash === null ? ' H' : ' T' })()
             + (() => {
-                if (history_data[i].self === 0) return ' 当前时间'
+                if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
-                else if (history_data[i].edited_name === 'Anonymous' && history_data[i].edited_id === null) return ' 匿名用户'
+                else if (history_data[i].edited_name === 'Anonymous' && history_data[i].edited_id === null) return lang['anonymous_user']
                 else if (history_data[i].edited_name !== null && history_data[i].edited_id !== null) return ' ' + history_data[i].edited_name + '(' + history_data[i].edited_id + ')'
                 else return ' @BUG@'
             })()
@@ -339,7 +339,7 @@ async function history2() {
             $('#top').text(history_data[i].title); // 主标题
             // 检查副标题一栏是否存在
             if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 0 && history_data[i].subtitle !== null) {
-                $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").parent().before('<tr><td class="rowhead nowrap" valign="top" align="right">副标题</td><td class="rowfollow" valign="top" align="left"></td></tr>');
+                $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").parent().before('<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['subtitle'] + '</td><td class="rowfollow" valign="top" align="left"></td></tr>');
             }
             else if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 1 && history_data[i].subtitle === null) {
                 $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").parent().remove();
@@ -697,6 +697,8 @@ function lang_init(lang) {
             "MiB": " MiB",
             "GiB": " GiB",
             "TiB": " TiB",
+            "current_time": " 当前时间",
+            "anonymous_user": " 匿名用户",
         },
         "zh_TW": {
             "quote": "引用",
@@ -739,6 +741,8 @@ function lang_init(lang) {
             "MiB": " MiB",
             "GiB": " GiB",
             "TiB": " TiB",
+            "current_time": " 當前時間",
+            "anonymous_user": " 匿名用戶",
         },
         "zh_HK": {
             "quote": "引用",
@@ -781,6 +785,8 @@ function lang_init(lang) {
             "MiB": " MiB",
             "GiB": " GiB",
             "TiB": " TiB",
+            "current_time": " 當前時間",
+            "anonymous_user": " 匿名用戶",
         },
         "en_US": {
             "quote": "Quote",
@@ -823,6 +829,8 @@ function lang_init(lang) {
             "MiB": " MiB",
             "GiB": " GiB",
             "TiB": " TiB",
+            "current_time": " CurrentTime",
+            "anonymous_user": " AnonymousUser",
         },
         "ru_RU": {
             "quote": "Цитата",
@@ -865,6 +873,8 @@ function lang_init(lang) {
             "MiB": " MiБ",
             "GiB": " GiБ",
             "TiB": " TiБ",
+            "current_time": " Текущее время",
+            "anonymous_user": " Анонимный пользователь",
         }
     };
     return lang_json[lang];
