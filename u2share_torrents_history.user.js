@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.3
+// @version      0.1.4
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -176,7 +176,7 @@ async function history1() {
 
     var now_data = {
         self: 0, // 唯一标识符
-        title: $('#top').text(), // 主标题
+        title: $('#top').html(), // 主标题
         subtitle: $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().html(), // 副标题
         uploaded: $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(), // 发布人
         basic_info: $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html(), // 基本信息
@@ -207,14 +207,14 @@ async function history1() {
         for (let i = 0, len = history_data.length; i < len; i++) {
             if (self !== history_data[i].self) continue;
             if (self === 0) { // 还原现在的页面
-                $('#top').text(history_data[i].title); // 主标题
+                $('#top').html(history_data[i].title); // 主标题
                 $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().html(history_data[i].subtitle);  // 副标题
                 $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(history_data[i].uploaded); // 发布人一栏
                 $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html(history_data[i].basic_info); // 基本信息一栏
                 $('#kdescr').html(history_data[i].description_info); // 描述
                 return;
             }
-            $('#top').text(history_data[i].title); // 主标题
+            history_data[i].banned === 1 ? $('#top').html(history_data[i].title + '&nbsp;&nbsp;&nbsp; <b>[<font class="striking">' + lang['banned'] + '</font>]</b>') : $('#top').text(history_data[i].title);
             // 检查副标题一栏是否存在
             if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 0 && history_data[i].subtitle !== null) {
                 $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").parent().before('<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['subtitle'] + '</td><td class="rowfollow" valign="top" align="left"></td></tr>');
@@ -281,19 +281,16 @@ async function history2() {
     console.log('获取历史记录成功.');
     let history_data = __json.data.history;
     // 还原网页
-    $('#outer').html('<h1 align="center" id="top">' + history_data[0].title + '</h1>'
+    $('#outer').html('<h1 align="center" id="top">'
+        + (() => { return history_data[0].banned === 1 ? history_data[0].title + '&nbsp;&nbsp;&nbsp; <b>[<font class="striking">' + lang['banned'] + '</font>]</b>' : history_data[0].title; })()
+        + '</h1>'
         + '<div id="hsty" style="position: relative;"><div id="history" style="position: absolute; right:56px; margin-top: 4px;">'
         + '<select name="type" id="history_select" style="visibility: visible;"></select></div></div>'
         + '<h3>(#' + torrent_id + ')</h3>'
         + '<table width="90%" min-width="940px" cellspacing="0" cellpadding="5"><tbody><tr><td class="rowhead" width="13%">' + lang['torrent_title'] + '</td>'
         + '<td class="rowfollow" width="87%" align="left">'
         + '<b>[U2].' + history_data[0].torrent_name + '.torrent</b></td></tr>'
-        + (() => {
-            if (history_data[0].subtitle) {
-                return '<tr><td class="rowhead nowrap" valign="top" align="right">'
-                    + lang['subtitle'] + '</td><td class="rowfollow" valign="top" align="left">' + history_data[0].subtitle + '</td></tr></td></tr>';
-            } else return '';
-        })()
+        + (() => { return history_data[0].subtitle ? '<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['subtitle'] + '</td><td class="rowfollow" valign="top" align="left">' + history_data[0].subtitle + '</td></tr></td></tr>' : '' })()
         + '<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['basic_info'] + '</td>'
         + '<td class="rowfollow" valign="top" align="left"><b>' + lang['submitted_by'] + '</b>:&nbsp;'
         + ((p) => {
@@ -336,7 +333,7 @@ async function history2() {
         let self = Number($(this).val());
         for (let i = 0, len = history_data.length; i < len; i++) {
             if (self !== history_data[i].self) continue;
-            $('#top').text(history_data[i].title); // 主标题
+            history_data[i].banned === 1 ? $('#top').html(history_data[i].title + '&nbsp;&nbsp;&nbsp; <b>[<font class="striking">' + lang['banned'] + '</font>]</b>') : $('#top').text(history_data[i].title);
             // 检查副标题一栏是否存在
             if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 0 && history_data[i].subtitle !== null) {
                 $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").parent().before('<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['subtitle'] + '</td><td class="rowfollow" valign="top" align="left"></td></tr>');
@@ -699,6 +696,7 @@ function lang_init(lang) {
             "TiB": " TiB",
             "current_time": " 当前时间",
             "anonymous_user": " 匿名用户",
+            "banned": "已屏蔽",
         },
         "zh_TW": {
             "quote": "引用",
@@ -743,6 +741,7 @@ function lang_init(lang) {
             "TiB": " TiB",
             "current_time": " 當前時間",
             "anonymous_user": " 匿名用戶",
+            "banned": "已屏蔽",
         },
         "zh_HK": {
             "quote": "引用",
@@ -787,6 +786,7 @@ function lang_init(lang) {
             "TiB": " TiB",
             "current_time": " 當前時間",
             "anonymous_user": " 匿名用戶",
+            "banned": "已屏蔽",
         },
         "en_US": {
             "quote": "Quote",
@@ -831,6 +831,7 @@ function lang_init(lang) {
             "TiB": " TiB",
             "current_time": " CurrentTime",
             "anonymous_user": " AnonymousUser",
+            "banned": "Banned",
         },
         "ru_RU": {
             "quote": "Цитата",
@@ -875,6 +876,7 @@ function lang_init(lang) {
             "TiB": " TiБ",
             "current_time": " Текущее время",
             "anonymous_user": " Анонимный пользователь",
+            "banned": "Забанен",
         }
     };
     return lang_json[lang];
