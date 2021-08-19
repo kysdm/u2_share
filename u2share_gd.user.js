@@ -16,7 +16,20 @@
 // @connect      cdn.jsdelivr.net
 // ==/UserScript==
 
-// https://greasyfork.org/zh-CN/scripts/414882-u2%E7%A7%8D%E5%AD%90%E5%A4%87%E4%BB%BD%E6%9F%A5%E8%AF%A2
+/*
+本脚本基于 Bamboo Green 界面风格进行修改
+/*
+
+/*
+GreasyFork 地址
+    https://greasyfork.org/zh-CN/scripts/414882-u2%E7%A7%8D%E5%AD%90%E5%A4%87%E4%BB%BD%E6%9F%A5%E8%AF%A2
+*/
+
+/*
+使用说明
+    https://u2.dmhy.org/forums.php?action=viewtopic&topicid=12748&page=p139981#pid139981
+*/
+
 (async () => {
     'use strict';
 
