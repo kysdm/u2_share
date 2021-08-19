@@ -10,15 +10,22 @@
 // @exclude      *://u2.dmhy.org/details.php?id=*&cmtpage=*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdn.jsdelivr.net/npm/localforage@1.9.0/dist/localforage.min.js
-// @updateURL    https://github.com/kysdm/u2_share/raw/main/u2share_torrents_history.user.js
-// @installURL   https://github.com/kysdm/u2_share/raw/main/u2share_torrents_history.user.js
-// @downloadURL  https://github.com/kysdm/u2_share/raw/main/u2share_torrents_history.user.js
 // @license      Apache-2.0
 // ==/UserScript==
 
 /*
 本脚本基于 Bamboo Green 界面风格进行修改
 /*
+
+/*
+GreasyFork 地址
+    https://greasyfork.org/zh-CN/scripts/428545-u2%E7%A7%8D%E5%AD%90%E5%8E%86%E5%8F%B2%E8%AE%B0%E5%BD%95
+*/
+
+/*
+使用说明
+    https://u2.dmhy.org/forums.php?action=viewtopic&topicid=13495&page=p150133#pid150133
+*/
 
 /*
 更新日志
