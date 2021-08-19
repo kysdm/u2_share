@@ -16,15 +16,17 @@
 // @match        *://u2.dmhy.org/sendmessage.php?receiver=*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdn.jsdelivr.net/npm/localforage@1.9.0/dist/localforage.min.js
-// @updateURL    https://github.com/kysdm/u2_share/raw/main/u2share_bbcode.user.js
-// @installURL   https://github.com/kysdm/u2_share/raw/main/u2share_bbcode.user.js
-// @downloadURL  https://github.com/kysdm/u2_share/raw/main/u2share_bbcode.user.js
 // @license      Apache-2.0
 // ==/UserScript==
 
 /*
 本脚本基于 Bamboo Green 界面风格进行修改
 /*
+
+/*
+GreasyFork 地址
+    https://greasyfork.org/zh-CN/scripts/426268-u2%E5%AE%9E%E6%97%B6%E9%A2%84%E8%A7%88bbcode
+*/
 
 /*
 更新日志
