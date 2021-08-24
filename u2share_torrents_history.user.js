@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.4
+// @version      0.1.5
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -367,7 +367,7 @@ async function history2() {
 
 function bbcode2html(bbcodestr) {
     'use strict';
-    const f_reg = new RegExp("^\"?\"?$");
+    const f_reg = new RegExp("^\"?\"?$|^(?:&quot;)?(?:&quot;)?$");
 
     var tempCode = new Array();
     var tempCodeCount = 0;
@@ -568,7 +568,7 @@ function bbcode2html(bbcodestr) {
 
     // spoiler
     const spoiler_reg1 = new RegExp("\\[spoiler\\](.*?)\\[/spoiler\\]", "gsi");
-    const spoiler_reg2 = new RegExp("\\[spoiler=([^\\]]+)\\\](.*?)\\[/spoiler\\]", "gsi");
+    const spoiler_reg2 = new RegExp("\\[spoiler=([^\\]]+)\\](.*?)\\[/spoiler\\]", "gsi");
     while (spoiler_reg1.test(bbcodestr)) {
         bbcodestr = bbcodestr.replace(spoiler_reg1, function (s, x) {
             return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'

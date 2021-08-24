@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.0
+// @version      0.3.1
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -186,7 +186,8 @@ GreasyFork 地址
     };
 
     function bbcode2html(bbcodestr) {
-        const f_reg = new RegExp("^\"?\"?$");
+        'use strict';
+        const f_reg = new RegExp("^\"?\"?$|^(?:&quot;)?(?:&quot;)?$");
 
         var tempCode = new Array();
         var tempCodeCount = 0;
@@ -380,7 +381,7 @@ GreasyFork 地址
                     return '<fieldset><legend>' + lang['quote'] + '</legend>' + y + '</fieldset>';
                 }
                 else {
-                    return '<fieldset><legend>' + lang['quote'] + ': ' + x.replace(/^"(.*?)"?$/, "$1") + '</legend>' + y + '</fieldset>';
+                    return '<fieldset><legend>' + lang['quote'] + ': ' + x.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1") + '</legend>' + y + '</fieldset>';
                 }
             });
         };
