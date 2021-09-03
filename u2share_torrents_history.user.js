@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.5
+// @version      0.1.6
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -187,7 +187,8 @@ async function history1() {
         subtitle: $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().html(), // 副标题
         uploaded: $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(), // 发布人
         basic_info: $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html(), // 基本信息
-        description_info: $('#kdescr').html(), // 描述 <HTML>
+        // description_info: $('#kdescr').html(), // 描述 <HTML>
+        description_info: $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").next().html(), // 描述 <HTML>
         get_time: getDateString(), // 数据获取时间  这里是当前时间
     };
 
@@ -218,7 +219,7 @@ async function history1() {
                 $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().html(history_data[i].subtitle);  // 副标题
                 $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(history_data[i].uploaded); // 发布人一栏
                 $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html(history_data[i].basic_info); // 基本信息一栏
-                $('#kdescr').html(history_data[i].description_info); // 描述
+                $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").next().html(history_data[i].description_info); // 描述
                 return;
             }
             history_data[i].banned === 1 ? $('#top').html(history_data[i].title + '&nbsp;&nbsp;&nbsp; <b>[<font class="striking">' + lang['banned'] + '</font>]</b>') : $('#top').text(history_data[i].title);
