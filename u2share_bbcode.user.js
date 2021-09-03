@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.1
+// @version      0.3.2
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -221,14 +221,8 @@ GreasyFork 地址
         bbcodestr = bbcodestr.replace(/\n/g, () => { return '<br>' });
         bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
 
-        // code 标签
-        const code_reg = new RegExp("\\[code\\](.+?)\\[\\/code\\]", "gis");
-        bbcodestr = bbcodestr.replace(code_reg, function (s, x) {
-            return addTempCode('<br /><div class="codetop">' + lang['code'] + '</div><div class="codemain">' + x + '</div><br />');
-        });
-
-        // info 标签
-        const info_reg = new RegExp("\\[(mediainfo|info)\\](.+?)\\[\\/(\\1)\\]", "gis");
+        // info/code 标签
+        const info_reg = new RegExp("\\[(mediainfo|info|code)\\](.+?)\\[\\/(\\1)\\]", "gis");
         bbcodestr = bbcodestr.replace(info_reg, function (s, x, y) {
             switch (x) {
                 case 'info':
@@ -237,6 +231,8 @@ GreasyFork 地址
                 case 'mediainfo':
                     return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">'
                         + lang['mediainfo'] + '</span></b></legend>' + y + '</fieldset>');
+                case 'code':
+                    return addTempCode('<br /><div class="codetop">' + lang['code'] + '</div><div class="codemain">' + x + '</div><br />');
                 default:
                     return s;
             }

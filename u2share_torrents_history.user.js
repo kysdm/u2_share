@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.6
+// @version      0.1.7
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -402,14 +402,8 @@ function bbcode2html(bbcodestr) {
     bbcodestr = bbcodestr.replace(/\n/g, () => { return '<br>' });
     bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
 
-    // code 标签
-    const code_reg = new RegExp("\\[code\\](.+?)\\[\\/code\\]", "gis");
-    bbcodestr = bbcodestr.replace(code_reg, function (s, x) {
-        return addTempCode('<br /><div class="codetop">' + lang['code'] + '</div><div class="codemain">' + x + '</div><br />');
-    });
-
-    // info 标签
-    const info_reg = new RegExp("\\[(mediainfo|info)\\](.+?)\\[\\/(\\1)\\]", "gis");
+    // info/code 标签
+    const info_reg = new RegExp("\\[(mediainfo|info|code)\\](.+?)\\[\\/(\\1)\\]", "gis");
     bbcodestr = bbcodestr.replace(info_reg, function (s, x, y) {
         switch (x) {
             case 'info':
@@ -418,6 +412,8 @@ function bbcode2html(bbcodestr) {
             case 'mediainfo':
                 return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">'
                     + lang['mediainfo'] + '</span></b></legend>' + y + '</fieldset>');
+            case 'code':
+                return addTempCode('<br /><div class="codetop">' + lang['code'] + '</div><div class="codemain">' + x + '</div><br />');
             default:
                 return s;
         }
