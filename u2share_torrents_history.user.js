@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.7
+// @version      0.1.8
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -288,6 +288,7 @@ async function history2() {
 
     console.log('获取历史记录成功.');
     let history_data = __json.data.history;
+    let gdListObj = JSON.parse(localStorage.getItem("u2_gd_list")); // 读取谷歌备份列表
     // 还原网页
     $('#outer').html('<h1 align="center" id="top">'
         + (() => { return history_data[0].banned === 1 ? history_data[0].title + '&nbsp;&nbsp;&nbsp; <b>[<font class="striking">' + lang['banned'] + '</font>]</b>' : history_data[0].title; })()
@@ -309,6 +310,15 @@ async function history2() {
         + '</time>'
         + (() => { if (history_data[0].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>大小:</b>&nbsp;' + convert(history_data[0].torrent_size) } else { return ''; } })()
         + '&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + '</b>:&nbsp;' + history_data[0].category
+        + (() => {
+            const r = '&nbsp;&nbsp;&nbsp;<b>' + lang['google_backup'] + '</b>:&nbsp;'
+            console.log(gdListObj);
+            if (gdListObj === null) return ``; // 列表不存在时，直接返回
+            const gdList = gdListObj.list; // 载入种子列表
+            let d = gdList.findIndex((value) => value == Number(torrent_id)); // 查找数据库中是否有备份，没有返回-1
+            if (d === -1) return r + `×`;  // 没有备份时
+            return `${r}<a href="sendmessage.php?receiver=45940#${torrent_id}" target="_blank" title="${lang['google_send']}">√</a>`
+        })()
         + '</td></tr>'
         + '<tr><td class="rowhead nowrap" valign="top" align="right">'
         + '<a href="javascript: klappe_news(\'descr\')"><span class="nowrap">'
@@ -701,6 +711,8 @@ function lang_init(lang) {
             "current_time": " 当前时间",
             "anonymous_user": " 匿名用户",
             "banned": "已屏蔽",
+            "google_backup": "谷歌备份",
+            "google_send": "发送请求",
         },
         "zh_TW": {
             "quote": "引用",
@@ -746,6 +758,8 @@ function lang_init(lang) {
             "current_time": " 當前時間",
             "anonymous_user": " 匿名用戶",
             "banned": "已屏蔽",
+            "google_backup": "Google備份",
+            "google_send": "發送請求",
         },
         "zh_HK": {
             "quote": "引用",
@@ -791,6 +805,8 @@ function lang_init(lang) {
             "current_time": " 當前時間",
             "anonymous_user": " 匿名用戶",
             "banned": "已屏蔽",
+            "google_backup": "Google備份",
+            "google_send": "發送請求",
         },
         "en_US": {
             "quote": "Quote",
@@ -836,6 +852,8 @@ function lang_init(lang) {
             "current_time": " CurrentTime",
             "anonymous_user": " AnonymousUser",
             "banned": "Banned",
+            "google_backup": "Google Backup",
+            "google_send": "Send request",
         },
         "ru_RU": {
             "quote": "Цитата",
@@ -881,6 +899,8 @@ function lang_init(lang) {
             "current_time": " Текущее время",
             "anonymous_user": " Анонимный пользователь",
             "banned": "Забанен",
+            "google_backup": "Резервное копирование Google",
+            "google_send": "послать запрос",
         }
     };
     return lang_json[lang];
