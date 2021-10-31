@@ -312,7 +312,6 @@ async function history2() {
         + '&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + '</b>:&nbsp;' + history_data[0].category
         + (() => {
             const r = '&nbsp;&nbsp;&nbsp;<b>' + lang['google_backup'] + '</b>:&nbsp;'
-            console.log(gdListObj);
             if (gdListObj === null) return ``; // 列表不存在时，直接返回
             const gdList = gdListObj.list; // 载入种子列表
             let d = gdList.findIndex((value) => value == Number(torrent_id)); // 查找数据库中是否有备份，没有返回-1
