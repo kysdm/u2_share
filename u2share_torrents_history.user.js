@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.9
+// @version      0.2.0
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -249,7 +249,9 @@ async function history1() {
                     })(history_data[i])
                     + '&nbsp;&nbsp;&nbsp;<b>' + lang['submitted_at'] + '</b>:&nbsp;<time>'
                     + history_data[i].uploaded_at.replace('T', ' ')
-                    + '</time>&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + '</b>:&nbsp;'
+                    + '</time>&nbsp;&nbsp;&nbsp;<b>'
+                    + (() => { if (history_data[i].torrent_size) { return  `${lang['size']}</b>:&nbsp;${convert(history_data[i].torrent_size)}&nbsp;&nbsp;&nbsp;<b>` } else { return ''; } })()
+                    + lang['category'] + '</b>:&nbsp;'
                     + history_data[i].category
                 );
             };
