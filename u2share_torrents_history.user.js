@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.8
+// @version      0.1.9
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -198,7 +198,7 @@ async function history1() {
     for (let i = 0, len = history_data.length; i < len; i++) { // 循环插入到选择列表中
         $("#history_select").append("<option value='" + history_data[i].self + "'>"
             + history_data[i].get_time.replace('T', ' ')
-            + (() => { return history_data[i].self === 0 ? ' N' : history_data[i].torrent_hash === null ? ' H' : ' T' })()
+            + (() => { return history_data[i].self === 0 ? ' N' : history_data[i].offer === 1 ? ' H' : ' T' })()
             + (() => {
                 if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
@@ -335,7 +335,7 @@ async function history2() {
     for (let i = 0, len = history_data.length; i < len; i++) { // 循环插入到选择列表中
         $("#history_select").append("<option value='" + history_data[i].self + "'>"
             + history_data[i].get_time.replace('T', ' ')
-            + (() => { return history_data[i].self === 0 ? ' N' : history_data[i].torrent_hash === null ? ' H' : ' T' })()
+            + (() => { return history_data[i].self === 0 ? ' N' : history_data[i].offer === 1 ? ' H' : ' T' })()
             + (() => {
                 if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
