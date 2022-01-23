@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.0
+// @version      0.2.1
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -250,7 +250,7 @@ async function history1() {
                     + '&nbsp;&nbsp;&nbsp;<b>' + lang['submitted_at'] + '</b>:&nbsp;<time>'
                     + history_data[i].uploaded_at.replace('T', ' ')
                     + '</time>&nbsp;&nbsp;&nbsp;<b>'
-                    + (() => { if (history_data[i].torrent_size) { return  `${lang['size']}</b>:&nbsp;${convert(history_data[i].torrent_size)}&nbsp;&nbsp;&nbsp;<b>` } else { return ''; } })()
+                    + (() => { if (history_data[i].torrent_size) { return `${lang['size']}</b>:&nbsp;${convert(history_data[i].torrent_size)}&nbsp;&nbsp;&nbsp;<b>` } else { return ''; } })()
                     + lang['category'] + '</b>:&nbsp;'
                     + history_data[i].category
                 );
@@ -409,6 +409,7 @@ function bbcode2html(bbcodestr) {
         }
     });
 
+    bbcodestr = bbcodestr.replace(/  /g, () => { return ' &nbsp;' });
     bbcodestr = bbcodestr.replace(/\r\n/g, () => { return '<br>' });
     bbcodestr = bbcodestr.replace(/\n/g, () => { return '<br>' });
     bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
@@ -424,7 +425,7 @@ function bbcode2html(bbcodestr) {
                 return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">'
                     + lang['mediainfo'] + '</span></b></legend>' + y + '</fieldset>');
             case 'code':
-                return addTempCode('<br /><div class="codetop">' + lang['code'] + '</div><div class="codemain">' + x + '</div><br />');
+                return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${y}</div><br />`);
             default:
                 return s;
         }
