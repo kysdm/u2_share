@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.2
+// @version      0.3.3
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -232,7 +232,7 @@ GreasyFork 地址
                     return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">'
                         + lang['mediainfo'] + '</span></b></legend>' + y + '</fieldset>');
                 case 'code':
-                    return addTempCode('<br /><div class="codetop">' + lang['code'] + '</div><div class="codemain">' + x + '</div><br />');
+                    return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${y}</div><br />`);
                 default:
                     return s;
             }
