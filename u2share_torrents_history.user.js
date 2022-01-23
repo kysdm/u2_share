@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.1
+// @version      0.2.2
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -9,7 +9,7 @@
 // @match        *://u2.dmhy.org/offers.php?id=*
 // @exclude      *://u2.dmhy.org/details.php?id=*&cmtpage=*
 // @icon         https://u2.dmhy.org/favicon.ico
-// @require      https://cdn.jsdelivr.net/npm/localforage@1.9.0/dist/localforage.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // @license      Apache-2.0
 // ==/UserScript==
 

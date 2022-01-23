@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.3
+// @version      0.3.4
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -15,7 +15,7 @@
 // @match        *://u2.dmhy.org/contactstaff.php
 // @match        *://u2.dmhy.org/sendmessage.php?receiver=*
 // @icon         https://u2.dmhy.org/favicon.ico
-// @require      https://cdn.jsdelivr.net/npm/localforage@1.9.0/dist/localforage.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // @license      Apache-2.0
 // ==/UserScript==
 
