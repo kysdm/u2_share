@@ -7,7 +7,6 @@
 // @grant        none
 // @match        *://u2.dmhy.org/details.php?id=*
 // @match        *://u2.dmhy.org/offers.php?id=*
-// @exclude      *://u2.dmhy.org/details.php?id=*&cmtpage=*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // @license      Apache-2.0
@@ -33,22 +32,23 @@ GreasyFork 地址
 */
 
 // 声明全局变量
-var lang, torrent_id, db, user_id, key, token;
+var lang, torrent_id, db, user_id, topicid, key, token;
 
 (async () => {
     'use strict';
     // 初始化
     lang = new lang_init($('#locale_selection').val()); // 获取当前网页语言
     torrent_id = location.href.match(/\.php\?id=(\d{3,5})/i) || ['', '']; if (torrent_id[1] !== '') torrent_id = torrent_id[1]; // 当前种子ID
+    topicid = location.href.match(/topicid=(\d+)/i) || ['', '']; if (topicid[1] !== '') topicid = topicid[1];
     user_id = $('#info_block').find('a:first').attr('href').match(/\.php\?id=(\d{3,5})/i) || ['', '']; if (user_id[1] !== '') user_id = user_id[1]; // 当前用户ID
     db = localforage.createInstance({ name: "history" });
-
     key = await db.getItem('key');
     token = await db.getItem('token');
     if (key === null || key.length !== 32) { new auth_key(); return; } else if (token === null || token.length !== 96) { new auth_token(key); return; };
-
-    // 为已经删除的种子显示历史
-    if ($('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { history2(); } else { history1(); };
+    if ($('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) history2(); // 为已经删除的种子显示历史
+    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && !/cmtpage=1/i.test(location.href)) history1();
+    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href)) history3();
+    if (/\/forums\.php\?action=viewtopic/i.test(location.href)) history4();
 })();
 
 function auth_key() {
@@ -138,6 +138,140 @@ function auth_token(__key) {
 };
 
 
+async function history4() {
+    'use strict';
+
+    $.ajax({
+        type: 'post',
+        url: 'https://u2.kysdm.com/api/v1/comment/',
+        contentType: "application/json",
+        dataType: 'json',
+        data: JSON.stringify({ "uid": user_id, "token": token, "topicid": topicid, "type": "forum" }),
+        success: function (d) {
+            if (d.msg === 'success') {
+                console.log('获取论坛评论成功');
+
+                let __comment = d.data.comment[topicid].sort((a, b) => b.self - a.self);
+                let pidList = __comment.map(x => x.pid);
+                let counts = new Object();
+                pidList.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1)
+
+                $('[id^="pid"]').each(function () {
+                    let pid = $(this).find('[class="embedded"]').children('a').first().text().replace('#', '');
+                    let now_data = { self: `history_comment${pid}_select`, pid: pid, html: $(this).parent().next().find('.post-body').html(), get_time: getDateString() };
+                    __comment = [now_data].concat(__comment);
+                    __comment.forEach((x, i) => {
+                        if (x.pid == pid && counts[pid] > 1) {
+                            if (i === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: 1px;"><select name="type" id="history_comment${pid}_select"></div></div>`);
+                            if (x.self === `history_comment${pid}_select`) {
+                                $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.get_time} NOW </option>`);
+                            } else {
+                                $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}${(() => { return x.action === 'edit' ? ' EDIT' : x.action === 'reply' ? ' REPLY' : ' NEW' })()}</option>`);
+                            };
+                        };
+                    });
+                });
+
+                $("[id^=history_comment]").change(function () { // 监听菜单选择
+                    let self = $(this).val();
+
+                    for (let i = 0, len = __comment.length; i < len; i++) {
+                        if (self != __comment[i].self) continue;
+                        let html;
+                        let x = __comment[i];
+                        if (x.hasOwnProperty('bbcode')) {
+                            if (x.action === 'edit') {
+                                html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
+                                    <br><p><font class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}">
+                                    <b><bdo dir="ltr">${x.username}</bdo></b></a></span> 最后编辑 </font></p>`;
+                            } else {
+                                html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
+                            };
+                        } else {
+                            html = x.html;
+                        };
+                        $(this).parents('[id^=pid]').parent().next().find('.post-body').html(html);
+                        return;
+                    };
+                });
+
+            } else {
+                console.log('获取论坛评论错误');
+            };
+        },
+        error: function (d) {
+
+        },
+    });
+};
+
+
+async function history3() {
+    'use strict';
+    $.ajax({
+        type: 'post',
+        url: 'https://u2.kysdm.com/api/v1/comment/',
+        contentType: "application/json",
+        dataType: 'json',
+        data: JSON.stringify({ "uid": user_id, "token": token, "torrent_id": torrent_id, "type": "torrent" }),
+        success: function (d) {
+            if (d.msg === 'success') {
+                console.log('获取种子评论成功');
+                let __comment = d.data.comment[torrent_id].sort((a, b) => b.self - a.self);
+                let cidList = __comment.map(x => x.cid);
+                let counts = new Object();
+                cidList.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1)
+
+                $('[id^="cid"]').each(function () {
+                    let cid = $(this).find('[class="embedded"]').children('a').attr('name');
+                    let now_data = { self: `history_comment${cid}_select`, cid: cid, html: $(this).parent().next().find('[class="rowfollow"]:last').html(), get_time: getDateString() };
+                    __comment = [now_data].concat(__comment);
+                    __comment.forEach((x, i) => {
+                        if (x.cid == cid && counts[cid] > 1) {
+                            if (i === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;"><select name="type" id="history_comment${cid}_select"></div></div>`);
+                            if (x.self === `history_comment${cid}_select`) {
+                                $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.get_time} NOW </option>`);
+                            } else {
+                                $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}${(() => { return x.action === 'edit' ? ' EDIT' : x.action === 'reply' ? ' REPLY' : ' NEW' })()}</option>`);
+                            };
+                        };
+                    });
+                });
+
+                $("[id^=history_comment]").change(function () { // 监听菜单选择
+                    let self = $(this).val();
+
+                    for (let i = 0, len = __comment.length; i < len; i++) {
+                        if (self != __comment[i].self) continue;
+                        let html;
+                        let x = __comment[i];
+                        if (x.hasOwnProperty('bbcode')) {
+                            if (x.action === 'edit') {
+                                html = `<br><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
+                                    <br><p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}">
+                                    <b><bdo dir="ltr">${x.username}</bdo></b></a></span> 最后编辑 </p>`;
+                            } else {
+                                html = `<br><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
+                            };
+                        } else {
+                            html = x.html;
+                        };
+                        $(this).parents('[id^=cid]').parent().next().find('[class="rowfollow"]:last').html(html);
+                        return;
+                    };
+                });
+
+            } else {
+                console.log('获取种子评论错误');
+            };
+        },
+        error: function (d) {
+
+        },
+    });
+};
+
+
 async function history1() {
     'use strict';
     if ($('h3').length === 1) { // 插入 select 基本框架
@@ -221,7 +355,7 @@ async function history1() {
                 $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html(history_data[i].basic_info); // 基本信息一栏
                 $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").next().html(history_data[i].description_info); // 描述
                 return;
-            }
+            };
             history_data[i].banned === 1 ? $('#top').html(history_data[i].title + '&nbsp;&nbsp;&nbsp; <b>[<font class="striking">' + lang['banned'] + '</font>]</b>') : $('#top').text(history_data[i].title);
             // 检查副标题一栏是否存在
             if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 0 && history_data[i].subtitle !== null) {
@@ -238,9 +372,9 @@ async function history1() {
                     if (p.uploader_id === null && p.uploader_name !== '匿名') return p.uploader_name; // 自定义署名 不带UID
                     if (p.uploader_id !== null && p.uploader_name !== '匿名') return '<a href="userdetails.php?id=' + p.uploader_id + '"><b>' + p.uploader_name + '</b></a>'; // 正常显示 || 自定义署名 带UID
                 })(history_data[i])); // 发布人
-                $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html('<b>' + lang['uploaded_at'] + ':</b> ' + history_data[i].uploaded_at.replace('T', ' ')
+                $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html('<b>' + lang['uploaded_at'] + ':</b> ' + history_data[i].uploaded_at.replace('T', ' ')
                     + (() => { if (history_data[i].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>' + lang['size'] + ':</b>&nbsp;' + convert(history_data[i].torrent_size) } else { return ''; } })()
-                    + '&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + ':</b> ' + history_data[i].category)
+                    + '&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + ':</b> ' + history_data[i].category)
             } else { // 还在候选的种子
                 $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html('<b>' + lang['submitted_by'] + '</b>:&nbsp;'
                     + ((p) => {
