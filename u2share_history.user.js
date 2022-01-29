@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.3
+// @version      0.2.4
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
 // @match        *://u2.dmhy.org/details.php?id=*
 // @match        *://u2.dmhy.org/offers.php?id=*
+// @match        *://u2.dmhy.org/forums.php?action=viewtopic*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // @require      https://unpkg.com/thenby@1.3.4/thenBy.min.js
