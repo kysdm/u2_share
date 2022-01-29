@@ -45,10 +45,10 @@ var lang, torrent_id, db, user_id, topicid, key, token;
     key = await db.getItem('key');
     token = await db.getItem('token');
     if (key === null || key.length !== 32) { new auth_key(); return; } else if (token === null || token.length !== 96) { new auth_token(key); return; };
-    if ($('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) history2(); // 为已经删除的种子显示历史
-    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && !/cmtpage=1/i.test(location.href)) history1();
-    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href)) history3();
-    if (/\/forums\.php\?action=viewtopic/i.test(location.href)) history4();
+    if ($('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) torrentInfoHistoryReset(); // 为已经删除的种子显示历史
+    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && !/cmtpage=1/i.test(location.href)) torrentInfoHistory();
+    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href)) torrentCommentHistory();
+    if (/\/forums\.php\?action=viewtopic/i.test(location.href)) forumCommentHistory();
 })();
 
 function auth_key() {
@@ -137,7 +137,7 @@ function auth_token(__key) {
     });
 };
 
-async function history4() {
+async function forumCommentHistory() {
     'use strict';
 
     $.ajax({
@@ -149,7 +149,6 @@ async function history4() {
         success: function (d) {
             if (d.msg === 'success') {
                 console.log('获取论坛评论成功');
-
                 let __comment = d.data.comment[topicid].sort((a, b) => b.self - a.self);
                 let pidList = __comment.map(x => x.pid);
                 let counts = new Object();
@@ -160,11 +159,10 @@ async function history4() {
                     __comment.forEach(x => {
                         if (x.pid == pid && counts[pid] > 1) {
                             if ($(`#history_comment${pid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: 1px;"><select name="type" id="history_comment${pid}_select"></div></div>`);
-                            if (x.self === `history_comment${pid}_select`) {
-                                $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.get_time} NOW </option>`);
-                            } else {
-                                $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}${(() => { return x.action === 'edit' ? ' EDIT' : x.action === 'reply' ? ' REPLY' : ' NEW' })()}</option>`);
-                            };
+                            $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
+                                ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
+                                ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
+                                </option>`);
                         };
                     });
                 });
@@ -196,8 +194,7 @@ async function history4() {
     });
 };
 
-
-async function history3() {
+async function torrentCommentHistory() {
     'use strict';
     $.ajax({
         type: 'post',
@@ -218,7 +215,10 @@ async function history3() {
                     __comment.forEach(x => {
                         if (x.cid == cid && counts[cid] > 1) {
                             if ($(`#history_comment${cid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;"><select name="type" id="history_comment${cid}_select"></div></div>`);
-                            $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}${(() => { return x.action === 'edit' ? ' EDIT' : x.action === 'reply' ? ' REPLY' : ' NEW' })()}</option>`);
+                            $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
+                            ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
+                            ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
+                            </option>`);
                         };
                     });
                 });
@@ -253,7 +253,7 @@ async function history3() {
 };
 
 
-async function history1() {
+async function torrentInfoHistory() {
     'use strict';
     if ($('h3').length === 1) { // 插入 select 基本框架
         const right = ($('#outer').width() - $('h3').next().width()) / 2 + 5; // 计算偏移量
@@ -354,7 +354,7 @@ async function history1() {
 };
 
 
-async function history2() {
+async function torrentInfoHistoryReset() {
     'use strict';
     const errorstr = $('#outer').find('td.text').text();
     // 正在努力加载中...
