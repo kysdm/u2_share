@@ -175,8 +175,11 @@ async function forumCommentHistory() {
                         let x = __comment[i];
                         if (x.action === 'edit') {
                             html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
-                                    <br><p><font class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}">
-                                    <b><bdo dir="ltr">${x.username}</bdo></b></a></span> 最后编辑 </font></p>`;
+                                    ${(() => {
+                                    if ($('#locale_selection').val() === 'en_US') return `<p><font class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</font></p>`;
+                                    else if ($('#locale_selection').val() === 'ru_RU') return `<p><font class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</font></p>`;
+                                    else return `<br><p><font class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </font></p>`;
+                                })()}`;
                         } else {
                             html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
                         };
@@ -231,9 +234,13 @@ async function torrentCommentHistory() {
                         let html;
                         let x = __comment[i];
                         if (x.action === 'edit') {
-                            html = `<br><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
-                                    <br><p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}">
-                                    <b><bdo dir="ltr">${x.username}</bdo></b></a></span> 最后编辑 </p>`;
+                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
+                                    ${(() => {
+                                    if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p>`;
+                                    else if ($('#locale_selection').val() === 'ru_RU') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</p>`;
+                                    else return `<br><p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </p>`;
+                                })()}`;
+
                         } else {
                             html = `<br><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
                         };
@@ -809,6 +816,7 @@ function lang_init(lang) {
             "banned": "已屏蔽",
             "google_backup": "谷歌备份",
             "google_send": "发送请求",
+            "last_edited": "最后编辑",
         },
         "zh_TW": {
             "quote": "引用",
@@ -856,6 +864,7 @@ function lang_init(lang) {
             "banned": "已屏蔽",
             "google_backup": "Google備份",
             "google_send": "發送請求",
+            "last_edited": "最後編輯",
         },
         "zh_HK": {
             "quote": "引用",
@@ -903,6 +912,7 @@ function lang_init(lang) {
             "banned": "已屏蔽",
             "google_backup": "Google備份",
             "google_send": "發送請求",
+            "last_edited": "最後編輯",
         },
         "en_US": {
             "quote": "Quote",
@@ -950,6 +960,7 @@ function lang_init(lang) {
             "banned": "Banned",
             "google_backup": "Google Backup",
             "google_send": "Send request",
+            "last_edited": "Last edited by",
         },
         "ru_RU": {
             "quote": "Цитата",
@@ -997,6 +1008,7 @@ function lang_init(lang) {
             "banned": "Забанен",
             "google_backup": "Резервное копирование Google",
             "google_send": "послать запрос",
+            "last_edited": "Последний раз редактировалось",
         }
     };
     return lang_json[lang];
