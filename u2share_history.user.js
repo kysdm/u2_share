@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         U2种子历史记录
+// @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
 // @version      0.2.3
 // @description  查看种子历史记录
@@ -29,7 +29,7 @@ GreasyFork 地址
 
 /*
 更新日志
-    https://github.com/kysdm/u2_share/commits/main/u2share_torrents_history.user.js
+    https://github.com/kysdm/u2_share/commits/main/u2share_history.user.js
 */
 
 // 声明全局变量
