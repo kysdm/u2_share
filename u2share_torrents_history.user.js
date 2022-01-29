@@ -18,7 +18,7 @@
 
 /*
 GreasyFork 地址
-    https://greasyfork.org/zh-CN/scripts/428545-u2%E7%A7%8D%E5%AD%90%E5%8E%86%E5%8F%B2%E8%AE%B0%E5%BD%95
+    https://greasyfork.org/zh-CN/scripts/428545
 */
 
 /*
@@ -137,7 +137,6 @@ function auth_token(__key) {
     });
 };
 
-
 async function history4() {
     'use strict';
 
@@ -158,11 +157,9 @@ async function history4() {
 
                 $('[id^="pid"]').each(function () {
                     let pid = $(this).find('[class="embedded"]').children('a').first().text().replace('#', '');
-                    let now_data = { self: `history_comment${pid}_select`, pid: pid, html: $(this).parent().next().find('.post-body').html(), get_time: getDateString() };
-                    __comment = [now_data].concat(__comment);
-                    __comment.forEach((x, i) => {
+                    __comment.forEach(x => {
                         if (x.pid == pid && counts[pid] > 1) {
-                            if (i === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: 1px;"><select name="type" id="history_comment${pid}_select"></div></div>`);
+                            if ($(`#history_comment${pid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: 1px;"><select name="type" id="history_comment${pid}_select"></div></div>`);
                             if (x.self === `history_comment${pid}_select`) {
                                 $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.get_time} NOW </option>`);
                             } else {
@@ -174,27 +171,21 @@ async function history4() {
 
                 $("[id^=history_comment]").change(function () { // 监听菜单选择
                     let self = $(this).val();
-
                     for (let i = 0, len = __comment.length; i < len; i++) {
                         if (self != __comment[i].self) continue;
                         let html;
                         let x = __comment[i];
-                        if (x.hasOwnProperty('bbcode')) {
-                            if (x.action === 'edit') {
-                                html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
+                        if (x.action === 'edit') {
+                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
                                     <br><p><font class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}">
                                     <b><bdo dir="ltr">${x.username}</bdo></b></a></span> 最后编辑 </font></p>`;
-                            } else {
-                                html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
-                            };
                         } else {
-                            html = x.html;
+                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
                         };
                         $(this).parents('[id^=pid]').parent().next().find('.post-body').html(html);
                         return;
                     };
                 });
-
             } else {
                 console.log('获取论坛评论错误');
             };
@@ -224,16 +215,10 @@ async function history3() {
 
                 $('[id^="cid"]').each(function () {
                     let cid = $(this).find('[class="embedded"]').children('a').attr('name');
-                    let now_data = { self: `history_comment${cid}_select`, cid: cid, html: $(this).parent().next().find('[class="rowfollow"]:last').html(), get_time: getDateString() };
-                    __comment = [now_data].concat(__comment);
-                    __comment.forEach((x, i) => {
+                    __comment.forEach(x => {
                         if (x.cid == cid && counts[cid] > 1) {
-                            if (i === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;"><select name="type" id="history_comment${cid}_select"></div></div>`);
-                            if (x.self === `history_comment${cid}_select`) {
-                                $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.get_time} NOW </option>`);
-                            } else {
-                                $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}${(() => { return x.action === 'edit' ? ' EDIT' : x.action === 'reply' ? ' REPLY' : ' NEW' })()}</option>`);
-                            };
+                            if ($(`#history_comment${cid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;"><select name="type" id="history_comment${cid}_select"></div></div>`);
+                            $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}${(() => { return x.action === 'edit' ? ' EDIT' : x.action === 'reply' ? ' REPLY' : ' NEW' })()}</option>`);
                         };
                     });
                 });
@@ -245,16 +230,12 @@ async function history3() {
                         if (self != __comment[i].self) continue;
                         let html;
                         let x = __comment[i];
-                        if (x.hasOwnProperty('bbcode')) {
-                            if (x.action === 'edit') {
-                                html = `<br><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
+                        if (x.action === 'edit') {
+                            html = `<br><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
                                     <br><p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}">
                                     <b><bdo dir="ltr">${x.username}</bdo></b></a></span> 最后编辑 </p>`;
-                            } else {
-                                html = `<br><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
-                            };
                         } else {
-                            html = x.html;
+                            html = `<br><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
                         };
                         $(this).parents('[id^=cid]').parent().next().find('[class="rowfollow"]:last').html(html);
                         return;
@@ -315,19 +296,6 @@ async function history1() {
     console.log('获取历史记录成功.');
     let history_data = __json.data.history;
 
-    var now_data = {
-        self: 0, // 唯一标识符
-        title: $('#top').html(), // 主标题
-        subtitle: $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().html(), // 副标题
-        uploaded: $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(), // 发布人
-        basic_info: $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html(), // 基本信息
-        // description_info: $('#kdescr').html(), // 描述 <HTML>
-        description_info: $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").next().html(), // 描述 <HTML>
-        get_time: getDateString(), // 数据获取时间  这里是当前时间
-    };
-
-    history_data = [now_data].concat(history_data); // 将现在的页面保存，并插入到数列第一位
-
     $("#history_select").empty(); // 插入前先清空 option
     for (let i = 0, len = history_data.length; i < len; i++) { // 循环插入到选择列表中
         $("#history_select").append("<option value='" + history_data[i].self + "'>"
@@ -348,14 +316,6 @@ async function history1() {
         let self = Number($(this).val());
         for (let i = 0, len = history_data.length; i < len; i++) {
             if (self !== history_data[i].self) continue;
-            if (self === 0) { // 还原现在的页面
-                $('#top').html(history_data[i].title); // 主标题
-                $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().html(history_data[i].subtitle);  // 副标题
-                $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(history_data[i].uploaded); // 发布人一栏
-                $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html(history_data[i].basic_info); // 基本信息一栏
-                $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").next().html(history_data[i].description_info); // 描述
-                return;
-            };
             history_data[i].banned === 1 ? $('#top').html(history_data[i].title + '&nbsp;&nbsp;&nbsp; <b>[<font class="striking">' + lang['banned'] + '</font>]</b>') : $('#top').text(history_data[i].title);
             // 检查副标题一栏是否存在
             if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 0 && history_data[i].subtitle !== null) {
