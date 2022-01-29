@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2种子历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.2
+// @version      0.2.3
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -9,6 +9,7 @@
 // @match        *://u2.dmhy.org/offers.php?id=*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
+// @require      https://unpkg.com/thenby@1.3.4/thenBy.min.js
 // @license      Apache-2.0
 // ==/UserScript==
 
@@ -45,10 +46,10 @@ var lang, torrent_id, db, user_id, topicid, key, token;
     key = await db.getItem('key');
     token = await db.getItem('token');
     if (key === null || key.length !== 32) { new auth_key(); return; } else if (token === null || token.length !== 96) { new auth_token(key); return; };
-    if ($('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) torrentInfoHistoryReset(); // 为已经删除的种子显示历史
-    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && !/cmtpage=1/i.test(location.href)) torrentInfoHistory();
-    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href)) torrentCommentHistory();
-    if (/\/forums\.php\?action=viewtopic/i.test(location.href)) forumCommentHistory();
+    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { torrentInfoHistoryReset(); torrentCommentHistoryyReset(); }// 为已经删除的种子显示历史
+    else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && !/cmtpage=1/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
+    else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && /cmtpage=1/i.test(location.href)) { torrentCommentHistory(); } // 为正常种子显示历史 <仅评论>
+    else if (/\/forums\.php\?action=viewtopic/i.test(location.href)) { forumCommentHistory(); }; // 为论坛帖子显示历史
 })();
 
 function auth_key() {
@@ -360,6 +361,165 @@ async function torrentInfoHistory() {
     });
 };
 
+async function torrentCommentHistoryyReset() {
+    'use strict';
+
+    const callback = (mutations, observer) => {
+        mutations.forEach(function (mutation) {
+            if (mutation.addedNodes.length === 0) return;
+
+            console.log('检测到种子页面已经完成加载');
+            observer.disconnect(); // 停止监听
+
+            $('#description').after(`<br><br><h1 align="center" id="startcomments" style="font-weight:normal; font-style: italic">正在加载用户评论...</h1><br>`);
+            $.ajax({
+                type: 'post',
+                url: 'https://u2.kysdm.com/api/v1/comment/',
+                contentType: "application/json",
+                dataType: 'json',
+                data: JSON.stringify({ "uid": user_id, "token": token, "torrent_id": torrent_id, "type": "torrent" }),
+                success: function (d) {
+                    if (d.msg !== 'success') { console.log('获取种子评论错误'); }
+                    else {
+                        console.log('获取种子评论成功');
+                        let __comment = d.data.comment[torrent_id].sort(firstBy((a, b) => a.cid - b.cid).thenBy((a, b) => b.self - a.self)); // 如果用self排序，消息顺序不正确，则改用编辑日期排序
+                        if (__comment.length === 0) { // 没有评论
+                            $('#startcomments').text('没有评论');
+                            $('#startcomments').removeAttr("style");
+                            return;
+                        } else {
+                            $('#startcomments').text('用户评论');
+                            $('#startcomments').removeAttr("style");
+                        };
+
+                        let cidList = __comment.map(x => x.cid);
+                        let counts = new Object();
+                        cidList.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
+
+                        $('#startcomments').after(`<br>
+                        <table class="main" width="940" border="0" cellspacing="0" cellpadding="0">
+                            <tbody>
+                                <tr>
+                                    <td class="embedded">
+                                        <table width="100%" border="1" cellspacing="0" cellpadding="10">
+                                            <tbody>
+                                                <tr>
+                                                    <td id="comments" class="text"></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>`
+                        );
+
+                        __comment.forEach(x => {
+                            if (x.userid === null && x.username === null) {
+                                var userInfo = `<span style="color: gray">&nbsp;<i>${lang['anonymous']}</i>&nbsp;</span>`
+                            } else {
+                                var userInfo = `<span style="color: gray">&nbsp;<span class="nowrap"><a href="userdetails.php?id=${x.userid}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span>`
+                            }
+                            const bbcode_html = `<div style="margin-top: 8pt; margin-bottom: 8pt;">
+                            <table id="cid${x.cid}" border="0" cellspacing="0" cellpadding="0" width="100%">
+                                <tbody>
+                                <tr>
+                                    <td class="embedded" width="99%">
+                                        <a href="offers.php?id=${x.torrent_id}&amp;off_details=1#cid${x.cid}" name="${x.cid}">#${x.cid}</a>
+                                        ${userInfo}
+                                        <span style="color: gray">&nbsp;<time>${x.edit_time.replace('T', ' ')}</time></span></span>
+                                    </td>
+                                    <td class="embedded nowrap" width="1%">
+                                        <a href="#top"><img class="top" src="pic/trans.gif" alt="Top" title="Top"></a>&nbsp;&nbsp;
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <table class="main-inner" width="100%" border="0" cellspacing="0" cellpadding="5">
+                            <tbody>
+                                <tr>
+                                    <td class="rowfollow" width="150" valign="top" style="padding: 0"><img
+                                            src="//u2.dmhy.org/pic/default_avatar.png" alt="avatar" width="150px"></td>
+                                    <td class="rowfollow" valign="top"><br>
+                                    ${(() => {
+                                    if (x.action === 'edit') {
+                                        return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
+                                                    ${(() => {
+                                                if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
+                                                else if ($('#locale_selection').val() === 'ru_RU') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
+                                                else return `<p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </p><br><br>`;
+                                            })()}`;
+                                    } else {
+                                        return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}<br><br></bdo></span>`;
+                                    };
+                                })()}
+                                    </td>
+                                    </tr>
+                                    </tbody>
+                                    </table>`;
+
+                            if (counts[x.cid] > 1) {
+                                console.log('有编辑记录 直接添加下拉菜单');
+                                // 插入下拉菜单基本框架
+                                if ($(`#history_comment${x.cid}_select`).length === 0) {
+                                    $('#comments').append(bbcode_html); // 先插入整体框架
+                                    console.log('添加下拉菜单基本框架');
+                                    $(`[id="cid${x.cid}"]`).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;">
+                                                                                                    <div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;">
+                                                                                                    <select name="type" id="history_comment${x.cid}_select">
+                                                                                                    </div>
+                                                                                                    </div>`);
+                                };
+                                // 向下拉菜单写入信息
+                                $(`#history_comment${x.cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
+                                    ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
+                                    ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
+                                    </option>`)
+                            } else {
+                                $('#comments').append(bbcode_html);
+                            };
+                        });
+
+                        $("[id^=history_comment]").change(function () { // 监听菜单选择
+                            let self = $(this).val();
+                            for (let i = 0, len = __comment.length; i < len; i++) {
+                                if (self != __comment[i].self) continue;
+                                let html;
+                                let x = __comment[i];
+                                if (x.action === 'edit') {
+                                    html = `<br>
+                                    <span style="word-break: break-all; word-wrap: break-word;">
+                                    <bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo>
+                                    </span>
+                                            ${(() => {
+                                            if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
+                                            else if ($('#locale_selection').val() === 'ru_RU') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
+                                            else return `<br><p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </p><br><br>`;
+                                        })()}`;
+                                } else {
+                                    html = `<br>
+                                    <span style="word-break: break-all; word-wrap: break-word;">
+                                    <bdo dir="ltr">${bbcode2html(x.bbcode)}<br><br></bdo>
+                                    </span>`;
+                                };
+                                $(this).parents('[id^=cid]').parent().next().find('[class="rowfollow"]:last').html(html);
+                                return;
+                            };
+                        });
+                    };
+                },
+                error: function (d) {
+                },
+            });
+        })
+    };
+
+    const MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
+    const element = document.getElementById("outer");
+    var observer = new MutationObserver(callback);
+    observer.observe(element, { childList: true });
+};
 
 async function torrentInfoHistoryReset() {
     'use strict';
@@ -391,7 +551,7 @@ async function torrentInfoHistoryReset() {
 
     console.log('获取历史记录成功.');
     let history_data = __json.data.history;
-    let gdListObj = JSON.parse(localStorage.getItem("u2_gd_list")); // 读取谷歌备份列表
+    // let gdListObj = JSON.parse(localStorage.getItem("u2_gd_list")); // 读取谷歌备份列表
     // 还原网页
     $('#outer').html('<h1 align="center" id="top">'
         + (() => { return history_data[0].banned === 1 ? history_data[0].title + '&nbsp;&nbsp;&nbsp; <b>[<font class="striking">' + lang['banned'] + '</font>]</b>' : history_data[0].title; })()
@@ -399,7 +559,7 @@ async function torrentInfoHistoryReset() {
         + '<div id="hsty" style="position: relative;"><div id="history" style="position: absolute; right:56px; margin-top: 4px;">'
         + '<select name="type" id="history_select" style="visibility: visible;"></select></div></div>'
         + '<h3>(#' + torrent_id + ')</h3>'
-        + '<table width="90%" min-width="940px" cellspacing="0" cellpadding="5"><tbody><tr><td class="rowhead" width="13%">' + lang['torrent_title'] + '</td>'
+        + '<table id="description" width="90%" min-width="940px" cellspacing="0" cellpadding="5"><tbody><tr><td class="rowhead" width="13%">' + lang['torrent_title'] + '</td>'
         + '<td class="rowfollow" width="87%" align="left">'
         + '<b>[U2].' + history_data[0].torrent_name + '.torrent</b></td></tr>'
         + (() => { return history_data[0].subtitle ? '<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['subtitle'] + '</td><td class="rowfollow" valign="top" align="left">' + history_data[0].subtitle + '</td></tr></td></tr>' : '' })()
@@ -413,14 +573,14 @@ async function torrentInfoHistoryReset() {
         + '</time>'
         + (() => { if (history_data[0].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>大小:</b>&nbsp;' + convert(history_data[0].torrent_size) } else { return ''; } })()
         + '&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + '</b>:&nbsp;' + history_data[0].category
-        + (() => {
-            const r = '&nbsp;&nbsp;&nbsp;<b>' + lang['google_backup'] + '</b>:&nbsp;'
-            if (gdListObj === null) return ``; // 列表不存在时，直接返回
-            const gdList = gdListObj.list; // 载入种子列表
-            let d = gdList.findIndex((value) => value == Number(torrent_id)); // 查找数据库中是否有备份，没有返回-1
-            if (d === -1) return r + `×`;  // 没有备份时
-            return `${r}<a href="sendmessage.php?receiver=45940#${torrent_id}" target="_blank" title="${lang['google_send']}">√</a>`
-        })()
+        // + (() => {
+        //     const r = '&nbsp;&nbsp;&nbsp;<b>' + lang['google_backup'] + '</b>:&nbsp;'
+        //     if (gdListObj === null) return ``; // 列表不存在时，直接返回
+        //     const gdList = gdListObj.list; // 载入种子列表
+        //     let d = gdList.findIndex((value) => value == Number(torrent_id)); // 查找数据库中是否有备份，没有返回-1
+        //     if (d === -1) return r + `×`;  // 没有备份时
+        //     return `${r}<a href="sendmessage.php?receiver=45940#${torrent_id}" target="_blank" title="${lang['google_send']}">√</a>`
+        // })()
         + '</td></tr>'
         + '<tr><td class="rowhead nowrap" valign="top" align="right">'
         + '<a href="javascript: klappe_news(\'descr\')"><span class="nowrap">'
