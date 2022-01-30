@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.4
+// @version      0.2.5
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -48,7 +48,7 @@ var lang, torrent_id, db, user_id, topicid, key, token;
     token = await db.getItem('token');
     if (key === null || key.length !== 32) { new auth_key(); return; } else if (token === null || token.length !== 96) { new auth_token(key); return; };
     if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { torrentInfoHistoryReset(); torrentCommentHistoryyReset(); }// 为已经删除的种子显示历史
-    else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && !/cmtpage=1/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
+    else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && !/(cmtpage|offer_vote)=1/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
     else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && /cmtpage=1/i.test(location.href)) { torrentCommentHistory(); } // 为正常种子显示历史 <仅评论>
     else if (/\/forums\.php\?action=viewtopic/i.test(location.href)) { forumCommentHistory(); }; // 为论坛帖子显示历史
 })();
