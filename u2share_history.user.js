@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.5
+// @version      0.2.6
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -236,7 +236,10 @@ async function torrentCommentHistory() {
                         let html;
                         let x = __comment[i];
                         if (x.action === 'edit') {
-                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
+                            html = `<br>
+                            <span style="word-break: break-all; word-wrap: break-word;">
+                                <bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo>
+                            </span>
                                     ${(() => {
                                     if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p>`;
                                     else if ($('#locale_selection').val() === 'ru_RU') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</p>`;
@@ -244,7 +247,10 @@ async function torrentCommentHistory() {
                                 })()}`;
 
                         } else {
-                            html = `<br><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
+                            html = `<br>
+                            <span style="word-break: break-all; word-wrap: break-word;">
+                                <bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo>
+                            </span>`;
                         };
                         $(this).parents('[id^=cid]').parent().next().find('[class="rowfollow"]:last').html(html);
                         return;
