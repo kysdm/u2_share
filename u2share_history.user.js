@@ -188,9 +188,6 @@ async function forumCommentHistoryReset() {
                                     <tbody>
                                         <tr>
                                             <td id="comments" class="text">
-                                            <!--  // <span id="last"></span>
-                                                // <table class="main-inner" border="1" cellspacing="0" cellpadding="5">
-                                                // </table> -->
                                             </td>
                                         </tr>
                                     </tbody>
@@ -198,13 +195,7 @@ async function forumCommentHistoryReset() {
                             </td>
                         </tr>
                     </tbody>
-                </table>
-                <script type="text/javascript">
-                    //<![CDATA[
-                    var maxpage = 0;
-                    var currentpage = 0;
-            //]]>
-                </script>`
+                </table>`
                 );
 
                 // 还原标题
@@ -224,7 +215,7 @@ async function forumCommentHistoryReset() {
                         </td>
                         <td class="embedded nowrap" width="1%">
                             <font class="big">#<b>${pidListSet.findIndex((a) => a == x.pid) + 1}</b> 楼&nbsp;&nbsp;</font>
-                            <a href="#top"><img class="top" src="pic/trans.gif" alt="Top" title="返回顶部"></a>
+                            <a href="#top"><img class="top" src="pic/trans.gif" alt="Top" title="${lang['back_to_top']}"></a>
                         </td>
                     </tr>
                 </tbody>
@@ -304,8 +295,7 @@ async function forumCommentHistoryReset() {
 
             } else {
                 console.log('获取论坛评论错误');
-                $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>' + lang['history_text_error']
-                    + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<a id="apifailure" href="javascript:void(0);" style="color:#FF1212">重置Token (・_・)ヾ</a>' + '</i>');
+                $('#outer').find('td.text').html(`${errorstr}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>${lang['history_text_error']}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="apifailure" href="javascript:void(0);" style="color:#FF1212">${lang['reset_token']}</a></i>`);
                 $("#apifailure").click(function () {
                     let confirm = prompt("输入 YES 确认本次操作");
                     if (confirm === 'YES') {
@@ -471,7 +461,7 @@ async function torrentInfoHistory() {
         console.log('获取历史记录失败.');
         $("#history_select").empty(); // 插入前先清空 option
         $("#history_select").append('<option value="80000">' + lang['history_select_error'] + '</option>'); // 希望你不要看到这个 (ノДＴ)
-        $("#history_select").append('<option value="90000">' + '重置Token (・_・)ヾ' + '</option>'); // 删除本地授权信息
+        $("#history_select").append(`<option value="90000">${lang['reset_token']}</option>`); // 删除本地授权信息
         $("#history_select").change(function () { // 监听菜单选择
             let self = Number($(this).val());
             if (self === 90000) {
@@ -732,8 +722,7 @@ async function torrentInfoHistoryReset() {
 
     if (__json.msg !== 'success') { // 加载失败时
         console.log('获取历史记录失败.');
-        $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>' + lang['history_text_error']
-            + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<a id="apifailure" href="javascript:void(0);" style="color:#FF1212">重置Token (・_・)ヾ</a>' + '</i>');
+            $('#outer').find('td.text').html(`${errorstr}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>${lang['history_text_error']}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="apifailure" href="javascript:void(0);" style="color:#FF1212">${lang['reset_token']}</a></i>`);
         $("#apifailure").click(function () {
             let confirm = prompt("输入 YES 确认本次操作");
             if (confirm === 'YES') {
@@ -1178,6 +1167,8 @@ function lang_init(lang) {
             "google_backup": "谷歌备份",
             "google_send": "发送请求",
             "last_edited": "最后编辑",
+            "back_to_top": "返回顶部",
+            "reset_token": "重置Token (・_・)ヾ",
         },
         "zh_TW": {
             "quote": "引用",
@@ -1226,6 +1217,8 @@ function lang_init(lang) {
             "google_backup": "Google備份",
             "google_send": "發送請求",
             "last_edited": "最後編輯",
+            "back_to_top": "返回頂部",
+            "reset_token": "重設Token (・_・)ヾ",
         },
         "zh_HK": {
             "quote": "引用",
@@ -1274,6 +1267,8 @@ function lang_init(lang) {
             "google_backup": "Google備份",
             "google_send": "發送請求",
             "last_edited": "最後編輯",
+            "back_to_top": "返回頂部",
+            "reset_token": "重置Token (・_・)ヾ",
         },
         "en_US": {
             "quote": "Quote",
@@ -1322,6 +1317,8 @@ function lang_init(lang) {
             "google_backup": "Google Backup",
             "google_send": "Send request",
             "last_edited": "Last edited by",
+            "back_to_top": "Back to top",
+            "reset_token": "Reset Token (・_・)ヾ",
         },
         "ru_RU": {
             "quote": "Цитата",
@@ -1370,6 +1367,8 @@ function lang_init(lang) {
             "google_backup": "Резервное копирование Google",
             "google_send": "послать запрос",
             "last_edited": "Последний раз редактировалось",
+            "back_to_top": "На главную",
+            "reset_token": "Токен сброса (・_・)ヾ",
         }
     };
     return lang_json[lang];
