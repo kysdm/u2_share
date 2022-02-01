@@ -553,6 +553,17 @@ async function torrentInfoHistory() {
 
 async function torrentCommentHistoryReset() {
     'use strict';
+
+    const cidUrl = (t, c) => {
+        if (/\/offers\.php/i.test(location.href)) {
+            return `offers.php?id=${t}&off_details=1#cid${c}`
+        } else if (/\/details\.php/i.test(location.href))
+            return `details.php?id=${t}#cid${c}`
+        else {
+            return '/'
+        };
+    };
+
     const callback = (mutations, observer) => {
         mutations.forEach(function (mutation) {
             if (mutation.addedNodes.length === 0) return;
@@ -609,12 +620,13 @@ async function torrentCommentHistoryReset() {
                             } else {
                                 var userInfo = `<span style="color: gray">&nbsp;<span class="nowrap"><a href="userdetails.php?id=${x.userid}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span>`
                             }
+
                             const bbcode_html = `<div style="margin-top: 8pt; margin-bottom: 8pt;">
                             <table id="cid${x.cid}" border="0" cellspacing="0" cellpadding="0" width="100%">
                                 <tbody>
                                 <tr>
                                     <td class="embedded" width="99%">
-                                        <a href="offers.php?id=${x.torrent_id}&amp;off_details=1#cid${x.cid}" name="${x.cid}">#${x.cid}</a>
+                                        <a href="${cidUrl(x.torrent_id, x.cid)}" name="${x.cid}">#${x.cid}</a>
                                         ${userInfo}
                                         <span style="color: gray">&nbsp;<time>${x.edit_time.replace('T', ' ')}</time></span></span>
                                     </td>
@@ -628,8 +640,8 @@ async function torrentCommentHistoryReset() {
                         <table class="main-inner" width="100%" border="0" cellspacing="0" cellpadding="5">
                             <tbody>
                                 <tr>
-                                    <td class="rowfollow" width="150" valign="top" style="padding: 0"><img
-                                            src="//u2.dmhy.org/pic/default_avatar.png" alt="avatar" width="150px"></td>
+                                    <td class="rowfollow" width="150" valign="top" style="padding: 0">
+                                        <img src="//u2.dmhy.org/pic/default_avatar.png" alt="avatar" width="150px"></td>
                                     <td class="rowfollow" valign="top"><br>
                                     ${(() => {
                                     if (x.action === 'edit') {
