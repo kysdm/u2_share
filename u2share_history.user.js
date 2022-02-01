@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.7
+// @version      0.2.8
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -47,9 +47,10 @@ var lang, torrent_id, db, user_id, topicid, key, token;
     key = await db.getItem('key');
     token = await db.getItem('token');
     if (key === null || key.length !== 32) { new auth_key(); return; } else if (token === null || token.length !== 96) { new auth_token(key); return; };
-    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { torrentInfoHistoryReset(); torrentCommentHistoryyReset(); }// 为已经删除的种子显示历史
+    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { torrentInfoHistoryReset(); torrentCommentHistoryReset(); }// 为已经删除的种子显示历史
     else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && !/(cmtpage|offer_vote|vote)=(1|p)/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
     else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && /cmtpage=1/i.test(location.href)) { torrentCommentHistory(); } // 为正常种子显示历史 <仅评论>
+    else if (/\/forums\.php\?action=viewtopic/i.test(location.href) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { forumCommentHistoryReset(); } // 为被删除的论坛帖子显示历史
     else if (/\/forums\.php\?action=viewtopic/i.test(location.href)) { forumCommentHistory(); }; // 为论坛帖子显示历史
 })();
 
@@ -136,6 +137,188 @@ function auth_token(__key) {
                 $('#auth_value').text(d);
             },
         });
+    });
+};
+
+async function forumCommentHistoryReset() {
+    'use strict';
+    const errorstr = $('#outer').find('td.text').text();
+    // 正在努力加载中...
+    $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>' + lang['history_text_loading'] + '</i>');
+
+    $.ajax({
+        type: 'post',
+        url: 'https://u2.kysdm.com/api/v1/comment/',
+        contentType: "application/json",
+        dataType: 'json',
+        data: JSON.stringify({ "uid": user_id, "token": token, "topicid": topicid, "type": "forum" }),
+        success: function (d) {
+            if (d.msg === 'success') {
+                console.log('获取论坛评论成功');
+                let __comment = d.data.comment[topicid].sort(firstBy((a, b) => a.pid - b.pid).thenBy((a, b) => b.self - a.self)); // 如果用self排序，消息顺序不正确，则改用编辑日期排序
+
+                if (__comment.length === 0) { // 没有评论 可以说不会出现这种情况
+                    console.log('没有历史记录.');
+                    $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + lang['history_text_empty'] + '</i>');
+                    return;
+                };
+
+                // 计算pid出现次数
+                let pidList = __comment.map(x => x.pid);
+                let counts = new Object();
+                pidList.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
+                const pidListSet = [...new Set(pidList)]; // 去重
+
+                // 还原网页
+                $('#outer').html(`
+                <table class="main" width="940" border="0" cellspacing="0" cellpadding="0">
+                    <tbody>
+                        <tr>
+                            <td class="embedded" align="center">
+                                <h1 align="center"><span id="top"></span></h1><br><br>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table class="main" width="940" border="0" cellspacing="0" cellpadding="0">
+                    <tbody>
+                        <tr>
+                            <td class="embedded">
+                                <table width="100%" border="1" cellspacing="0" cellpadding="10">
+                                    <tbody>
+                                        <tr>
+                                            <td id="comments" class="text">
+                                            <!--  // <span id="last"></span>
+                                                // <table class="main-inner" border="1" cellspacing="0" cellpadding="5">
+                                                // </table> -->
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <script type="text/javascript">
+                    //<![CDATA[
+                    var maxpage = 0;
+                    var currentpage = 0;
+            //]]>
+                </script>`
+                );
+
+                // 还原标题
+                $('span[id="top"]').html(__comment[0]['topics']);
+
+                __comment.forEach(x => {
+                    const bbcode_html = `<div style="margin-top: 8pt; margin-bottom: 8pt;">
+            <table id="pid${x.pid}" border="0" cellspacing="0" cellpadding="0" width="100%">
+                <tbody>
+                    <tr>
+                        <td class="embedded" width="99%">
+                            <a href="forums.php?action=viewtopic&amp;${x.topicid}=14068&amp;page=p${x.pid}#pid${x.pid}">#${x.pid}</a>
+                            <!-- 论坛应该不能匿名发帖吧 -->
+                            <span class="nowrap"><a href="userdetails.php?id=${x.userid}"><b>
+                                        <bdo dir="ltr">${x.username}</bdo></b></a></span>&nbsp;
+                            <time>${x.edit_time.replace('T', ' ')}</time>
+                        </td>
+                        <td class="embedded nowrap" width="1%">
+                            <font class="big">#<b>${pidListSet.findIndex((a) => a == x.pid) + 1}</b> 楼&nbsp;&nbsp;</font>
+                            <a href="#top"><img class="top" src="pic/trans.gif" alt="Top" title="返回顶部"></a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <table class="main-inner" border="1" cellspacing="0" cellpadding="5">
+            <tbody>
+                <tr>
+                    <td class="rowfollow" width="150" valign="top" align="left" style="padding: 0px">
+                        <img src="//u2.dmhy.org/pic/default_avatar.png" alt="avatar" width="150px">
+                    </td>
+                    <td class="rowfollow" valign="top"><br>
+                        <div class="post-body" id="pid${x.pid}body">
+                            <span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">
+                            ${(() => {
+                            if (x.action === 'edit') {
+                                return `${bbcode2html(x.bbcode)}</bdo></span>
+                                                ${(() => {
+                                        if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
+                                        else if ($('#locale_selection').val() === 'ru_RU') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
+                                        else return `<p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </p><br><br>`;
+                                    })()}`;
+                            } else {
+                                return `${bbcode2html(x.bbcode)}<br><br></bdo></span>`;
+                            };
+                        })()}
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>`
+
+                    if (counts[x.pid] > 1) {
+                        console.log('有编辑记录 直接添加下拉菜单');
+                        // 插入下拉菜单基本框架
+                        if ($(`#history_comment${x.pid}_select`).length === 0) {
+                            $('#comments').append(bbcode_html); // 先插入整体框架
+                            console.log('添加下拉菜单基本框架');
+                            $(`[id="pid${x.pid}"]`).find('[class="embedded nowrap"]').before(`
+                                <div id="hsty" style="position: relative;">
+                                    <div id="history_comment" style="position: absolute; right:10px; margin-top: 0px;">
+                                        <select name="type" id="history_comment${x.pid}_select">
+                                    </div>
+                                /div>`
+                            );
+                        };
+                        // 向下拉菜单写入信息
+                        $(`#history_comment${x.pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
+                ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
+                ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
+                </option>`)
+                    } else {
+                        $('#comments').append(bbcode_html);
+                    };
+                });
+
+                $("[id^=history_comment]").change(function () { // 监听菜单选择
+                    let self = $(this).val();
+                    for (let i = 0, len = __comment.length; i < len; i++) {
+                        if (self != __comment[i].self) continue;
+                        let html;
+                        let x = __comment[i];
+                        if (x.action === 'edit') {
+                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
+                                    ${(() => {
+                                    if ($('#locale_selection').val() === 'en_US') return `<p><font class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</font></p>`;
+                                    else if ($('#locale_selection').val() === 'ru_RU') return `<p><font class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</font></p>`;
+                                    else return `<br><p><font class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </font></p>`;
+                                })()}`;
+                        } else {
+                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
+                        };
+                        $(this).parents('[id^=pid]').parent().next().find('.post-body').html(html);
+                        return;
+                    };
+                });
+
+            } else {
+                console.log('获取论坛评论错误');
+                $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>' + lang['history_text_error']
+                    + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<a id="apifailure" href="javascript:void(0);" style="color:#FF1212">重置Token (・_・)ヾ</a>' + '</i>');
+                $("#apifailure").click(function () {
+                    let confirm = prompt("输入 YES 确认本次操作");
+                    if (confirm === 'YES') {
+                        db.removeItem('key');
+                        db.removeItem('token');
+                        alert("成功");
+                    };
+                });
+            };
+        },
+        error: function (d) {
+
+        },
     });
 };
 
@@ -368,9 +551,8 @@ async function torrentInfoHistory() {
     });
 };
 
-async function torrentCommentHistoryyReset() {
+async function torrentCommentHistoryReset() {
     'use strict';
-
     const callback = (mutations, observer) => {
         mutations.forEach(function (mutation) {
             if (mutation.addedNodes.length === 0) return;
