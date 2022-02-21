@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.8
+// @version      0.2.9
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -46,7 +46,7 @@ var lang, torrent_id, db, user_id, topicid, key, token;
     db = localforage.createInstance({ name: "history" });
     key = await db.getItem('key');
     token = await db.getItem('token');
-    if (key === null || key.length !== 32) { new auth_key(); return; } else if (token === null || token.length !== 96) { new auth_token(key); return; };
+    if (token === null || token.length !== 96) { new auth(key); return; };
     if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { torrentInfoHistoryReset(); torrentCommentHistoryReset(); }// 为已经删除的种子显示历史
     else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && !/(cmtpage|offer_vote|vote)=(1|p)/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
     else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && /cmtpage=1/i.test(location.href)) { torrentCommentHistory(); } // 为正常种子显示历史 <仅评论>
@@ -54,89 +54,206 @@ var lang, torrent_id, db, user_id, topicid, key, token;
     else if (/\/forums\.php\?action=viewtopic/i.test(location.href)) { forumCommentHistory(); }; // 为论坛帖子显示历史
 })();
 
-function auth_key() {
+function auth() {
     'use strict';
-    $('#outer').html('<h1 align="center">U2种子历史记录 KEY初始化</h1><table border="0" align="center" cellspacing="0" cellpadding="5">'
-        + '<tbody><tr><td valign="top" width="500" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
-        + '<bdo dir="ltr">点击按钮，请求key，key需写在<a href="usercp.php?action=personal" target="_blank" style="color:#FF0000"><b>个人说明</b></a>中，'
-        + '填写完成请刷新界面。<br></bdo></span></td></tr>'
-        + '<tr><td valign="top" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
-        + '<bdo id="auth_value" dir="ltr">32位长度的key会显示在这里 (不是32位就是失败)</bdo></span></td></tr><tr><td align="center">'
-        + '<button id="auth_key" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" >获取KEY</button>'
-        + '<button id="auth_key_d" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" >已有KEY</button>'
-        + '</td></tr></tbody></table>'
-    );
 
-    $("#auth_key_d").click(function () {
-        let __key = window.prompt("请输入key"); // 弹窗提示输入key
-        if (__key === null || __key.length === 0) return; // 没有任何输入时 无视本次操作
-        $('#auth_value').text(__key);
-        db.setItem('key', __key);
-    });
+    $('#outer').html(`<h1 align="center">U2种子历史记录 自动鉴权工具</h1>
+    <table border="0" align="center" cellspacing="0" cellpadding="5">
+        <tbody>
+            <tr>
+                <td valign="top" width="500" align="center"><span style="word-break: break-all; word-wrap: break-word;">
+                        <bdo dir="ltr">点击开始按钮，将自动进行鉴权，提示完成请刷新界面。<br>(建议手动备份下个人说明)<br></bdo></span></td>
+            </tr>
+            <tr>
+                <td valign="top" align="left"><span style="word-break: break-all; word-wrap: break-word;">
+                        <bdo id="auth_log" dir="ltr"></bdo></span></td>
+            </tr>
+            <tr>
+                <td align="center">
+                    <button id="auth_token" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button">开始鉴权</button>
+                    <button id="auth_token_d" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button">已有TOKEN</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>`);
 
-    $("#auth_key").click(function () {
-        $.ajax({
-            type: 'post',
-            url: 'https://u2.kysdm.com/api/v1/token',
-            contentType: "application/json",
-            dataType: 'json',
-            data: JSON.stringify({ "uid": user_id }),
-            success: function (d) {
-                if (d.msg === 'success') {
-                    let __key = d.data.key
-                    $('#auth_value').text(__key);
-                    db.setItem('key', __key);
-                } else {
-                    $('#auth_value').text(d);
-                };
-            },
-            error: function (d) {
-                $('#auth_value').text(d);
-            },
-        });
-    });
-};
-
-
-function auth_token(__key) {
-    'use strict';
-    $('#outer').html('<h1 align="center">U2种子历史记录 TOKEN初始化</h1><table border="0" align="center" cellspacing="0" cellpadding="5">'
-        + '<tbody><tr><td valign="top" width="500" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
-        + '<bdo dir="ltr">点击按钮，请求token，token会自动记录在本地数据库中，完成后请刷新界面。<br></bdo></span></td></tr>'
-        + '<tr><td  valign="top" align="center"><span style="word-break: break-all; word-wrap: break-word;">'
-        + '<bdo id="auth_value" dir="ltr">96位长度的token会显示在这里 (不是96位就是失败)</bdo></span></td></tr><tr><td align="center">'
-        + '<button id="auth_token" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" >获取TOKEN</button>'
-        + '<button id="auth_token_d" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" >已有TOKEN</button>'
-        + '</td></tr></tbody></table>'
-    );
-
-    $("#auth_token_d").click(function () {
-        let __token = window.prompt("请输入token"); // 弹窗提示输入token
+    $("#auth_token_d").click(async function () {
+        let __token = window.prompt("请输入Token"); // 弹窗提示输入Token
         if (__token === null || __token.length === 0) return; // 没有任何输入时 无视本次操作
-        $('#auth_value').text(__token);
-        db.setItem('token', __token);
+        else if (__token.length !== 96) {
+            await outPutLog(`Token: ${__token}`);
+            await outPutLog(`Token长度不正确`);
+            return;
+        } // TOKEN长度不正确时 无视本次操作
+        else {
+            await db.setItem('token', __token);
+            await outPutLog(`Token: ${__token}`);
+            await outPutLog('鉴权结束');
+        };
     });
+
+    function getProfile() {
+        return new Promise(async (resolve, reject) => {
+            $.ajax({
+                type: 'get',
+                url: 'https://u2.dmhy.org/usercp.php?action=personal',
+                cache: false,
+                success: async r => {
+                    const profile = $($.parseHTML(r)).find('[name="info"]').text(); // 获取用户信息
+                    const bbcode = `-----BEGIN API KEY-----\n${key}\n-----END API KEY-----\n\n${profile}`;
+                    const p = bbcode.replace(/\r\n/g, () => { return '<br>' }).replace(/\n/g, () => { return '<br>' }).replace(/\r/g, () => { return '<br>' });
+                    await outPutLog(`请检查准备写入个人说明的BBCODE是否正确<br><br><table class="spoiler" width="100%">
+                   <tbody>
+                       <tr>
+                           <td class="colhead">个人说明&nbsp;&nbsp;<button class="spoiler-button-show" style="">检查一下</button>
+                                <button id="auth_profile_check" class="spoiler-button-hide" style="display: none;">检查完成</button></td>
+                       </tr>
+                       <tr>
+                           <td><span class="spoiler-content" style="display: none;">${p}</span></td>
+                       </tr>
+                   </tbody>
+               </table>`);
+                    await db.setItem('profile', profile); // 存储用户信息
+                    $("#auth_profile_check").click(async function (ev) {
+                        $(this).hide();
+                        $(this).siblings(".spoiler-button-show").show();
+                        $(this).parentsUntil(".spoiler").find("span.spoiler-content:first").hide();
+                        ev.preventDefault();
+                        return resolve(bbcode);
+                    });
+                },
+                error: async d => {
+                    await outPutLog('获取个人说明BBCODE失败');
+                    await outPutLog(`错误信息: ${d.responseText}`);
+                    return reject(Error(d.responseText));
+                },
+            });
+        });
+    };
+
+    function postProfile(bbcode) {
+        return new Promise(async (resolve, reject) => {
+            $.ajax({
+                type: 'post',
+                url: 'https://u2.dmhy.org/usercp.php',
+                cache: false,
+                contentType: "application/x-www-form-urlencoded",
+                // dataType: 'json',
+                data: { "action": "personal", "type": "save", "info": bbcode },
+                success: async r => {
+                    await outPutLog('修改个人说明BBCODE成功');
+                    return resolve(key);
+                },
+                error: async d => {
+                    await outPutLog('修改个人说明BBCODE失败');
+                    await outPutLog(`错误信息: ${d.responseText}`);
+                    return reject(Error(d.responseText));
+                },
+            });
+        });
+    };
+
+    function getAuthKey() {
+        return new Promise(async (resolve, reject) => {
+            $.ajax({
+                type: 'post',
+                url: 'https://u2.kysdm.com/api/v1/token',
+                contentType: "application/json",
+                dataType: 'json',
+                // async: false,
+                data: JSON.stringify({ "uid": user_id }),
+                success: async function (d) {
+                    if (d.msg === 'success') {
+                        key = d.data.key
+                        db.setItem('key', key);
+                        await outPutLog('获取Key成功');
+                        await outPutLog(`Key: ${key}`);
+                        return resolve(key);
+                    } else {
+                        await outPutLog('获取Key失败');
+                        await outPutLog(`错误信息: ${JSON.stringify(d)}`);
+                        return reject(Error('获取Key失败'));
+                    };
+                },
+                error: async function (d) {
+                    await outPutLog('获取Key失败');
+                    await outPutLog(`错误信息: ${d.responseText}`);
+                    return reject(Error('获取Key失败'));
+                },
+            });
+        });
+    };
+
+    function getToken() {
+        return new Promise(async (resolve, reject) => {
+            $.ajax({
+                type: 'post',
+                url: 'https://u2.kysdm.com/api/v1/token',
+                contentType: "application/json",
+                dataType: 'json',
+                data: JSON.stringify({ "uid": user_id, "key": key }),
+                success: async function (d) {
+                    if (d.msg === 'success') {
+                        let __token = d.data.token
+                        await outPutLog('获取Token成功');
+                        await outPutLog(`Token: ${__token}`);
+                        await db.setItem('token', __token);
+                        return resolve(__token);
+                    } else {
+                        await outPutLog('获取Token失败');
+                        await outPutLog(`错误信息: ${JSON.stringify(d)}`);
+                        return reject(Error('获取Token失败'));
+                    };
+                },
+                error: async function (d) {
+                    await outPutLog('获取Token失败');
+                    await outPutLog(`错误信息: ${d.responseText}`);
+                    return reject(Error('获取Token失败'));
+                },
+            });
+        });
+    };
+
+    function outPutLog(text) {
+        return new Promise(async (resolve, reject) => {
+            const log = $('#auth_log').html();
+            $('#auth_log').html(`${log}${getDateString()} - ${text}<br>`);
+            resolve(await sleep(0));
+        });
+    };
+
+    async function sleep(interval) {
+        return new Promise(resolve => {
+            setTimeout(resolve, interval);
+        })
+    };
 
     $("#auth_token").click(async function () {
-        $.ajax({
-            type: 'post',
-            url: 'https://u2.kysdm.com/api/v1/token',
-            contentType: "application/json",
-            dataType: 'json',
-            data: JSON.stringify({ "uid": user_id, "key": __key }),
-            success: function (d) {
-                if (d.msg === 'success') {
-                    let __token = d.data.token
-                    $('#auth_value').text(__token);
-                    db.setItem('token', __token);
-                } else {
-                    $('#auth_value').html('可能没有把key写入<a href="usercp.php?action=personal" target="_blank" style="color:#FF0000">个人说明</a><br>key: ' + __key + '<br>错误信息: ' + JSON.stringify(d));
-                };
-            },
-            error: function (d) {
-                $('#auth_value').text(d);
-            },
-        });
+        await outPutLog('鉴权开始');
+        await outPutLog('获取鉴权所需的Key');
+        getAuthKey()
+            .then(async () => {
+                await outPutLog('获取个人说明BBCODE');
+                return getProfile();
+            })
+            .then(async bbcode => {
+                await outPutLog('修改个人说明BBCODE');
+                await postProfile(bbcode);
+            })
+            .then(async () => {
+                await outPutLog('获取鉴权所需的Token');
+                await getToken();
+            })
+            .then(async () => {
+                await outPutLog('还原个人说明BBCODE');
+                await postProfile(await db.getItem('profile'));
+            })
+            .catch(async err => {
+                await outPutLog(err);
+            })
+            .finally(async () => {
+                await outPutLog('鉴权结束');
+            });
     });
 };
 
@@ -297,7 +414,7 @@ async function forumCommentHistoryReset() {
                 console.log('获取论坛评论错误');
                 $('#outer').find('td.text').html(`${errorstr}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>${lang['history_text_error']}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="apifailure" href="javascript:void(0);" style="color:#FF1212">${lang['reset_token']}</a></i>`);
                 $("#apifailure").click(function () {
-                    let confirm = prompt("输入 YES 确认本次操作");
+                    let confirm = prompt("输入 YES 确认本次操作 (大写)");
                     if (confirm === 'YES') {
                         db.removeItem('key');
                         db.removeItem('token');
@@ -722,7 +839,7 @@ async function torrentInfoHistoryReset() {
 
     if (__json.msg !== 'success') { // 加载失败时
         console.log('获取历史记录失败.');
-            $('#outer').find('td.text').html(`${errorstr}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>${lang['history_text_error']}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="apifailure" href="javascript:void(0);" style="color:#FF1212">${lang['reset_token']}</a></i>`);
+        $('#outer').find('td.text').html(`${errorstr}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>${lang['history_text_error']}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="apifailure" href="javascript:void(0);" style="color:#FF1212">${lang['reset_token']}</a></i>`);
         $("#apifailure").click(function () {
             let confirm = prompt("输入 YES 确认本次操作");
             if (confirm === 'YES') {
