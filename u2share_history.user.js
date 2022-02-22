@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.9
+// @version      0.3.0
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -99,9 +99,30 @@ function auth() {
                 url: 'https://u2.dmhy.org/usercp.php?action=personal',
                 cache: false,
                 success: async r => {
-                    const profile = $($.parseHTML(r)).find('[name="info"]').text(); // 获取用户信息
-                    const bbcode = `-----BEGIN API KEY-----\n${key}\n-----END API KEY-----\n\n${profile}`;
-                    const p = bbcode.replace(/\r\n/g, () => { return '<br>' }).replace(/\n/g, () => { return '<br>' }).replace(/\r/g, () => { return '<br>' });
+                    const usercp = $.parseHTML(r)
+                    // const profile = $(usercp).find('[name="info"]').text(); // 获取用户信息
+                    const profile = {
+                        "action": "personal",
+                        "type": "save",
+                        "acceptpms": $(usercp).find('[name="acceptpms"]:checked').val(), // 接受以下短讯
+                        // 如果不需要开启对应功能，则不发送该参数
+                        "deletepms": $(usercp).find('[name="deletepms"]').is(':checked') ? 'on' : '',  // 回复后删除短讯
+                        "savepms": $(usercp).find('[name="savepms"]').is(':checked') ? 'on' : '', // 保存短讯至发件箱
+                        "commentpm": $(usercp).find('[name="commentpm"]').is(':checked') ? 'yes' : '', // 我发布的种子有新评论时通知我
+                        "atpm": $(usercp).find('[name="atpm"]').is(':checked') ? '1' : '',// 有人在群聊区@我时通知
+                        "quotepm": $(usercp).find('[name="quotepm"]').is(':checked') ? '1' : '',// 有人在论坛、种子评论或候选评论引用我时通知。
+                        // 如果不需要开启对应功能，则不发送该参数
+                        "country": $(usercp).find('[name="country"]').val(),  // 国家/地区
+                        "download": $(usercp).find('[name="download"]').val(),// 下行带宽
+                        "upload": $(usercp).find('[name="upload"]').val(),// 上行带宽
+                        "isp": $(usercp).find('[name="isp"]').val(),// 互联网服务提供商
+                        "savatar": $(usercp).find('[name="savatar"]').val(), // 选择头像
+                        "avatar": $(usercp).find('[name="avatar"]').val(), // 自定义头像
+                        "info": $(usercp).find('[name="info"]').text() // 个人说明
+                    };
+                    let profileAuth = { ...profile }; // 复制
+                    profileAuth.info = `-----BEGIN API KEY-----\n${key}\n-----END API KEY-----\n\n${profile.info}`; // 在个人说明加入鉴权信息
+                    const p = profileAuth.info.replace(/\r\n/g, () => { return '<br>' }).replace(/\n/g, () => { return '<br>' }).replace(/\r/g, () => { return '<br>' });
                     await outPutLog(`请检查准备写入个人说明的BBCODE是否正确<br><br><table class="spoiler" width="100%">
                    <tbody>
                        <tr>
@@ -119,7 +140,7 @@ function auth() {
                         $(this).siblings(".spoiler-button-show").show();
                         $(this).parentsUntil(".spoiler").find("span.spoiler-content:first").hide();
                         ev.preventDefault();
-                        return resolve(bbcode);
+                        return resolve(profileAuth);
                     });
                 },
                 error: async d => {
@@ -131,15 +152,14 @@ function auth() {
         });
     };
 
-    function postProfile(bbcode) {
+    function postProfile(data) {
         return new Promise(async (resolve, reject) => {
             $.ajax({
                 type: 'post',
                 url: 'https://u2.dmhy.org/usercp.php',
                 cache: false,
                 contentType: "application/x-www-form-urlencoded",
-                // dataType: 'json',
-                data: { "action": "personal", "type": "save", "info": bbcode },
+                data: data,
                 success: async r => {
                     await outPutLog('修改个人说明BBCODE成功');
                     return resolve(key);
@@ -236,9 +256,9 @@ function auth() {
                 await outPutLog('获取个人说明BBCODE');
                 return getProfile();
             })
-            .then(async bbcode => {
+            .then(async data => {
                 await outPutLog('修改个人说明BBCODE');
-                await postProfile(bbcode);
+                await postProfile(data);
             })
             .then(async () => {
                 await outPutLog('获取鉴权所需的Token');
@@ -582,7 +602,7 @@ async function torrentInfoHistory() {
         $("#history_select").change(function () { // 监听菜单选择
             let self = Number($(this).val());
             if (self === 90000) {
-                let confirm = prompt("输入 YES 确认本次操作");
+                let confirm = prompt("输入 YES 确认本次操作 (大写)");
                 if (confirm === 'YES') {
                     db.removeItem('key');
                     db.removeItem('token');
@@ -841,7 +861,7 @@ async function torrentInfoHistoryReset() {
         console.log('获取历史记录失败.');
         $('#outer').find('td.text').html(`${errorstr}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>${lang['history_text_error']}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="apifailure" href="javascript:void(0);" style="color:#FF1212">${lang['reset_token']}</a></i>`);
         $("#apifailure").click(function () {
-            let confirm = prompt("输入 YES 确认本次操作");
+            let confirm = prompt("输入 YES 确认本次操作 (大写)");
             if (confirm === 'YES') {
                 db.removeItem('key');
                 db.removeItem('token');
