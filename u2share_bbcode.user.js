@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.5
+// @version      0.3.6
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -76,7 +76,7 @@ var lang = new lang_init($('#locale_selection').val());;
                 height_now = Number(mutation.target.style.height.replace('px', '')) + 30;
                 if (height_last === height_now) { return } else { height_last = height_now; };
                 $("#bbcode2").css("max-height", height_now + "px");
-            }
+            };
         })
     });
     observer.observe(element, {
@@ -1310,714 +1310,415 @@ async function syncScroll(element, type, bbcode, preview) {
     };
 };
 
+// 为bbcode加上[]
+function createTagBox(name, attribute, content) {
+    var components = [];
+    components.push('[');
+    components.push(name);
+    if (attribute !== null) {
+        components.push('=');
+        components.push(attribute);
+    }
+    components.push(']');
+    if (content !== null) {
+        components.push(content);
+        components.push('[/');
+        components.push(name);
+        components.push(']');
+    }
+    return components.join('');
+};
+
+function replaceTextBox(str, start, end, replacement) {
+    return str.substring(0, start) + replacement + str.substring(end);
+};
+
+function addTagBox(textArea, name, attribute, content, surround) {
+    var selStart = textArea.selectionStart;
+    var selEnd = textArea.selectionEnd;
+    if (selStart === null || selEnd === null) {
+        selStart = selEnd = textArea.value.length;
+    }
+    var selTarget = selStart + name.length + 2 + (attribute ? attribute.length + 1 : 0);
+    if (selStart === selEnd) {
+        textArea.value = replaceTextBox(textArea.value, selStart, selEnd, createTagBox(name, attribute, content));
+    } else {
+        var replacement = null;
+        if (surround) {
+            replacement = createTagBox(name, attribute, textArea.value.substring(selStart, selEnd));
+        } else {
+            replacement = createTagBox(name, attribute, content);
+        }
+        textArea.value = replaceTextBox(textArea.value, selStart, selEnd, replacement);
+    }
+    textArea.setSelectionRange(selTarget, selTarget);
+};
+
+function onEditorActionBox(action, param) {
+    var textArea = document.querySelector('#box_bbcode');
+    var selStart = textArea.selectionStart;
+    var selEnd = textArea.selectionEnd;
+    var selectionText, url;
+    if (selStart === null || selEnd === null) {
+        selStart = selEnd = textArea.value.length;
+    };
+    switch (action) {
+        case 'B': {
+            addTagBox(textArea, 'b', null, '', true);
+            break;
+        }
+        case 'I': {
+            addTagBox(textArea, 'i', null, '', true);
+            break;
+        }
+        case 'U': {
+            addTagBox(textArea, 'u', null, '', true);
+            break;
+        }
+        case 'URL': {
+            if (selStart !== selEnd) {
+                selectionText = textArea.value.substring(selStart, selEnd);
+                addTagBox(textArea, 'url', selectionText, selectionText, false);
+            } else {
+                url = window.prompt("请输入链接URL：");
+                if (url === null || url.length === 0) {
+                    break;
+                }
+                var title = window.prompt("请输入链接标题（可选）：");
+                if (title === null || title.length === 0) {
+                    title = url;
+                }
+                addTagBox(textArea, 'url', url, title, false);
+            }
+            break;
+        }
+        case 'IMG': {
+            if (selStart !== selEnd) {
+                selectionText = textArea.value.substring(selStart, selEnd);
+                addTagBox(textArea, 'img', null, selectionText, false);
+            } else {
+                url = window.prompt("请输入图片的完整路径：");
+                // url = window.prompt(EDITOR_LANG.image);
+                if (url === null) {
+                    break;
+                }
+                var urlLower = url.toLowerCase();
+                if (!urlLower.startsWith('http://') && !urlLower.startsWith('https://')) {
+                    // window.alert(EDITOR_LANG['invalid_image']);
+                    window.alert("图片URL必须以http://或https://开头。");
+                    break;
+                }
+                addTagBox(textArea, 'img', null, url, false);
+            }
+            break;
+        }
+        case 'QUOTE': {
+            addTagBox(textArea, 'quote', null, '', true);
+            break;
+        }
+        case 'COLOR': {
+            if (param !== "") {
+                addTagBox(textArea, 'color', param, '', true);
+            }
+            break;
+        }
+        case 'FONT': {
+            if (param !== "") {
+                addTagBox(textArea, 'font', param, '', true);
+            }
+            break;
+        }
+        case 'SIZE': {
+            if (param !== "") {
+                addTagBox(textArea, 'size', param, '', true);
+            }
+            break;
+        }
+        // 自定义
+        case "S": {
+            addTagBox(textArea, "s", null, "", true);
+            break;
+        }
+        case "INFO": {
+            addTagBox(textArea, "info", null, "", true);
+            break;
+        }
+        case "MEDIAINFO": {
+            addTagBox(textArea, "mediainfo", null, "", true);
+            break;
+        }
+        case "PRE": {
+            addTagBox(textArea, "pre", null, "", true);
+            break;
+        }
+        case "CODE": {
+            addTagBox(textArea, "code", null, "", true);
+            break;
+        }
+        case "RT*": {
+            if (selStart !== selEnd) {
+                var title = window.prompt(lang['rt_text']);
+                if (title === null || title.length === 0) {
+                    break;
+                }
+                selectionText = textArea.value.substring(selStart, selEnd);
+                addTagBox(textArea, "rt", title, selectionText, false);
+                // break;
+            } else {
+                let text = window.prompt(lang['main_body']);
+                if (text === null || text.length === 0) {
+                    break;
+                }
+                var title = window.prompt(lang['rt_text']);
+                if (title === null || title.length === 0) {
+                    break;
+                }
+                addTagBox(textArea, "rt", title, text, false);
+            }
+            break;
+        }
+        case "QUOTE*": {
+            if (selStart !== selEnd) {
+                var title = window.prompt(lang['main_body_prefix']);
+                if (title === null || title.length === 0) {
+                    title = "";
+                }
+                selectionText = textArea.value.substring(selStart, selEnd);
+                // addTag(textArea, "quote", null, "", true);
+                addTagBox(textArea, "quote", title, selectionText, false);
+            } else {
+                let text = window.prompt(lang['main_body']);
+                if (text === null || text.length === 0) {
+                    break;
+                }
+                var title = window.prompt(lang['main_body_prefix']);
+                if (title === null || title.length === 0) {
+                    title = "";
+                }
+                addTagBox(textArea, "quote", title, text, false);
+            }
+            break;
+        }
+        case "URL*": {
+            if (selStart !== selEnd) {
+                selectionText = textArea.value.substring(selStart, selEnd); // 选中的文字
+                if (/^(?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+/gi.test(selectionText)) {
+                    // 选中的是URL时
+                    var title = window.prompt(lang['url_name']);
+                    if (title === null || title.length === 0) {
+                        // selectionText = textArea.value.substring(selStart, selEnd);
+                        // addTag(textArea, "url", null, "", true);
+                        break;
+                    } else {
+                        addTagBox(textArea, "url", selectionText, title, false);
+                    };
+                } else {
+                    // 选中的是文字时
+                    var url_link = window.prompt(lang['url_link']);
+                    if (url_link === null || url_link.length === 0) {
+                        // selectionText = textArea.value.substring(selStart, selEnd);
+                        // addTag(textArea, "url", null, "", true);
+                        break;
+                    } else {
+                        addTagBox(textArea, "url", url_link, selectionText, false);
+                    };
+                };
+            } else {
+                let text = window.prompt(lang['url_link']);
+                if (text === null || text.length === 0) {
+                    break;
+                }
+                var title = window.prompt(lang['url_name']);
+                if (title === null || title.length === 0) {
+                    title = "";
+                    addTagBox(textArea, "url", null, text, false);
+                    break;
+                }
+                addTagBox(textArea, "url", text, title, false);
+            }
+            break;
+        }
+        case "SPOILER*": {
+            if (selStart !== selEnd) {
+                var title = window.prompt(lang['main_body_prefix']);
+                if (title === null || title.length === 0) {
+                    addTagBox(textArea, "spoiler", null, "", true);
+                    break;
+                }
+                selectionText = textArea.value.substring(selStart, selEnd);
+                // addTag(textArea, "spoiler", null, "", true);
+                addTagBox(textArea, "spoiler", title, selectionText, false);
+            } else {
+                let text = window.prompt(lang['main_body']);
+                if (text === null || text.length === 0) {
+                    break;
+                }
+                var title = window.prompt(lang['main_body_prefix']);
+                if (title === null || title.length === 0) {
+                    title = "";
+                    addTagBox(textArea, "spoiler", null, text, false);
+                    break;
+                }
+                addTagBox(textArea, "spoiler", title, text, false);
+            }
+            break;
+        }
+        case "SPOILER": {
+            addTagBox(textArea, "spoiler", null, "", true);
+            break;
+        }
+        case "QUOTE": {
+            if (selStart !== selEnd) {
+                addTagBox(textArea, "quote", null, "", true);
+            } else {
+                let text = window.prompt(lang['main_body']);
+                if (text === null || text.length === 0) {
+                    break;
+                };
+                addTagBox(textArea, "quote", null, text, false);
+            }
+            break;
+        };
+        case "URL": {
+            if (selStart !== selEnd) {
+                addTagBox(textArea, "url", null, "", true);
+            } else {
+                let text = window.prompt(lang['url_link']);
+                if (text === null || text.length === 0) {
+                    break;
+                };
+                addTagBox(textArea, "url", null, text, false);
+            }
+            break;
+        };
+        case "LIST": {
+            if (selStart !== selEnd) {
+                break;
+            };
+            addTagBox(textArea, "*", null, null, true);
+            break;
+        };
+        case (action.match(/^#\[.+\]$/i) || {}).input: {
+            addTagBox(textArea, action.slice(2, -1), null, null, true);
+            break;
+        };
+    }
+    textArea.focus();
+};
+
 
 // 自定义的BBCODE
 (async () => {
-    const shbox_button = $('[type="reset"]');  // 查找聊天版清除按钮
+    const shbox_button = $('#hbsubmit');  // 查找聊天版清除按钮
     if (shbox_button.length === 0) return;  // 聊天版自动刷新时，会再次触发当前函数 || 未开启聊天版
-    $('#nav_block [type="reset"]').before('<input id="shbox_bbcode" type="button" class="codebuttons" value="高级">')
-
-    function createTagBox(name, attribute, content) {
-        var components = [];
-        components.push('[');
-        components.push(name);
-        if (attribute !== null) {
-            components.push('=');
-            components.push(attribute);
-        }
-        components.push(']');
-        if (content !== null) {
-            components.push(content);
-            components.push('[/');
-            components.push(name);
-            components.push(']');
-        }
-        return components.join('');
-    }
-
-    function replaceTextBox(str, start, end, replacement) {
-        return str.substring(0, start) + replacement + str.substring(end);
-    }
-
-    function addTagBox(textArea, name, attribute, content, surround) {
-        var selStart = textArea.selectionStart;
-        var selEnd = textArea.selectionEnd;
-        if (selStart === null || selEnd === null) {
-            selStart = selEnd = textArea.value.length;
-        }
-        var selTarget = selStart + name.length + 2 + (attribute ? attribute.length + 1 : 0);
-        if (selStart === selEnd) {
-            textArea.value = replaceTextBox(textArea.value, selStart, selEnd, createTagBox(name, attribute, content));
-        } else {
-            var replacement = null;
-            if (surround) {
-                replacement = createTagBox(name, attribute, textArea.value.substring(selStart, selEnd));
-            } else {
-                replacement = createTagBox(name, attribute, content);
-            }
-            textArea.value = replaceTextBox(textArea.value, selStart, selEnd, replacement);
-        }
-        textArea.setSelectionRange(selTarget, selTarget);
-    }
-
-    function onEditorActionBox(action, param) {
-        var textArea = document.querySelector('#box_bbcode');
-        var selStart = textArea.selectionStart;
-        var selEnd = textArea.selectionEnd;
-        var selectionText, url;
-        if (selStart === null || selEnd === null) {
-            selStart = selEnd = textArea.value.length;
-        };
-        switch (action) {
-            case 'B': {
-                addTagBox(textArea, 'b', null, '', true);
-                break;
-            }
-            case 'I': {
-                addTagBox(textArea, 'i', null, '', true);
-                break;
-            }
-            case 'U': {
-                addTagBox(textArea, 'u', null, '', true);
-                break;
-            }
-            case 'URL': {
-                if (selStart !== selEnd) {
-                    selectionText = textArea.value.substring(selStart, selEnd);
-                    addTagBox(textArea, 'url', selectionText, selectionText, false);
-                } else {
-                    url = window.prompt("请输入链接URL：");
-                    if (url === null || url.length === 0) {
-                        break;
-                    }
-                    var title = window.prompt("请输入链接标题（可选）：");
-                    if (title === null || title.length === 0) {
-                        title = url;
-                    }
-                    addTagBox(textArea, 'url', url, title, false);
-                }
-                break;
-            }
-            case 'IMG': {
-                if (selStart !== selEnd) {
-                    selectionText = textArea.value.substring(selStart, selEnd);
-                    addTagBox(textArea, 'img', null, selectionText, false);
-                } else {
-                    url = window.prompt("请输入图片的完整路径：");
-                    // url = window.prompt(EDITOR_LANG.image);
-                    if (url === null) {
-                        break;
-                    }
-                    var urlLower = url.toLowerCase();
-                    if (!urlLower.startsWith('http://') && !urlLower.startsWith('https://')) {
-                        // window.alert(EDITOR_LANG['invalid_image']);
-                        window.alert("图片URL必须以http://或https://开头。");
-                        break;
-                    }
-                    addTagBox(textArea, 'img', null, url, false);
-                }
-                break;
-            }
-            case 'QUOTE': {
-                addTagBox(textArea, 'quote', null, '', true);
-                break;
-            }
-            case 'COLOR': {
-                if (param !== "") {
-                    addTagBox(textArea, 'color', param, '', true);
-                }
-                break;
-            }
-            case 'FONT': {
-                if (param !== "") {
-                    addTagBox(textArea, 'font', param, '', true);
-                }
-                break;
-            }
-            case 'SIZE': {
-                if (param !== "") {
-                    addTagBox(textArea, 'size', param, '', true);
-                }
-                break;
-            }
-            // 自定义
-            case "S": {
-                addTagBox(textArea, "s", null, "", true);
-                break;
-            }
-            case "INFO": {
-                addTagBox(textArea, "info", null, "", true);
-                break;
-            }
-            case "MEDIAINFO": {
-                addTagBox(textArea, "mediainfo", null, "", true);
-                break;
-            }
-            case "PRE": {
-                addTagBox(textArea, "pre", null, "", true);
-                break;
-            }
-            case "CODE": {
-                addTagBox(textArea, "code", null, "", true);
-                break;
-            }
-            case "RT*": {
-                if (selStart !== selEnd) {
-                    var title = window.prompt(lang['rt_text']);
-                    if (title === null || title.length === 0) {
-                        break;
-                    }
-                    selectionText = textArea.value.substring(selStart, selEnd);
-                    addTagBox(textArea, "rt", title, selectionText, false);
-                    // break;
-                } else {
-                    let text = window.prompt(lang['main_body']);
-                    if (text === null || text.length === 0) {
-                        break;
-                    }
-                    var title = window.prompt(lang['rt_text']);
-                    if (title === null || title.length === 0) {
-                        break;
-                    }
-                    addTagBox(textArea, "rt", title, text, false);
-                }
-                break;
-            }
-            case "QUOTE*": {
-                if (selStart !== selEnd) {
-                    var title = window.prompt(lang['main_body_prefix']);
-                    if (title === null || title.length === 0) {
-                        title = "";
-                    }
-                    selectionText = textArea.value.substring(selStart, selEnd);
-                    // addTag(textArea, "quote", null, "", true);
-                    addTagBox(textArea, "quote", title, selectionText, false);
-                } else {
-                    let text = window.prompt(lang['main_body']);
-                    if (text === null || text.length === 0) {
-                        break;
-                    }
-                    var title = window.prompt(lang['main_body_prefix']);
-                    if (title === null || title.length === 0) {
-                        title = "";
-                    }
-                    addTagBox(textArea, "quote", title, text, false);
-                }
-                break;
-            }
-            case "URL*": {
-                if (selStart !== selEnd) {
-                    selectionText = textArea.value.substring(selStart, selEnd); // 选中的文字
-                    if (/^(?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+/gi.test(selectionText)) {
-                        // 选中的是URL时
-                        var title = window.prompt(lang['url_name']);
-                        if (title === null || title.length === 0) {
-                            // selectionText = textArea.value.substring(selStart, selEnd);
-                            // addTag(textArea, "url", null, "", true);
-                            break;
-                        } else {
-                            addTagBox(textArea, "url", selectionText, title, false);
-                        };
-                    } else {
-                        // 选中的是文字时
-                        var url_link = window.prompt(lang['url_link']);
-                        if (url_link === null || url_link.length === 0) {
-                            // selectionText = textArea.value.substring(selStart, selEnd);
-                            // addTag(textArea, "url", null, "", true);
-                            break;
-                        } else {
-                            addTagBox(textArea, "url", url_link, selectionText, false);
-                        };
-                    };
-                } else {
-                    let text = window.prompt(lang['url_link']);
-                    if (text === null || text.length === 0) {
-                        break;
-                    }
-                    var title = window.prompt(lang['url_name']);
-                    if (title === null || title.length === 0) {
-                        title = "";
-                        addTagBox(textArea, "url", null, text, false);
-                        break;
-                    }
-                    addTagBox(textArea, "url", text, title, false);
-                }
-                break;
-            }
-            case "SPOILER*": {
-                if (selStart !== selEnd) {
-                    var title = window.prompt(lang['main_body_prefix']);
-                    if (title === null || title.length === 0) {
-                        addTagBox(textArea, "spoiler", null, "", true);
-                        break;
-                    }
-                    selectionText = textArea.value.substring(selStart, selEnd);
-                    // addTag(textArea, "spoiler", null, "", true);
-                    addTagBox(textArea, "spoiler", title, selectionText, false);
-                } else {
-                    let text = window.prompt(lang['main_body']);
-                    if (text === null || text.length === 0) {
-                        break;
-                    }
-                    var title = window.prompt(lang['main_body_prefix']);
-                    if (title === null || title.length === 0) {
-                        title = "";
-                        addTagBox(textArea, "spoiler", null, text, false);
-                        break;
-                    }
-                    addTagBox(textArea, "spoiler", title, text, false);
-                }
-                break;
-            }
-            case "SPOILER": {
-                addTagBox(textArea, "spoiler", null, "", true);
-                break;
-            }
-            case "QUOTE": {
-                if (selStart !== selEnd) {
-                    addTagBox(textArea, "quote", null, "", true);
-                } else {
-                    let text = window.prompt(lang['main_body']);
-                    if (text === null || text.length === 0) {
-                        break;
-                    };
-                    addTagBox(textArea, "quote", null, text, false);
-                }
-                break;
-            };
-            case "URL": {
-                if (selStart !== selEnd) {
-                    addTagBox(textArea, "url", null, "", true);
-                } else {
-                    let text = window.prompt(lang['url_link']);
-                    if (text === null || text.length === 0) {
-                        break;
-                    };
-                    addTagBox(textArea, "url", null, text, false);
-                }
-                break;
-            };
-            case "LIST": {
-                if (selStart !== selEnd) {
-                    break;
-                };
-                addTagBox(textArea, "*", null, null, true);
-                break;
-            };
-            case (action.match(/^#\[.+\]$/i) || {}).input: {
-                addTagBox(textArea, action.slice(2, -1), null, null, true);
-                break;
-            };
-        }
-        textArea.focus();
-    };
+    shbox_button.after('<input id="shbox_bbcode" type="button" class="codebuttons" value="高级">')
 
     // 别问 我懒
     var t = `<style type="text/css">.dialog { position: absolute; z-index: 9999; padding-bottom: 10px; display: none; } .h2_move { cursor: move; margin-block-start: 0em; margin-block-end: 0em; } td.smile-icon {padding: 3px !important;}</style>
     <div class="dialog" id="dialog">
-      <form id="compose_custom" method="post" name="compose_custom">
-        <table class="main" width="940" border="0" cellspacing="0" cellpadding="0">
-          <tbody>
-            <tr>
-              <td class="embedded">
-                <h2 class="h2_move" id="move_part" align="left">聊天区</h2>
-                <table width="100%" border="1" cellspacing="0" cellpadding="10">
-                  <table width="100%" border="1" cellspacing="0" cellpadding="10">
-                    <tbody>
-                      <tr>
-                        <td class="text" align="center">
-                          <table class="main" width="100%" border="1" cellspacing="0" cellpadding="5">
+      <form id="compose_custom" method="post" name="compose_custom"><table class="main" width="940" border="0" cellspacing="0" cellpadding="0"><tbody><tr><td class="embedded">
+        <h2 class="h2_move" id="move_part" align="left">聊天区</h2>
+            <table width="100%" border="1" cellspacing="0" cellpadding="10"><table width="100%" border="1" cellspacing="0" cellpadding="10"><tbody><tr><td class="text" align="center">
+                <table class="main" width="100%" border="1" cellspacing="0" cellpadding="5"><tbody><tr><td class="rowhead" valign="top">正文</td>
+                    <td class="rowfollow" align="left"><div id="editorouterbox" style="display: block;"><table width="100%" cellspacing="0" cellpadding="5" border="0">
+                        <tbody><tr><td align="left" colspan="2"><table cellspacing="1" cellpadding="2" border="0">
                             <tbody>
-                              <tr>
-                                <td class="rowhead" valign="top">正文</td>
-                                <td class="rowfollow" align="left">
-                                  <div id="editorouterbox" style="display: block;">
-                                    <table width="100%" cellspacing="0" cellpadding="5" border="0">
-                                      <tbody>
-                                        <tr>
-                                          <td align="left" colspan="2">
-                                            <table cellspacing="1" cellpadding="2" border="0">
-                                              <tbody>
-                                                <tr>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-weight: bold;font-size:11px; margin-right:3px" type="button" value="B" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-style: italic;font-size:11px;margin-right:3px" type="button" value="I" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="text-decoration: underline;font-size:11px;margin-right:3px" type="button" value="U" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="text-decoration: line-through;font-size:11px;margin-right:3px" type="button" value="S" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="URL" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="URL*" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="IMG" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="RT*" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="LIST" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="PRE" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="CODE" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="QUOTE" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="QUOTE*" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="INFO" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="MEDIAINFO" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="SPOILER" name="bbcode_button">
-                                                  </td>
-                                                  <td class="embedded">
-                                                    <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="SPOILER*" name="bbcode_button">
-                                                  </td>
-                                                </tr>
-                                              </tbody>
-                                            </table>
-                                            <div id="bbcodejs_tbody_box" style="position:relative; margin-top: 4px">
-                                              <div id="bbcodejs_select_box" style="position: absolute; margin-top: 2px; margin-bottom: 2px; float: left;">
-                                                <select class="med codebuttons" style="margin-right: 3px; visibility: visible;" name="bbcode_color">
-                                                  <option value="">--- 颜色 ---</option>
-                                                  <option style="background-color: black" value="Black">Black</option>
-                                                  <option style="background-color: sienna" value="Sienna">Sienna</option>
-                                                  <option style="background-color: darkolivegreen" value="DarkOliveGreen">Dark Olive Green</option>
-                                                  <option style="background-color: darkgreen" value="DarkGreen">Dark Green</option>
-                                                  <option style="background-color: darkslateblue" value="DarkSlateBlue">Dark Slate Blue</option>
-                                                  <option style="background-color: navy" value="Navy">Navy</option>
-                                                  <option style="background-color: indigo" value="Indigo">Indigo</option>
-                                                  <option style="background-color: darkslategray" value="DarkSlateGray">Dark Slate Gray</option>
-                                                  <option style="background-color: darkred" value="DarkRed">Dark Red</option>
-                                                  <option style="background-color: darkorange" value="DarkOrange">Dark Orange</option>
-                                                  <option style="background-color: olive" value="Olive">Olive</option>
-                                                  <option style="background-color: green" value="Green">Green</option>
-                                                  <option style="background-color: teal" value="Teal">Teal</option>
-                                                  <option style="background-color: blue" value="Blue">Blue</option>
-                                                  <option style="background-color: slategray" value="SlateGray">Slate Gray</option>
-                                                  <option style="background-color: dimgray" value="DimGray">Dim Gray</option>
-                                                  <option style="background-color: red" value="Red">Red</option>
-                                                  <option style="background-color: sandybrown" value="SandyBrown">Sandy Brown</option>
-                                                  <option style="background-color: yellowgreen" value="YellowGreen">Yellow Green</option>
-                                                  <option style="background-color: seagreen" value="SeaGreen">Sea Green</option>
-                                                  <option style="background-color: mediumturquoise" value="MediumTurquoise">Medium Turquoise</option>
-                                                  <option style="background-color: royalblue" value="RoyalBlue">Royal Blue</option>
-                                                  <option style="background-color: purple" value="Purple">Purple</option>
-                                                  <option style="background-color: gray" value="Gray">Gray</option>
-                                                  <option style="background-color: magenta" value="Magenta">Magenta</option>
-                                                  <option style="background-color: orange" value="Orange">Orange</option>
-                                                  <option style="background-color: yellow" value="Yellow">Yellow</option>
-                                                  <option style="background-color: lime" value="Lime">Lime</option>
-                                                  <option style="background-color: cyan" value="Cyan">Cyan</option>
-                                                  <option style="background-color: deepskyblue" value="DeepSkyBlue">Deep Sky Blue</option>
-                                                  <option style="background-color: darkorchid" value="DarkOrchid">Dark Orchid</option>
-                                                  <option style="background-color: silver" value="Silver">Silver</option>
-                                                  <option style="background-color: pink" value="Pink">Pink</option>
-                                                  <option style="background-color: wheat" value="Wheat">Wheat</option>
-                                                  <option style="background-color: lemonchiffon" value="LemonChiffon">Lemon Chiffon</option>
-                                                  <option style="background-color: palegreen" value="PaleGreen">Pale Green</option>
-                                                  <option style="background-color: paleturquoise" value="PaleTurquoise">Pale Turquoise</option>
-                                                  <option style="background-color: lightblue" value="LightBlue">Light Blue</option>
-                                                  <option style="background-color: plum" value="Plum">Plum</option>
-                                                  <option style="background-color: white" value="White">White</option>
-                                                </select>
-                                                <select class="med codebuttons" name="bbcode_font" style="visibility: visible;">
-                                                  <option value="">--- 字体 ---</option>
-                                                  <option value="Arial">Arial</option>
-                                                  <option value="Arial Black">Arial Black</option>
-                                                  <option value="Arial Narrow">Arial Narrow</option>
-                                                  <option value="Book Antiqua">Book Antiqua</option>
-                                                  <option value="Century Gothic">Century Gothic</option>
-                                                  <option value="Comic Sans MS">Comic Sans MS</option>
-                                                  <option value="Courier New">Courier New</option>
-                                                  <option value="Fixedsys">Fixedsys</option>
-                                                  <option value="Garamond">Garamond</option>
-                                                  <option value="Georgia">Georgia</option>
-                                                  <option value="Impact">Impact</option>
-                                                  <option value="Lucida Console">Lucida Console</option>
-                                                  <option value="Lucida Sans Unicode">Lucida Sans Unicode</option>
-                                                  <option value="Microsoft Sans Serif">Microsoft Sans Serif</option>
-                                                  <option value="Palatino Linotype">Palatino Linotype</option>
-                                                  <option value="System">System</option>
-                                                  <option value="Tahoma">Tahoma</option>
-                                                  <option value="Times New Roman">Times New Roman</option>
-                                                  <option value="Trebuchet MS">Trebuchet MS</option>
-                                                  <option value="Verdana">Verdana</option>
-                                                </select>
-                                                <select class="med codebuttons" name="bbcode_size" style="visibility: visible;">
-                                                  <option value="">--- 字号 ---</option>
-                                                  <option value="1">1</option>
-                                                  <option value="2">2</option>
-                                                  <option value="3">3</option>
-                                                  <option value="4">4</option>
-                                                  <option value="5">5</option>
-                                                  <option value="6">6</option>
-                                                  <option value="7">7</option>
-                                                </select>
-                                              </div>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                        <tr>
-                                          <td colspan="2" valign="middle">
-                                            <iframe src="attachment.php?text_area_id=box_bbcode" width="100%" height="24" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"></iframe>
-                                          </td>
-                                        </tr>
-                                        <tr>
-                                          <td align="left">
-                                            <textarea class="box_bbcode" cols="100" style="width: 99%" id="box_bbcode" rows="20""></textarea>
-                                          </td>
-                                          <td align="center" width="150">
-                                            <table cellspacing="1" cellpadding="3">
-                                              <tbody>
-                                                <tr>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em1]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/1.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em2]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/2.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em3]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/3.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em5]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/5.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                </tr>
-                                                <tr>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em6]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/6.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em7]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/7.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em8]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/8.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em9]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/9.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                </tr>
-                                                <tr>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em10]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/10.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em11]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/11.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em13]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/13.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em16]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/16.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                </tr>
-                                                <tr>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em17]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/17.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em19]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/19.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em20]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/20.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em21]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/21.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                </tr>
-                                                <tr>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em24]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/24.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em25]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/25.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em26]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/26.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em27]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/27.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                </tr>
-                                                <tr>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em28]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/28.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em29]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/29.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em30]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/30.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em31]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/31.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                </tr>
-                                                <tr>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em32]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/32.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em33]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/33.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em34]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/34.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em35]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/35.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                </tr>
-                                                <tr>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em36]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/36.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em39]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/39.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em40]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/40.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em41]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/41.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                </tr>
-                                                <tr>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em42]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/42.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em192]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/192.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                  <td class="embedded smile-icon">
-                                                    <a href="#[em198]" name="bbcode_smile">
-                                                      <img style="max-width: 25px;" src="pic/smilies/198.gif" alt="">
-                                                    </a>
-                                                  </td>
-                                                </tr>
-                                              </tbody>
-                                            </table>
-                                            <br>
-                                            <a onclick="ShowSmileWindow(&quot;compose_custom&quot;, &quot;box_bbcode&quot;)">更多表情</a>
-                                          </td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
-                                  </div>
+                            <tr>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-weight: bold;font-size:11px; margin-right:3px" type="button" value="B" name="bbcode_button">
                                 </td>
-                              </tr>
-                              <tr>
-                                <td colspan="2" align="center">
-                                  <table>
-                                    <tbody>
-                                      <tr>
-                                        <td class="embedded">
-                                          <input id="post_box" type="button" class="btn" value="发送">
-                                        </td>
-                                        <td class="embedded">
-                                          <input id="close_box" type="button" class="btn" value="关闭">
-                                        </td>
-                                      </tr>
-                                    </tbody>
-                                  </table>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-style: italic;font-size:11px;margin-right:3px" type="button" value="I" name="bbcode_button">
                                 </td>
-                              </tr>
+                                <td class="embedded">
+                                <input class="codebuttons" style="text-decoration: underline;font-size:11px;margin-right:3px" type="button" value="U" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="text-decoration: line-through;font-size:11px;margin-right:3px" type="button" value="S" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="URL" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="URL*" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="IMG" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="RT*" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="LIST" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="PRE" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="CODE" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="QUOTE" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="QUOTE*" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="INFO" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="MEDIAINFO" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="SPOILER" name="bbcode_button">
+                                </td>
+                                <td class="embedded">
+                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="SPOILER*" name="bbcode_button">
+                                </td>
+                            </tr>
                             </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-      </form>
-    </div>`
+                            </table>
+                        <div id="bbcodejs_tbody_box" style="position:relative; margin-top: 4px">
+                            <div id="bbcodejs_select_box" style="position: absolute; margin-top: 2px; margin-bottom: 2px; float: left;">
+                            <select class="med codebuttons" style="margin-right: 3px; visibility: visible;" name="bbcode_color"><option value="">--- 颜色 ---</option></select>
+                            <select class="med codebuttons" name="bbcode_font" style="visibility: visible;"><option value="">--- 字体 ---</option></select>
+                            <select class="med codebuttons" name="bbcode_size" style="visibility: visible;"><option value="">--- 字号 ---</option></select>
+                            </div>
+                        </div></td></tr>
+                    <tr><td colspan="2" valign="middle">
+                    <iframe src="attachment.php?text_area_id=box_bbcode" width="100%" height="24" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"></iframe>
+                    </td></tr><tr>
+                <td align="left"><textarea class="box_bbcode" cols="100" style="width: 99%" id="box_bbcode" rows="20""></textarea></td>
+                <td align="center" width="150"><table id="smile-icon" cellspacing="1" cellpadding="3"><tbody></tbody></table><br><a onclick="ShowSmileWindow(&quot;compose_custom&quot;, &quot;box_bbcode&quot;)">更多表情</a></td>
+            </tr></tbody></table></div></td></tr><tr><td colspan="2" align="center">
+        <table><tbody><tr><td class="embedded"><input id="post_box" type="button" class="btn" value="发送"></td><td class="embedded"><input id="close_box" type="button" class="btn" value="关闭"></td>
+        </tr></tbody></table></td></tr></tbody></table></td></tr></tbody>
+    </table></form></div>`
 
     // 插入框架
     $('body').append(t)
+    // 插入表情
+    const smile_list = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 13, 16, 17, 19, 20, 21, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 39, 40, 41, 42, 192, 198];
+    smile_list.forEach(function (item, index) {
+        if (Number.isInteger((index + 4) / 4)) $('#smile-icon').children('tbody').append(`<tr></tr>`);
+        $('#smile-icon').find('tr:last').append(`<td class="embedded smile-icon"><a href="#[em${item}]" name="bbcode_smile"><img style="max-width: 25px;" src="pic/smilies/${item}.gif" alt=""></a></td>`);
+    });
+    // 插入字体大小菜单
+    [1, 2, 3, 4, 5, 6, 7].forEach(function (item) { $('[name="bbcode_size"]').append(`<option value="${item}">${item}</option>`); })
+    // 插入字体菜单
+    const font_list = ['Arial', 'Arial Black', 'Arial Narrow', 'Book Antiqua', 'Century Gothic', 'Comic Sans MS', 'Courier New',
+        'Fixedsys', 'Garamond', 'Georgia', 'Impact', 'Lucida Console', 'Lucida Sans Unicode', 'Microsoft Sans Serif',
+        'Palatino Linotype', 'System', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana']
+    font_list.forEach(function (item) { $('[name="bbcode_font"]').append(`<option value="${item}">${item}</option>`); });
+    // 插入颜色菜单
+    const color_list = ["Black", "Sienna", "Dark Olive Green", "Dark Green", "Dark Slate Blue", "Navy", "Indigo",
+        "Dark Slate Gray", "Dark Red", "Dark Orange", "Olive", "Green", "Teal", "Blue", "Slate Gray", "Dim Gray",
+        "Red", "Sandy Brown", "Yellow Green", "Sea Green", "Medium Turquoise", "Royal Blue", "Purple", "Gray",
+        "Magenta", "Orange", "Yellow", "Lime", "Cyan", "Deep Sky Blue", "Dark Orchid", "Silver", "Pink",
+        "Wheat", "Lemon Chiffon", "Pale Green", "Pale Turquoise", "Light Blue", "Plum", "White"]
+    color_list.forEach(function (item) { $('[name="bbcode_color"]').append(`<option style="background-color: ${item.replace(/\s/g, '').toLowerCase()}" value="${item.replace(/\s/g, '')}">${item}</option>`); });
+
+
     // 插入预览框
     $('#box_bbcode').parents("tr:eq(1)").after(`<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">${lang['preview']}</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2"><div id="bbcode2_box" style="min-height: 25px; max-height: 1px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;"><div class="child"></div></div></td></tr></tbody></table></td>`);
     // 插入同步窗口滚动按钮
@@ -2025,32 +1726,45 @@ async function syncScroll(element, type, bbcode, preview) {
     // 插入自动保存按钮
     await autoSaveMessage('#bbcodejs_tbody_box', '#box_bbcode', '#post_box', 'shoutbox', 'compose_custom')
 
-    $('[name="bbcode_color"]').change(function () { onEditorActionBox('COLOR', this.options[this.selectedIndex].value); this.selectedIndex = 0; });   // 下拉菜单监听
-    $('[name="bbcode_font"]').change(function () { onEditorActionBox('FONT', this.options[this.selectedIndex].value); this.selectedIndex = 0; });  // 下拉菜单监听
-    $('[name="bbcode_size"]').change(function () { onEditorActionBox('SIZE', this.options[this.selectedIndex].value); this.selectedIndex = 0; });  // 下拉菜单监听
-    $('[name="bbcode_button"]').click(function () { onEditorActionBox(this.value); });  // 按钮监听
-    $('[name="bbcode_smile"]').mouseenter(function () { $(this).children('img').css({ "transform": "scale(1.35)", "transition": "all 0.3s" }); });  // 输入框右边表情，鼠标悬浮图标变大
-    $('[name="bbcode_smile"]').mouseleave(function () { $(this).children('img').css({ "transform": "" }); });  // 输入框右边表情，鼠标离开图标恢复原状
-    $('[name="bbcode_smile"]').click(function () { onEditorActionBox($(this).attr('href')); });  // 输入框右边表情，点击图标输入表情
-    $('#post_box').click(function () { $('#shbox_text').val($('#box_bbcode').val()); $dialog.hide(); $('[name="shbox"]').trigger("submit"); });  // 发送
-    $('#close_box').click(function () { $dialog.hide(); });  // 关闭窗口
+    // 下拉菜单监听
+    $('[name="bbcode_color"]').change(function () { onEditorActionBox('COLOR', this.options[this.selectedIndex].value); this.selectedIndex = 0; });
+    $('[name="bbcode_font"]').change(function () { onEditorActionBox('FONT', this.options[this.selectedIndex].value); this.selectedIndex = 0; });
+    $('[name="bbcode_size"]').change(function () { onEditorActionBox('SIZE', this.options[this.selectedIndex].value); this.selectedIndex = 0; });
+    // 按钮监听
+    $('[name="bbcode_button"]').click(function () { onEditorActionBox(this.value); });
+    // 输入框右边表情，鼠标悬浮图标变大
+    $('[name="bbcode_smile"]').mouseenter(function () { $(this).children('img').css({ "transform": "scale(1.35)", "transition": "all 0.3s" }); });
+    // 输入框右边表情，鼠标离开图标恢复原状
+    $('[name="bbcode_smile"]').mouseleave(function () { $(this).children('img').css({ "transform": "" }); });
+    // 输入框右边表情，点击图标输入表情
+    $('[name="bbcode_smile"]').click(function () { onEditorActionBox($(this).attr('href')); });
+    // 发送
+    $('#post_box').click(function () { $('#shbox_text').val($('#box_bbcode').val()); $dialog.hide(); $('[name="shbox"]').trigger("submit"); });
+    // 关闭窗口
+    $('#close_box').click(function () { $dialog.hide(); offCenter(); });
     // 监听各种按钮的点击事件
     $('[name="bbcode_color"],[name="bbcode_font"],[name="bbcode_size"],[name="bbcode_button"],[name="bbcode_smile"],td.embedded.smile-icon a').click(async function () { $('#bbcode2_box').children('.child').html(bbcode2html($('#box_bbcode').val())); });
-    // 监听bbcode写入时间
+    // 监听bbcode写入事件
     $('#box_bbcode').bind('input propertychange', async function () { $('#bbcode2_box').children('.child').html(bbcode2html($(this).val())); });
 
     var $dialog = $("#dialog");
     //点击弹出窗口
     $("#shbox_bbcode").click(async function () {
-        let shbox_text = $('#shbox_text').val(); // 获取输入框的值，如引用之类的数据
-        if (shbox_text !== '') $('#box_bbcode').val(shbox_text);  // 如果外部输入框不为空，则引入外部输入框的值
-        $dialog.show(); // 显示悬浮窗口
-        $("#bbcode2_box").css("max-height", ($('#box_bbcode').height() + 30) + "px");  // 设置悬浮窗口中预览窗口的最大高度
+        // 获取输入框的值，如引用之类的数据
+        let shbox_text = $('#shbox_text').val();
+        // 如果外部输入框不为空，则引入外部输入框的值
+        if (shbox_text !== '') $('#box_bbcode').val(shbox_text);
+        // 显示悬浮窗口
+        $dialog.show();
+        // 设置悬浮窗口中预览窗口的最大高度
+        $("#bbcode2_box").css("max-height", ($('#box_bbcode').height() + 30) + "px");
         // const margin = $('#bbcodejs_tbody_box').width() - $("#bbcodejs_select_box").width() - 2.6;
         const margin = $('#compose_custom .codebuttons').parents('tbody').eq(0).width() - $("#bbcodejs_select_box").width() - 2.6;
         $("#bbcodejs_select_box").css("margin-left", margin + "px");
-        autoCenter($dialog);  // 窗口居中
-        $('#box_bbcode').trigger("input"); // 手动触发bbcode更改
+        // 手动触发bbcode内容更改
+        $('#box_bbcode').trigger("input");
+        // 窗口居中
+        onCenter($dialog);
     });
 
     // 同步窗口大小变化
@@ -2071,13 +1785,39 @@ async function syncScroll(element, type, bbcode, preview) {
         attributeFilter: ['style']
     });
 
+    // 鼠标滚动时保持悬浮窗居中
+    const bbcodeWindowScroll = () => {
+        $dialog.css({ 'top': ($(window).height() - $dialog.outerHeight()) / 2 + $(document).scrollTop() });
+    };
+    // 浏览器窗口大小变化后保持悬浮窗居中
+    var resizeTimer = null;
+    const bbcodeWindowResize = () => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+            $dialog.css({
+                'left': ($(window).width() - $dialog.outerWidth()) / 2,
+                'top': ($(window).height() - $dialog.outerHeight()) / 2 + $(document).scrollTop()
+            });
+        }, 20);
+    };
     //自动居中对话框
-    function autoCenter(ev) {
-        var bodyW = $(window).width();
-        var bodyH = $(window).height();
-        var evW = ev.width();
-        var evH = ev.height();
-        $dialog.css({ "left": (bodyW - evW) / 2 + 'px', "top": (bodyH - evH) / 2 + 'px' });
+    function onCenter(ev) {
+        // 点开窗口时让悬浮窗居中
+        $dialog.css({
+            'max-height': '99%',
+            'left': ($(window).width() - $dialog.outerWidth()) / 2,
+            'top': ($(window).height() - $dialog.outerHeight()) / 2 + $(document).scrollTop()
+        });
+        // 浏览器窗口大小变化后保持悬浮窗居中
+        var resizeTimer = null;
+        $(window).on("resize", bbcodeWindowResize);
+        // 鼠标滚动时保持悬浮窗居中
+        $(window).on("scroll", bbcodeWindowScroll);
+    };
+    // 关闭居中 <移除监听>
+    function offCenter() {
+        $(window).off("resize", bbcodeWindowResize);
+        $(window).off("scroll", bbcodeWindowScroll);
     };
 
     // 拖动悬浮窗口   ps.是真的卡
@@ -2088,7 +1828,7 @@ async function syncScroll(element, type, bbcode, preview) {
     var isDraging = false;  // 是否允许拖动
 
     //鼠标按下
-    $("#dialog").mousedown(function (e) {
+    $dialog.mousedown(function (e) {
         e = e || window.event;
         if (e.target.nodeName === 'TD' || e.target.nodeName === 'DIV' || e.target.nodeName === 'H2') {
             mx = e.pageX;  // 鼠标X坐标
@@ -2100,12 +1840,12 @@ async function syncScroll(element, type, bbcode, preview) {
     });
 
     // 鼠标松开
-    $("#dialog").mouseup(function () {
+    $dialog.mouseup(function () {
         isDraging = false;
     });
 
     // 鼠标离开
-    $("#dialog").mouseleave(function () {
+    $dialog.mouseleave(function () {
         isDraging = false;
     });
 
