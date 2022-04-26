@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.6
+// @version      0.3.7
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -34,13 +34,7 @@ GreasyFork 地址
 无法显示的 Tag
     由U2自带上传工具上传的文件
     Flash 有关的 Tag <u2好像本来就不支持>
-    从弹窗添加表情 [https://u2.dmhy.org/moresmilies.php?form=upload&text=descr] <不知道能不能修>
     我不知道的特殊操作
-*/
-
-/*
-待实现的功能
-    使用原生JS实现 <本来是原生JS的，写着写着觉得好繁琐，就上jq了。>
 */
 
 /*
@@ -58,7 +52,7 @@ var lang = new lang_init($('#locale_selection').val());;
     if ($('.bbcode').length === 0) return;  // 判断页面是否存在 bbcode 输入框
     new init();
     const url = location.href.match(/u2\.dmhy\.org\/(upload|forums|comment|contactstaff|sendmessage)\.php/i) || ['', ''];
-    sync_scroll(); // 同步窗口滚动
+    await syncScroll('#bbcodejs_tbody', url[1], '.bbcode', '#bbcode2')
     if (url[1] === 'upload') { new auto_save_upload(); } else { new auto_save_message(url[1]); }
 
     $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
@@ -1062,67 +1056,6 @@ function auto_save_upload() {
 };
 
 
-async function sync_scroll(element = '#bbcodejs_tbody') {
-    let db = localforage.createInstance({ name: "bbcodejs" });  // 为以后统一数据库做准备
-    console.log('启用bbcodejs数据库');
-    $(element).append('<input id="sync_scroll_on" class="codebuttons" style="font-size:11px; margin-right:3px;; display: none;" type="button" value="同步滚动已开启"></input>'
-        + '<input id="sync_scroll_off" class="codebuttons" style="font-size: 11px; margin-right:3px; display: none;" type="button" value="同步滚动已关闭"></input>'
-    );
-
-    await db.getItem('sync_scroll_switch').then(async (value) => {
-        if (value) {
-            $("#sync_scroll_on").show();
-            new scroll_on();
-            console.log('同步滚动已打开');
-        } else {
-            $("#sync_scroll_off").show();
-            console.log('同步滚动已关闭');
-        };
-    });
-
-    // 为按钮绑定事件
-    $("#sync_scroll_off").click(function () {
-        $(this).hide();
-        $("#sync_scroll_on").fadeIn(200); // 渐入按钮
-        db.setItem('sync_scroll_switch', true)
-        new scroll_on();
-        console.log('同步滚动已打开');
-    });
-
-    $("#sync_scroll_on").click(function () {
-        $(this).hide();
-        $("#sync_scroll_off").fadeIn(200); // 渐入按钮
-        db.setItem('sync_scroll_switch', false)
-        new scroll_off();
-        console.log('同步滚动已关闭');
-    });
-
-    // 绑定鼠标事件
-    function scroll_on() {
-        let currentTab = 0;
-        $('.bbcode').mouseover(() => { currentTab = 1; });
-        $('#bbcode2').mouseover(() => { currentTab = 2; });
-
-        $('.bbcode').scroll(() => {
-            if (currentTab !== 1) return;
-            let scale = ($('#bbcode2').children('.child').get(0).offsetHeight - $('#bbcode2').get(0).offsetHeight) / ($('.bbcode').get(0).scrollHeight - $('.bbcode').get(0).offsetHeight);
-            $('#bbcode2').scrollTop($('.bbcode').scrollTop() * scale);
-        });
-
-        $('#bbcode2').scroll(() => {
-            if (currentTab !== 2) return;
-            let scale = ($('#bbcode2').children('.child').get(0).offsetHeight - $('#bbcode2').get(0).offsetHeight) / ($('.bbcode').get(0).scrollHeight - $('.bbcode').get(0).offsetHeight);
-            $('.bbcode').scrollTop($('#bbcode2').scrollTop() / scale);
-        });
-    };
-
-    // 解除鼠标事件
-    function scroll_off() {
-        $('.bbcode').off("scroll").off("mouseover");
-        $('#bbcode2').off("scroll").off("mouseover");
-    };
-};
-
 // 当前时间 字符串格式
 function getDateString() {
     const time = new Date();
@@ -1248,7 +1181,11 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
 };
 
 
-// 又一个相同功能的函数 x
+// 输入框与预览框同步滚动
+// element 按钮插入位置
+// type 标识符
+// bbcode 输入框位置
+// preview 预览位置
 async function syncScroll(element, type, bbcode, preview) {
     let db = localforage.createInstance({ name: "bbcodejs" });  // 为以后统一数据库做准备
     console.log('启用bbcodejs数据库');
@@ -1613,92 +1550,133 @@ function onEditorActionBox(action, param) {
     if (shbox_button.length === 0) return;  // 聊天版自动刷新时，会再次触发当前函数 || 未开启聊天版
     shbox_button.after('<input id="shbox_bbcode" type="button" class="codebuttons" value="高级">')
 
-    // 别问 我懒
-    var t = `<style type="text/css">.dialog { position: absolute; z-index: 9999; padding-bottom: 10px; display: none; } .h2_move { cursor: move; margin-block-start: 0em; margin-block-end: 0em; } td.smile-icon {padding: 3px !important;}</style>
-    <div class="dialog" id="dialog">
-      <form id="compose_custom" method="post" name="compose_custom"><table class="main" width="940" border="0" cellspacing="0" cellpadding="0"><tbody><tr><td class="embedded">
-        <h2 class="h2_move" id="move_part" align="left">聊天区</h2>
-            <table width="100%" border="1" cellspacing="0" cellpadding="10"><table width="100%" border="1" cellspacing="0" cellpadding="10"><tbody><tr><td class="text" align="center">
-                <table class="main" width="100%" border="1" cellspacing="0" cellpadding="5"><tbody><tr><td class="rowhead" valign="top">正文</td>
-                    <td class="rowfollow" align="left"><div id="editorouterbox" style="display: block;"><table width="100%" cellspacing="0" cellpadding="5" border="0">
-                        <tbody><tr><td align="left" colspan="2"><table cellspacing="1" cellpadding="2" border="0">
-                            <tbody>
-                            <tr>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-weight: bold;font-size:11px; margin-right:3px" type="button" value="B" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-style: italic;font-size:11px;margin-right:3px" type="button" value="I" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="text-decoration: underline;font-size:11px;margin-right:3px" type="button" value="U" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="text-decoration: line-through;font-size:11px;margin-right:3px" type="button" value="S" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="URL" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="URL*" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="IMG" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="RT*" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="LIST" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="PRE" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="CODE" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="QUOTE" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="QUOTE*" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="INFO" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="MEDIAINFO" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="SPOILER" name="bbcode_button">
-                                </td>
-                                <td class="embedded">
-                                <input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="SPOILER*" name="bbcode_button">
-                                </td>
-                            </tr>
-                            </tbody>
-                            </table>
-                        <div id="bbcodejs_tbody_box" style="position:relative; margin-top: 4px">
-                            <div id="bbcodejs_select_box" style="position: absolute; margin-top: 2px; margin-bottom: 2px; float: left;">
-                            <select class="med codebuttons" style="margin-right: 3px; visibility: visible;" name="bbcode_color"><option value="">--- 颜色 ---</option></select>
-                            <select class="med codebuttons" name="bbcode_font" style="visibility: visible;"><option value="">--- 字体 ---</option></select>
-                            <select class="med codebuttons" name="bbcode_size" style="visibility: visible;"><option value="">--- 字号 ---</option></select>
+    const basic_html =
+        `<style type="text/css">.dialog { position: absolute; z-index: 9999; padding-bottom: 10px; display: none; } .h2_move { cursor: move; margin-block-start: 0em; margin-block-end: 0em; } td.smile-icon { padding: 3px !important; }</style>
+<div class="dialog" id="dialog">
+  <form id="compose_custom" method="post" name="compose_custom">
+    <table class="main" width="940" border="0" cellspacing="0" cellpadding="0">
+      <tbody>
+        <tr>
+          <td class="embedded">
+            <h2 class="h2_move" id="move_part" align="left">聊天区</h2>
+            <table width="100%" border="1" cellspacing="0" cellpadding="10">
+              <tbody>
+                <tr>
+                  <td class="text" align="center">
+                    <table class="main" width="100%" border="1" cellspacing="0" cellpadding="5">
+                      <tbody>
+                        <tr>
+                          <td class="rowhead" valign="top">正文</td>
+                          <td class="rowfollow" align="left">
+                            <div id="editorouterbox" style="display: block;">
+                              <table width="100%" cellspacing="0" cellpadding="5" border="0">
+                                <tbody>
+                                  <tr>
+                                    <td align="left" colspan="2">
+                                      <table id="bbcode_button" cellspacing="1" cellpadding="2" border="0">
+                                        <tbody>
+                                          <tr>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                      <div id="bbcodejs_tbody_box" style="position:relative; margin-top: 4px">
+                                        <div id="bbcodejs_select_box" style="position: absolute; margin-top: 2px; margin-bottom: 2px; float: left;">
+                                          <select class="med codebuttons" name="bbcode_color" style="margin-right: 3px; visibility: visible;">
+                                            <option value="">--- 颜色 ---</option>
+                                          </select>
+                                          <select class="med codebuttons" name="bbcode_font" style="visibility: visible;">
+                                            <option value="">--- 字体 ---</option>
+                                          </select>
+                                          <select class="med codebuttons" name="bbcode_size" style="visibility: visible;">
+                                            <option value="">--- 字号 ---</option>
+                                          </select>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td colspan="2" valign="middle">
+                                      <iframe src="attachment.php?text_area_id=box_bbcode" width="100%" height="24" frameborder="0" scrolling="no" marginheight="0" marginwidth="0">
+                                      </iframe>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td align="left">
+                                      <textarea class="box_bbcode" cols="100" style="width: 99%" id="box_bbcode" rows="20"></textarea>
+                                    </td>
+                                    <td align="center" width="150">
+                                      <table id="smile-icon" cellspacing="1" cellpadding="3">
+                                        <tbody>
+                                        </tbody>
+                                      </table>
+                                      <br>
+                                      <a onclick="ShowSmileWindow(&quot;compose_custom&quot;, &quot;box_bbcode&quot;)">更多表情</a>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
                             </div>
-                        </div></td></tr>
-                    <tr><td colspan="2" valign="middle">
-                    <iframe src="attachment.php?text_area_id=box_bbcode" width="100%" height="24" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"></iframe>
-                    </td></tr><tr>
-                <td align="left"><textarea class="box_bbcode" cols="100" style="width: 99%" id="box_bbcode" rows="20""></textarea></td>
-                <td align="center" width="150"><table id="smile-icon" cellspacing="1" cellpadding="3"><tbody></tbody></table><br><a onclick="ShowSmileWindow(&quot;compose_custom&quot;, &quot;box_bbcode&quot;)">更多表情</a></td>
-            </tr></tbody></table></div></td></tr><tr><td colspan="2" align="center">
-        <table><tbody><tr><td class="embedded"><input id="post_box" type="button" class="btn" value="发送"></td><td class="embedded"><input id="close_box" type="button" class="btn" value="关闭"></td>
-        </tr></tbody></table></td></tr></tbody></table></td></tr></tbody>
-    </table></form></div>`
-
-    // 插入框架
-    $('body').append(t)
-    // 插入表情
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colspan="2" align="center">
+                            <table>
+                              <tbody>
+                                <tr>
+                                  <td class="embedded">
+                                    <input id="post_box" type="button" class="btn" value="发送">
+                                  </td>
+                                  <td class="embedded">
+                                    <input id="close_box" type="button" class="btn" value="关闭">
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </form>
+</div>`
+    const bbcode_button = [
+        { "style": "font-weight: bold;font-size:11px; margin-right:3px", "value": "B" },
+        { "style": "font-style: italic;font-size:11px;margin-right:3px", "value": "I" },
+        { "style": "text-decoration: underline;font-size:11px;margin-right:3px", "value": "U" },
+        { "style": "text-decoration: line-through;font-size:11px;margin-right:3px", "value": "S" },
+        { "style": "font-size:11px;margin-right:3px", "value": "URL" },
+        { "style": "font-size:11px;margin-right:3px", "value": "URL*" },
+        { "style": "font-size:11px;margin-right:3px", "value": "IMG" },
+        { "style": "font-size:11px;margin-right:3px", "value": "RT*" },
+        { "style": "font-size:11px;margin-right:3px", "value": "LIST" },
+        { "style": "font-size:11px;margin-right:3px", "value": "PRE" },
+        { "style": "font-size:11px;margin-right:3px", "value": "CODE" },
+        { "style": "font-size:11px;margin-right:3px", "value": "QUOTE" },
+        { "style": "font-size:11px;margin-right:3px", "value": "QUOTE*" },
+        { "style": "font-size:11px;margin-right:3px", "value": "INFO" },
+        { "style": "font-size:11px;margin-right:3px", "value": "MEDIAINFO" },
+        { "style": "font-size:11px;margin-right:3px", "value": "SPOILER" },
+        { "style": "font-size:11px;margin-right:3px", "value": "SPOILER*" }
+    ];
     const smile_list = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 13, 16, 17, 19, 20, 21, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 39, 40, 41, 42, 192, 198];
+    const font_list = ['Arial', 'Arial Black', 'Arial Narrow', 'Book Antiqua', 'Century Gothic', 'Comic Sans MS', 'Courier New',
+        'Fixedsys', 'Garamond', 'Georgia', 'Impact', 'Lucida Console', 'Lucida Sans Unicode', 'Microsoft Sans Serif',
+        'Palatino Linotype', 'System', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana'];
+    const color_list = ["Black", "Sienna", "Dark Olive Green", "Dark Green", "Dark Slate Blue", "Navy", "Indigo",
+        "Dark Slate Gray", "Dark Red", "Dark Orange", "Olive", "Green", "Teal", "Blue", "Slate Gray", "Dim Gray",
+        "Red", "Sandy Brown", "Yellow Green", "Sea Green", "Medium Turquoise", "Royal Blue", "Purple", "Gray",
+        "Magenta", "Orange", "Yellow", "Lime", "Cyan", "Deep Sky Blue", "Dark Orchid", "Silver", "Pink",
+        "Wheat", "Lemon Chiffon", "Pale Green", "Pale Turquoise", "Light Blue", "Plum", "White"];
+    // 插入框架
+    $('body').append(basic_html)
+    // 插入表情
     smile_list.forEach(function (item, index) {
         if (Number.isInteger((index + 4) / 4)) $('#smile-icon').children('tbody').append(`<tr></tr>`);
         $('#smile-icon').find('tr:last').append(`<td class="embedded smile-icon"><a href="#[em${item}]" name="bbcode_smile"><img style="max-width: 25px;" src="pic/smilies/${item}.gif" alt=""></a></td>`);
@@ -1706,19 +1684,13 @@ function onEditorActionBox(action, param) {
     // 插入字体大小菜单
     [1, 2, 3, 4, 5, 6, 7].forEach(function (item) { $('[name="bbcode_size"]').append(`<option value="${item}">${item}</option>`); })
     // 插入字体菜单
-    const font_list = ['Arial', 'Arial Black', 'Arial Narrow', 'Book Antiqua', 'Century Gothic', 'Comic Sans MS', 'Courier New',
-        'Fixedsys', 'Garamond', 'Georgia', 'Impact', 'Lucida Console', 'Lucida Sans Unicode', 'Microsoft Sans Serif',
-        'Palatino Linotype', 'System', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana']
     font_list.forEach(function (item) { $('[name="bbcode_font"]').append(`<option value="${item}">${item}</option>`); });
     // 插入颜色菜单
-    const color_list = ["Black", "Sienna", "Dark Olive Green", "Dark Green", "Dark Slate Blue", "Navy", "Indigo",
-        "Dark Slate Gray", "Dark Red", "Dark Orange", "Olive", "Green", "Teal", "Blue", "Slate Gray", "Dim Gray",
-        "Red", "Sandy Brown", "Yellow Green", "Sea Green", "Medium Turquoise", "Royal Blue", "Purple", "Gray",
-        "Magenta", "Orange", "Yellow", "Lime", "Cyan", "Deep Sky Blue", "Dark Orchid", "Silver", "Pink",
-        "Wheat", "Lemon Chiffon", "Pale Green", "Pale Turquoise", "Light Blue", "Plum", "White"]
     color_list.forEach(function (item) { $('[name="bbcode_color"]').append(`<option style="background-color: ${item.replace(/\s/g, '').toLowerCase()}" value="${item.replace(/\s/g, '')}">${item}</option>`); });
-
-
+    // 插入按钮
+    bbcode_button.forEach(function (item) {
+        $('#bbcode_button').find('tr:last').append(`<td class="embedded"><input class="codebuttons" style="${item.style}" type="button" value="${item.value}" name="bbcode_button"></td>`);
+    });
     // 插入预览框
     $('#box_bbcode').parents("tr:eq(1)").after(`<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">${lang['preview']}</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2"><div id="bbcode2_box" style="min-height: 25px; max-height: 1px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;"><div class="child"></div></div></td></tr></tbody></table></td>`);
     // 插入同步窗口滚动按钮
@@ -1739,7 +1711,7 @@ function onEditorActionBox(action, param) {
     // 输入框右边表情，点击图标输入表情
     $('[name="bbcode_smile"]').click(function () { onEditorActionBox($(this).attr('href')); });
     // 发送
-    $('#post_box').click(function () { $('#shbox_text').val($('#box_bbcode').val()); $dialog.hide(); $('[name="shbox"]').trigger("submit"); });
+    $('#post_box').click(function () { $('#shbox_text').val($('#box_bbcode').val()); $('[name="shbox"]').trigger("submit"); $dialog.hide(); });
     // 关闭窗口
     $('#close_box').click(function () { $dialog.hide(); offCenter(); });
     // 监听各种按钮的点击事件
@@ -1809,7 +1781,6 @@ function onEditorActionBox(action, param) {
             'top': ($(window).height() - $dialog.outerHeight()) / 2 + $(document).scrollTop()
         });
         // 浏览器窗口大小变化后保持悬浮窗居中
-        var resizeTimer = null;
         $(window).on("resize", bbcodeWindowResize);
         // 鼠标滚动时保持悬浮窗居中
         $(window).on("scroll", bbcodeWindowScroll);
@@ -1870,5 +1841,25 @@ function onEditorActionBox(action, param) {
             $dialog.css({ "left": moveX + 'px', "top": moveY + 'px' });
         };
     });
+
+})();
+
+// 从弹窗添加表情实时预览结果 [https://u2.dmhy.org/moresmilies.php?form=upload&text=descr]
+(async () => {
+    if (location.pathname !== '/moresmilies.php') return;
+
+    $('td[align="center"] a').each(function () {
+        let scriptAction = $(this).attr('href');
+        $(this).attr('href', scriptAction.replace('SmileIT', 'SmileIT2'));
+    });
+
+    $('body').append(`<script type="text/javascript">
+function SmileIT2(smile, form, text) {
+    window.opener.document.forms[form].elements[text].value = window.opener.document.forms[form].elements[text].value + " " + smile + " ";
+    window.opener.document.forms[form].elements[text].focus();
+    window.opener.document.forms[form].elements[text].dispatchEvent(new Event('input'));
+    window.close();
+};
+</script>`)
 
 })();
