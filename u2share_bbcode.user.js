@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.7
+// @version      0.3.8
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -15,9 +15,6 @@
 
 /*
 本脚本基于 Bamboo Green 界面风格进行修改
-
-先 能 跑 再 优 化
-看 的 真 犯 恶 心
 /*
 
 /*
@@ -39,7 +36,7 @@ GreasyFork 地址
 
 /*
 与U2娘显示不同的标签 (非标准操作)
-    
+    U2允许未封闭标签，此脚本不接受此操作。
 */
 
 'use strict';
@@ -53,7 +50,7 @@ var lang = new lang_init($('#locale_selection').val());;
     new init();
     const url = location.href.match(/u2\.dmhy\.org\/(upload|forums|comment|contactstaff|sendmessage)\.php/i) || ['', ''];
     await syncScroll('#bbcodejs_tbody', url[1], '.bbcode', '#bbcode2')
-    if (url[1] === 'upload') { new auto_save_upload(); } else { new auto_save_message(url[1]); }
+    if (url[1] === 'upload') { await autoSaveUpload(); } else { await autoSaveMessage('#bbcodejs_tbody', '.bbcode', '#qr', url[1], '#compose'); }
 
     $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
         + '</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2">'
@@ -785,187 +782,73 @@ function lang_init(lang) {
 };
 
 
-function auto_save_message(url) {
-    let db;
-    let num_global = 10; // 设置自动保存时间间隔
+async function autoSaveUpload() {
+    let db = localforage.createInstance({ name: "bbcodejs" });
+    let num_global = 10;
     let num = 10; // 设置自动保存时间间隔
+    let type = 'upload';
 
-    $('#bbcodejs_tbody').append('<span id="auto_save_on" style="margin-top:4px; display: none;">'
-        + '<input id="switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">'
-        + '<input id="clean" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="清空数据">'
-        + '<span id="auto_save_text" style="display: none;">&nbsp;&nbsp;正在保存...</span></span>'
-        + '<span id="auto_save_off" style="margin-top:4px; display: none;">'
-        + '<input class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已关闭"></span>'
-    )
-
-    switch (url) {
-        case 'forums': db = localforage.createInstance({ name: "forums" }); console.log('启用forums数据库'); break;
-        case 'comment': db = localforage.createInstance({ name: "comment" }); console.log('启用comment数据库'); break;
-        case 'contactstaff': db = localforage.createInstance({ name: "staff" }); console.log('启用staff数据库'); break;
-        case 'sendmessage': db = localforage.createInstance({ name: "message" }); console.log('启用message数据库'); break;
-        default: return;
-    }
+    $('#bbcodejs_tbody').append(`<span id="${type}_auto_save_on" style="margin-top:4px; display: none;">`
+        + `<input id="${type}_switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">`
+        + `<input id="${type}_clean" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="清空数据">`
+        + `<span id="${type}_auto_save_text" style="display: none;">&nbsp;&nbsp;正在保存...</span></span>`
+        + `<span id="${type}_auto_save_off" style="margin-top:4px; display: none;">`
+        + `<input class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已关闭"></span>`
+    );
 
     // 为自动保存按钮绑定事件
-    $("#auto_save_on").click(async function (ev) {
+    $(`#${type}_auto_save_on`).click(async function (ev) {
         let button_id = $(ev.target).attr('id');
         switch (button_id) {
-            case 'switch':
+            case `${type}_switch`:
                 $(this).hide(); // 隐藏按钮
-                $("#auto_save_off").fadeIn(200); // 渐入按钮
-                clearInterval($("#auto_save_text").attr('title')); // 清除setInterval函数
-                db.setItem('switch', false)
-                console.log('自动保存已关闭');
+                $(`#${type}_auto_save_off`).fadeIn(200); // 渐入按钮
+                clearInterval($(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
+                await db.setItem(`${type}_autoSaveMessageSwitch`, false)
+                console.log(`${type}-自动保存已关闭`);
                 break;
-            case 'clean':
+            case `${type}_clean`:
                 if (window.confirm("确定清空所有数据?")) {
                     await clean();
                     window.location.reload();
                 };
                 break;
-        }
+        };
     });
 
-    $("#auto_save_off").click(function () {
-        $(this).hide(); // 隐藏按钮
-        $("#auto_save_on").fadeIn(200);
-        $("#auto_save_text").attr("title", setInterval(auto_save, 1000));  // 设置setInterval函数
-        db.setItem('switch', true)
-        console.log('自动保存已开启');
+    $(`#${type}_auto_save_off`).click(async function () {
+        $(this).hide();
+        $(`#${type}_auto_save_on`).fadeIn(200);
+        $(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
+        await db.setItem(`${type}_autoSaveMessageSwitch`, true)
+        console.log(`${type}-自动保存已开启`);
     });
 
     // 提交候选后 删除所有保存的记录 (如果要还原记录，直接返回上一页即可。)
     $("#qr").click(async function () {
-        await clean()
-        console.log('提交上传请求');
+        await clean();
+        console.log(`${type}-提交上传请求`);
     });
 
     async function clean() {
-        clearInterval($("#auto_save_text").attr('title')); // 清除setInterval函数
-        await db.removeItem('time');
-        await db.removeItem('bbcode');
-        await db.removeItem('subject');
-        console.log('已清空保存的记录');
+        clearInterval($(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
+        await db.removeItem(`${type}_autoSaveMessageTime`);
+        await db.removeItem(`${type}_autoSaveMessageBbcode`);
+        await db.removeItem(`${type}_autoSaveMessageSmallDescr`);
+        await db.removeItem(`${type}_autoSaveMessagePoster`);
+        await db.removeItem(`${type}_autoSaveMessageAnidbUrl`);
+        await db.removeItem(`${type}_autoSaveMessageInfo`);
+        console.log(`${type}-已清空保存的记录`);
     }
 
     // 检测上次自动保存开关设定
-    db.getItem('switch').then(async (value) => {
+    db.getItem(`${type}_autoSaveMessageSwitch`).then(async (value) => {
         if (value) {
             // 启用自动保存
-            $("#auto_save_on").show();
-            $("#auto_save_off").hide();
-            $("#auto_save_text").attr("title", setInterval(auto_save, 1000)); // 设置setInterval函数
-            console.log('自动保存已开启');
-            // 检查输入框内是否已经存在字符串
-            let _input_bool = true
-            $("#compose input[name='subject']").add('.bbcode').each(function () {
-                let _input = $(this).val()
-                if (_input !== "") { _input_bool = false; return; }
-            });
-            // 当输入框是空白时 还原上次备份内容
-            if (_input_bool) {
-                db.getItem('subject').then((value) => { $("#compose input[name='subject']").val(value); });
-                await db.getItem('bbcode').then((value) => { $('.bbcode').val(value); }) // 还原bbcode输入框内容
-                $('.bbcode').trigger("input"); // 手动触发bbcode更改
-                console.log('已还原备份');
-            };
-        } else {
-            // 关闭自动保存
-            $("#auto_save_on").hide();
-            $("#auto_save_off").show();
-            db.setItem('switch', false);
-        };
-    }).catch(function (err) {
-        // 第一次运行时 <第一次运行时 数据库里什么都没有>
-        // 这段其实也没什么用 数据库中如果没有这个键值 会返回 undefined
-        $("#auto_save_on").hide();
-        $("#auto_save_off").show();
-        db.setItem('switch', false);
-        console.log('第一次运行');
-        console.log(err);
-    });
-
-    async function auto_save() {
-        num--;
-        if (num <= 0) {
-            $("#auto_save_text").fadeIn(2000);
-            await db.setItem('time', getDateString()) // 记录保存数据的时间 string
-            await db.setItem('bbcode', $('.bbcode').val()) // 保存 bbcode 输入框内容
-            await db.setItem('subject', $("#compose input[name='subject']").val());
-            num = num_global + 4; // 重置倒计时
-            $("#auto_save_text").fadeOut(2000);
-        };
-    };
-}
-
-
-function auto_save_upload() {
-    let num_global = num = 10 // 设置自动保存时间间隔
-
-    $('#bbcodejs_tbody').append('<span id="auto_save_on" style="margin-top:4px; display: none;">'
-        + '<input id="switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">'
-        + '<input id="clean" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="清空数据">'
-        + '<span id="auto_save_text" style="display: none;">&nbsp;&nbsp;正在保存...</span></span>'
-        + '<span id="auto_save_off" style="margin-top:4px; display: none;">'
-        + '<input class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已关闭"></span>'
-    )
-
-    var db = localforage.createInstance({ name: "upload" });
-    console.log('启用upload数据库');
-
-    // 为自动保存按钮绑定事件
-    $("#auto_save_on").click(function (ev) {
-        let button_id = $(ev.target).attr('id');
-        switch (button_id) {
-            case 'switch':
-                $(this).hide(); // 隐藏按钮
-                $("#auto_save_off").fadeIn(200); // 渐入按钮
-                clearInterval($("#auto_save_text").attr('title')); // 清除setInterval函数
-                db.setItem('switch', false)
-                console.log('发布页自动保存已关闭');
-                break;
-            case 'clean':
-                if (window.confirm("确定清空所有数据?")) {
-                    clean();
-                    window.location.reload();
-                };
-                break;
-        }
-    });
-
-    $("#auto_save_off").click(function () {
-        $(this).hide();
-        $("#auto_save_on").fadeIn(200);
-        $("#auto_save_text").attr("title", setInterval(auto_save, 1000));  // 设置setInterval函数
-        db.setItem('switch', true)
-        console.log('发布页自动保存已开启');
-    });
-
-    // 提交候选后 删除所有保存的记录 (如果要还原记录，直接返回上一页即可。)
-    $("#qr").click(function () {
-        clean()
-        console.log('提交上传请求');
-    });
-
-    function clean() {
-        clearInterval($("#auto_save_text").attr('title')); // 清除setInterval函数
-        db.removeItem('time');
-        db.removeItem('bbcode');
-        db.removeItem('small_descr');
-        db.removeItem('poster');
-        db.removeItem('anidb_url');
-        db.removeItem('info');
-        console.log('已清空保存的记录');
-    }
-
-    // 检测上次自动保存开关设定
-    db.getItem('switch').then(async (value) => {
-        if (value) {
-            // 启用自动保存
-            $("#auto_save_on").show();
-            $("#auto_save_off").hide();
-            $("#auto_save_text").attr("title", setInterval(auto_save, 1000)); // 设置setInterval函数
-            console.log('发布页自动保存已开启');
+            $(`#${type}_auto_save_on`).show();
+            $(`#${type}_auto_save_off`).hide();
+            $(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
+            console.log(`${type}-自动保存已开启`);
             // 检查输入框内是否已经存在字符串
             let _input_bool = true
             $("#compose input[id$='-input']").add('#browsecat').add('.bbcode').each(function () {
@@ -974,10 +857,10 @@ function auto_save_upload() {
             });
             // 当输入框是空白时 还原上次备份内容
             if (_input_bool) {
-                db.getItem('small_descr').then((value) => { $('[name="small_descr"]').val(value); })
-                db.getItem('poster').then((value) => { $('[name="poster"]').val(value); });
-                db.getItem('anidb_url').then((value) => { $('[name="anidburl"]').val(value); });
-                await db.getItem('info').then((value) => {
+                await db.getItem(`${type}_autoSaveMessageSmallDescr`).then((value) => { $('[name="small_descr"]').val(value); })
+                await db.getItem(`${type}_autoSaveMessagePoster`).then((value) => { $('[name="poster"]').val(value); });
+                await db.getItem(`${type}_autoSaveMessageAnidbUrl`).then((value) => { $('[name="anidburl"]').val(value); });
+                await db.getItem(`${type}_autoSaveMessageInfo`).then((value) => {
                     if (value === null) return;
                     $('#browsecat').val(value['category']);
                     $('#browsecat').change(); // 手动触发列表更改事件
@@ -985,36 +868,36 @@ function auto_save_upload() {
                     $('#autocheck_placeholder').children().eq(1).prop("checked", !value['auto_pass']);
                     for (var key in value) { if (/^(anime|manga|music|other)/.test(key)) { $('#' + key + '-input').val(value[key]); }; };
                 });
-                await db.getItem('bbcode').then((value) => { $('.bbcode').val(value); }) // 还原bbcode输入框内容
+                await db.getItem(`${type}_autoSaveMessageBbcode`).then((value) => { $('.bbcode').val(value); }) // 还原bbcode输入框内容
                 $('[class^="torrent-info-input"]').trigger("input"); // 手动触发标题更改
                 $('.bbcode').trigger("input"); // 手动触发bbcode更改
-                console.log('已还原备份');
+                console.log(`${type}-已还原备份`);
             };
         } else {
             // 关闭自动保存
-            $("#auto_save_on").hide();
-            $("#auto_save_off").show();
-            db.setItem('switch', false);
-            console.log('发布页自动保存已关闭');
+            $(`#${type}_auto_save_on`).hide();
+            $(`#${type}_auto_save_off`).show();
+            await db.setItem(`${type}_autoSaveMessageSwitch`, false)
+            console.log(`${type}-自动保存已关闭`);
         }
-    }).catch(function (err) {
+    }).catch(async function (err) {
         // 第一次运行时 <第一次运行时 数据库里什么都没有>
         // 这段其实也没什么用 数据库中如果没有这个键值 会返回 undefined
-        $("#auto_save_on").hide();
-        $("#auto_save_off").show();
-        db.setItem('switch', false);
-        console.log('第一次运行');
-        console.log(err);
+        $(`#${type}_auto_save_on`).hide();
+        $(`#${type}_auto_save_off`).show();
+        await db.setItem(`${type}_autoSaveMessageSwitch`, false)
+        console.log(`${type}-第一次运行`);
+        console.log(`${type}-${err}`);
     });
 
-    async function auto_save() {
+    async function autoSave() {
         // 由于安全问题 不允许为 input file 赋值
         num--
         // console.log(num);
         if (num <= 0) {
-            $("#auto_save_text").fadeIn(2000);
-            db.setItem('time', getDateString()) // 记录保存数据的时间 string
-            await db.setItem('bbcode', $('.bbcode').val()) // 保存 bbcode 输入框内容
+            $(`#${type}_auto_save_text`).fadeIn(2000);
+            await db.setItem(`${type}_autoSaveMessageTime`, getDateString()) // 记录保存数据的时间 string
+            await db.setItem(`${type}_autoSaveMessageBbcode`, $('.bbcode').val()) // 保存 bbcode 输入框内容
             // 倒是可以跑循环 直接拿到数据 就不用写这么大一堆了 (
             let upload_info = {
                 "category": $('#browsecat').val(),
@@ -1045,12 +928,12 @@ function auto_save_upload() {
                 "music_format": $('#music_format-input').val(),
                 "other_title": $('#other_title-input').val()
             };
-            await db.setItem('info', upload_info);
-            await db.setItem('small_descr', $('[name="small_descr"]').val());
-            await db.setItem('poster', $('[name="poster"]').val());
-            await db.setItem('anidb_url', $('[name="anidburl"]').val());
+            await db.setItem(`${type}_autoSaveMessageInfo`, upload_info);
+            await db.setItem(`${type}_autoSaveMessageSmallDescr`, $('[name="small_descr"]').val());
+            await db.setItem(`${type}_autoSaveMessagePoster`, $('[name="poster"]').val());
+            await db.setItem(`${type}_autoSaveMessageAnidbUrl`, $('[name="anidburl"]').val());
             num = num_global + 4; // 重置倒计时
-            $("#auto_save_text").fadeOut(2000);
+            $(`#${type}_auto_save_text`).fadeOut(2000);
         };
     }
 };
@@ -1074,7 +957,7 @@ function zero(obj) {
 // elementPost 提交按钮
 // type 识别符
 // parent 父级元素
-async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, parent = '#compose') {
+async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, parent) {
     let db = localforage.createInstance({ name: "bbcodejs" });
     let num_global = 10; // 设置自动保存时间间隔
     let num = 10; // 设置自动保存时间间隔
@@ -1096,7 +979,7 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
                 $(`#${type}_auto_save_off`).fadeIn(200); // 渐入按钮
                 clearInterval($(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
                 await db.setItem(`${type}_autoSaveMessageSwitch`, false)
-                console.log('自动保存已关闭');
+                console.log(`${type}-自动保存已关闭`);
                 break;
             case `${type}_clean`:
                 if (window.confirm("确定清空所有数据?")) {
@@ -1112,13 +995,13 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
         $(`#${type}_auto_save_on`).fadeIn(200);
         $(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
         await db.setItem(`${type}_autoSaveMessageSwitch`, true)
-        console.log('自动保存已开启');
+        console.log(`${type}-自动保存已开启`);
     });
 
     // 提交候选后 删除所有保存的记录 (如果要还原记录，直接返回上一页即可。)
     $(elementPost).click(async function () {
         await clean()
-        console.log('提交上传请求');
+        console.log(`${type}-提交上传请求`);
     });
 
     async function clean() {
@@ -1126,7 +1009,7 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
         await db.removeItem(`${type}_autoSaveMessageTime`);
         await db.removeItem(`${type}_autoSaveMessageBbcode`);
         await db.removeItem(`${type}_autoSaveMessageSubject`);
-        console.log('已清空保存的记录');
+        console.log(`${type}-已清空保存的记录`);
     };
 
     // 检测上次自动保存开关设定
@@ -1136,7 +1019,7 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
             $(`#${type}_auto_save_on`).show();
             $(`#${type}_auto_save_off`).hide();
             $(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
-            console.log('自动保存已开启');
+            console.log(`${type}-自动保存已开启`);
             // 检查输入框内是否已经存在字符串
             let _input_bool = true
             $(`${parent} input[name='subject']`).add(elementBbcode).each(function () {
@@ -1148,7 +1031,7 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
                 await db.getItem(`${type}_autoSaveMessageSubject`).then((value) => { $(`${parent} input[name='subject']`).val(value); });
                 await await db.getItem(`${type}_autoSaveMessageBbcode`).then((value) => { $(elementBbcode).val(value); }) // 还原bbcode输入框内容
                 $(elementBbcode).trigger("input"); // 手动触发bbcode更改
-                console.log('已还原备份');
+                console.log(`${type}-已还原备份`);
             };
         } else {
             // 关闭自动保存
@@ -1162,8 +1045,8 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
         $(`#${type}_auto_save_on`).hide();
         $(`#${type}_auto_save_off`).show();
         await db.setItem(`${type}_autoSaveMessageSwitch`, false);
-        console.log('第一次运行');
-        console.log(err);
+        console.log(`${type}-第一次运行`);
+        console.log(`${type}-${err}`);
     });
 
     async function autoSave() {
@@ -1196,11 +1079,11 @@ async function syncScroll(element, type, bbcode, preview) {
     await db.getItem(`${type}_syncScrollSwitch`).then(async (value) => {
         if (value) {
             $(`#${type}_sync_scroll_on`).show();
-            new scroll_on();
-            console.log('同步滚动已打开');
+            new onScroll();
+            console.log(`${type}-同步滚动已打开`);
         } else {
             $(`#${type}_sync_scroll_off`).show();
-            console.log('同步滚动已关闭');
+            console.log(`${type}-同步滚动已关闭`);
         };
     });
 
@@ -1209,20 +1092,20 @@ async function syncScroll(element, type, bbcode, preview) {
         $(this).hide();
         $(`#${type}_sync_scroll_on`).fadeIn(200); // 渐入按钮
         await db.setItem(`${type}_syncScrollSwitch`, true);
-        new scroll_on();
-        console.log('同步滚动已打开');
+        new onScroll();
+        console.log(`${type}-同步滚动已打开`);
     });
 
     $(`#${type}_sync_scroll_on`).click(async function () {
         $(this).hide();
         $(`#${type}_sync_scroll_off`).fadeIn(200); // 渐入按钮
         await db.setItem(`${type}_syncScrollSwitch`, false);
-        new scroll_off();
-        console.log('同步滚动已关闭');
+        new offScroll();
+        console.log(`${type}-同步滚动已关闭`);
     });
 
     // 绑定鼠标事件
-    function scroll_on() {
+    function onScroll() {
         let currentTab = 0;
         $(bbcode).mouseover(() => { currentTab = 1; });
         $(preview).mouseover(() => { currentTab = 2; });
@@ -1241,7 +1124,7 @@ async function syncScroll(element, type, bbcode, preview) {
     };
 
     // 解除鼠标事件
-    function scroll_off() {
+    function offScroll() {
         $(bbcode).off("scroll").off("mouseover");
         $(preview).off("scroll").off("mouseover");
     };
