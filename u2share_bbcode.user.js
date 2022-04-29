@@ -9,6 +9,7 @@
 // @exclude      *://u2.dmhy.org/attachment.php*
 // @exclude      *://u2.dmhy.org/shoutbox.php*
 // @icon         https://u2.dmhy.org/favicon.ico
+// @require      https://u2.dmhy.org/js/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // @license      Apache-2.0
 // ==/UserScript==
