@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.8
+// @version      0.3.9
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -1174,8 +1174,8 @@ function addTagBox(textArea, name, attribute, content, surround) {
     textArea.setSelectionRange(selTarget, selTarget);
 };
 
-function onEditorActionBox(action, param) {
-    var textArea = document.querySelector('#box_bbcode');
+function onEditorActionBox(action, element, param) {
+    var textArea = document.querySelector(element);
     var selStart = textArea.selectionStart;
     var selEnd = textArea.selectionEnd;
     var selectionText, url;
@@ -1427,21 +1427,72 @@ function onEditorActionBox(action, param) {
 };
 
 
-// 自定义的BBCODE
-(async () => {
-    const shbox_button = $('#hbsubmit');  // 查找聊天版清除按钮
-    if (shbox_button.length === 0) return;  // 聊天版自动刷新时，会再次触发当前函数 || 未开启聊天版
-    shbox_button.after('<input id="shbox_bbcode" type="button" class="codebuttons" value="高级">')
+/**
+* 悬浮窗口拖动
+*/
+function mouseDrag(ev) {
+    // 拖动悬浮窗口   ps.是真的卡
+    let mx = 0;  // 鼠标x轴
+    let my = 0;  // 鼠标y轴
+    let dx = 0;  // 元素x轴
+    let dy = 0;  // 元素y轴
+    let isDraging = false;  // 是否允许拖动
 
+    //鼠标按下
+    ev.mousedown(function (e) {
+        e = e || window.event;
+        if (e.target.nodeName === 'TD' || e.target.nodeName === 'DIV' || e.target.nodeName === 'H2') {
+            mx = e.pageX;  // 鼠标X坐标
+            my = e.pageY;  // 鼠标Y坐标
+            dx = ev.offset().left;  // 元素x轴
+            dy = ev.offset().top;  // 元素y轴
+            isDraging = true;  //标记对话框可拖动
+        };
+    });
+
+    // 鼠标松开
+    ev.mouseup(function () {
+        isDraging = false;
+    });
+
+    // 鼠标离开
+    ev.mouseleave(function () {
+        isDraging = false;
+    });
+
+    //鼠标移动
+    $(document).mousemove(function (e) {
+        e = e || window.event;
+        let x = e.pageX;  // 鼠标X坐标
+        let y = e.pageY;  // 鼠标Y坐标
+        if (isDraging) { // 判断能否允许拖动
+            let moveX = dx + x - mx;  // 元素新的left值
+            let moveY = dy + y - my; // 元素新的top值
+            // 范围
+            // var pageW = $(window).width();
+            // var pageH = $(window).height();
+            // var dialogW = ev.width();
+            // var dialogH = ev.height();
+            // var maxX = pageW - dialogW;       //X轴可拖动最大值
+            // var maxY = pageH - dialogH;       //Y轴可拖动最大值
+            // moveX = Math.min(Math.max(0, moveX), maxX);     //X轴可拖动范围
+            // moveY = Math.min(Math.max(0, moveY), maxY);     //Y轴可拖动范围
+            // 设置元素的left,top
+            ev.css({ "left": moveX + 'px', "top": moveY + 'px' });
+        };
+    });
+};
+
+async function basicFrame(title, type) {
     const basic_html =
-        `<style type="text/css">.dialog { position: absolute; z-index: 9999; padding-bottom: 10px; display: none; } .h2_move { cursor: move; margin-block-start: 0em; margin-block-end: 0em; } td.smile-icon { padding: 3px !important; }</style>
-<div class="dialog" id="dialog">
-  <form id="compose_custom" method="post" name="compose_custom">
+        `<style type="text/css">.${type}_dialog { position: absolute; z-index: 9999; padding-bottom: 10px; display: none; } .${type}_h2_move { cursor: move; margin-block-start: 0em; margin-block-end: 0em; } td.smile-icon { padding: 3px !important; }</style>
+<div class="${type}_dialog" id="${type}_dialog">
+  <form id="${type}_compose_custom" method="post" name="${type}_compose_custom">
     <table class="main" width="940" border="0" cellspacing="0" cellpadding="0">
       <tbody>
         <tr>
           <td class="embedded">
-            <h2 class="h2_move" id="move_part" align="left">聊天区</h2>
+            <h2 class="${type}_h2_move" id="${type}_move_part" align="left">${title}</h2>
             <table width="100%" border="1" cellspacing="0" cellpadding="10">
               <tbody>
                 <tr>
@@ -1451,26 +1502,26 @@ function onEditorActionBox(action, param) {
                         <tr>
                           <td class="rowhead" valign="top">正文</td>
                           <td class="rowfollow" align="left">
-                            <div id="editorouterbox" style="display: block;">
+                            <div id="${type}_editorouterbox" style="display: block;">
                               <table width="100%" cellspacing="0" cellpadding="5" border="0">
                                 <tbody>
                                   <tr>
                                     <td align="left" colspan="2">
-                                      <table id="bbcode_button" cellspacing="1" cellpadding="2" border="0">
+                                      <table id="${type}_bbcode_button" cellspacing="1" cellpadding="2" border="0">
                                         <tbody>
                                           <tr>
                                           </tr>
                                         </tbody>
                                       </table>
-                                      <div id="bbcodejs_tbody_box" style="position:relative; margin-top: 4px">
-                                        <div id="bbcodejs_select_box" style="position: absolute; margin-top: 2px; margin-bottom: 2px; float: left;">
-                                          <select class="med codebuttons" name="bbcode_color" style="margin-right: 3px; visibility: visible;">
+                                      <div id="${type}_bbcodejs_tbody_box" style="position:relative; margin-top: 4px">
+                                        <div id="${type}_bbcodejs_select_box" style="position: absolute; margin-top: 2px; margin-bottom: 2px; float: left;">
+                                          <select class="med codebuttons" name="${type}_bbcode_color" style="margin-right: 3px; visibility: visible;">
                                             <option value="">--- 颜色 ---</option>
                                           </select>
-                                          <select class="med codebuttons" name="bbcode_font" style="visibility: visible;">
+                                          <select class="med codebuttons" name="${type}_bbcode_font" style="visibility: visible;">
                                             <option value="">--- 字体 ---</option>
                                           </select>
-                                          <select class="med codebuttons" name="bbcode_size" style="visibility: visible;">
+                                          <select class="med codebuttons" name="${type}_bbcode_size" style="visibility: visible;">
                                             <option value="">--- 字号 ---</option>
                                           </select>
                                         </div>
@@ -1479,21 +1530,21 @@ function onEditorActionBox(action, param) {
                                   </tr>
                                   <tr>
                                     <td colspan="2" valign="middle">
-                                      <iframe src="attachment.php?text_area_id=box_bbcode" width="100%" height="24" frameborder="0" scrolling="no" marginheight="0" marginwidth="0">
+                                      <iframe src="attachment.php?text_area_id=${type}_box_bbcode" width="100%" height="24" frameborder="0" scrolling="no" marginheight="0" marginwidth="0">
                                       </iframe>
                                     </td>
                                   </tr>
                                   <tr>
                                     <td align="left">
-                                      <textarea class="box_bbcode" cols="100" style="width: 99%" id="box_bbcode" rows="20"></textarea>
+                                      <textarea class="${type}_box_bbcode" cols="100" style="width: 99%" id="${type}_box_bbcode" rows="20"></textarea>
                                     </td>
                                     <td align="center" width="150">
-                                      <table id="smile-icon" cellspacing="1" cellpadding="3">
+                                      <table id="${type}_smile-icon" cellspacing="1" cellpadding="3">
                                         <tbody>
                                         </tbody>
                                       </table>
                                       <br>
-                                      <a onclick="ShowSmileWindow(&quot;compose_custom&quot;, &quot;box_bbcode&quot;)">更多表情</a>
+                                      <a onclick="ShowSmileWindow(&quot;${type}_compose_custom&quot;, &quot;${type}_box_bbcode&quot;)">更多表情</a>
                                     </td>
                                   </tr>
                                 </tbody>
@@ -1507,10 +1558,10 @@ function onEditorActionBox(action, param) {
                               <tbody>
                                 <tr>
                                   <td class="embedded">
-                                    <input id="post_box" type="button" class="btn" value="发送">
+                                    <input id="${type}_post_box" type="button" class="btn" value="发送">
                                   </td>
                                   <td class="embedded">
-                                    <input id="close_box" type="button" class="btn" value="关闭">
+                                    <input id="${type}_close_box" type="button" class="btn" value="关闭">
                                   </td>
                                 </tr>
                               </tbody>
@@ -1561,77 +1612,41 @@ function onEditorActionBox(action, param) {
     $('body').append(basic_html)
     // 插入表情
     smile_list.forEach(function (item, index) {
-        if (Number.isInteger((index + 4) / 4)) $('#smile-icon').children('tbody').append(`<tr></tr>`);
-        $('#smile-icon').find('tr:last').append(`<td class="embedded smile-icon"><a href="#[em${item}]" name="bbcode_smile"><img style="max-width: 25px;" src="pic/smilies/${item}.gif" alt=""></a></td>`);
+        if (Number.isInteger((index + 4) / 4)) $(`#${type}_smile-icon`).children('tbody').append(`<tr></tr>`);
+        $(`#${type}_smile-icon`).find('tr:last').append(`<td class="embedded smile-icon"><a href="#[em${item}]" name="${type}_bbcode_smile"><img style="max-width: 25px;" src="pic/smilies/${item}.gif" alt=""></a></td>`);
     });
     // 插入字体大小菜单
-    [1, 2, 3, 4, 5, 6, 7].forEach(function (item) { $('[name="bbcode_size"]').append(`<option value="${item}">${item}</option>`); })
+    [1, 2, 3, 4, 5, 6, 7].forEach(function (item) { $(`[name="${type}_bbcode_size"]`).append(`<option value="${item}">${item}</option>`); })
     // 插入字体菜单
-    font_list.forEach(function (item) { $('[name="bbcode_font"]').append(`<option value="${item}">${item}</option>`); });
+    font_list.forEach(function (item) { $(`[name="${type}_bbcode_font"]`).append(`<option value="${item}">${item}</option>`); });
     // 插入颜色菜单
-    color_list.forEach(function (item) { $('[name="bbcode_color"]').append(`<option style="background-color: ${item.replace(/\s/g, '').toLowerCase()}" value="${item.replace(/\s/g, '')}">${item}</option>`); });
+    color_list.forEach(function (item) { $(`[name="${type}_bbcode_color"]`).append(`<option style="background-color: ${item.replace(/\s/g, '').toLowerCase()}" value="${item.replace(/\s/g, '')}">${item}</option>`); });
     // 插入按钮
     bbcode_button.forEach(function (item) {
-        $('#bbcode_button').find('tr:last').append(`<td class="embedded"><input class="codebuttons" style="${item.style}" type="button" value="${item.value}" name="bbcode_button"></td>`);
+        $(`#${type}_bbcode_button`).find('tr:last').append(`<td class="embedded"><input class="codebuttons" style="${item.style}" type="button" value="${item.value}" name="${type}_bbcode_button"></td>`);
     });
     // 插入预览框
-    $('#box_bbcode').parents("tr:eq(1)").after(`<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">${lang['preview']}</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2"><div id="bbcode2_box" style="min-height: 25px; max-height: 1px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;"><div class="child"></div></div></td></tr></tbody></table></td>`);
+    $(`#${type}_box_bbcode`).parents("tr:eq(1)").after(`<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">${lang['preview']}</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2"><div id="${type}_bbcode2_box" style="min-height: 25px; max-height: 1px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;"><div class="child"></div></div></td></tr></tbody></table></td>`);
     // 插入同步窗口滚动按钮
-    await syncScroll('#bbcodejs_tbody_box', 'shoutbox', '#box_bbcode', '#bbcode2_box');
+    await syncScroll(`#${type}_bbcodejs_tbody_box`, type, `#${type}_box_bbcode`, `#${type}_bbcode2_box`);
     // 插入自动保存按钮
-    await autoSaveMessage('#bbcodejs_tbody_box', '#box_bbcode', '#post_box', 'shoutbox', 'compose_custom')
+    await autoSaveMessage(`#${type}_bbcodejs_tbody_box`, `#${type}_box_bbcode`, `#${type}_post_box`, type, `${type}_compose_custom`)
+};
 
-    // 下拉菜单监听
-    $('[name="bbcode_color"]').change(function () { onEditorActionBox('COLOR', this.options[this.selectedIndex].value); this.selectedIndex = 0; });
-    $('[name="bbcode_font"]').change(function () { onEditorActionBox('FONT', this.options[this.selectedIndex].value); this.selectedIndex = 0; });
-    $('[name="bbcode_size"]').change(function () { onEditorActionBox('SIZE', this.options[this.selectedIndex].value); this.selectedIndex = 0; });
-    // 按钮监听
-    $('[name="bbcode_button"]').click(function () { onEditorActionBox(this.value); });
-    // 输入框右边表情，鼠标悬浮图标变大
-    $('[name="bbcode_smile"]').mouseenter(function () { $(this).children('img').css({ "transform": "scale(1.35)", "transition": "all 0.3s" }); });
-    // 输入框右边表情，鼠标离开图标恢复原状
-    $('[name="bbcode_smile"]').mouseleave(function () { $(this).children('img').css({ "transform": "" }); });
-    // 输入框右边表情，点击图标输入表情
-    $('[name="bbcode_smile"]').click(function () { onEditorActionBox($(this).attr('href')); });
-    // 发送
-    $('#post_box').click(function () { $('#shbox_text').val($('#box_bbcode').val()); $('[name="shbox"]').trigger("submit"); $dialog.hide(); });
-    // 关闭窗口
-    $('#close_box').click(function () { $dialog.hide(); offCenter(); });
-    // 监听各种按钮的点击事件
-    $('[name="bbcode_color"],[name="bbcode_font"],[name="bbcode_size"],[name="bbcode_button"],[name="bbcode_smile"],td.embedded.smile-icon a').click(async function () { $('#bbcode2_box').children('.child').html(bbcode2html($('#box_bbcode').val())); });
-    // 监听bbcode写入事件
-    $('#box_bbcode').bind('input propertychange', async function () { $('#bbcode2_box').children('.child').html(bbcode2html($(this).val())); });
 
-    var $dialog = $("#dialog");
-    //点击弹出窗口
-    $("#shbox_bbcode").click(async function () {
-        // 获取输入框的值，如引用之类的数据
-        let shbox_text = $('#shbox_text').val();
-        // 如果外部输入框不为空，则引入外部输入框的值
-        if (shbox_text !== '') $('#box_bbcode').val(shbox_text);
-        // 显示悬浮窗口
-        $dialog.show();
-        // 设置悬浮窗口中预览窗口的最大高度
-        $("#bbcode2_box").css("max-height", ($('#box_bbcode').height() + 30) + "px");
-        // const margin = $('#bbcodejs_tbody_box').width() - $("#bbcodejs_select_box").width() - 2.6;
-        const margin = $('#compose_custom .codebuttons').parents('tbody').eq(0).width() - $("#bbcodejs_select_box").width() - 2.6;
-        $("#bbcodejs_select_box").css("margin-left", margin + "px");
-        // 手动触发bbcode内容更改
-        $('#box_bbcode').trigger("input");
-        // 窗口居中
-        onCenter($dialog);
-    });
-
-    // 同步窗口大小变化
+/**
+* 同步窗口大小变化
+*/
+function syncWindowChange(input, preview) {
     let MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
-    let element = document.querySelector('#box_bbcode');
+    let element = document.querySelector(input);
     var height_now, height_last;
     var observer = new MutationObserver((mutations) => {
         mutations.forEach(function (mutation) {
             if (mutation.type == "attributes") {
                 height_now = Number(mutation.target.style.height.replace('px', '')) + 30;
                 if (height_last === height_now) { return } else { height_last = height_now; };
-                $("#bbcode2_box").css("max-height", height_now + "px");
+                $(preview).css("max-height", height_now + "px");
             };
         })
     });
@@ -1639,93 +1654,72 @@ function onEditorActionBox(action, param) {
         attributes: true,
         attributeFilter: ['style']
     });
+};
 
-    // 鼠标滚动时保持悬浮窗居中
-    const bbcodeWindowScroll = () => {
-        $dialog.css({ 'top': ($(window).height() - $dialog.outerHeight()) / 2 + $(document).scrollTop() });
-    };
-    // 浏览器窗口大小变化后保持悬浮窗居中
-    var resizeTimer = null;
-    const bbcodeWindowResize = () => {
-        if (resizeTimer) clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(function () {
-            $dialog.css({
-                'left': ($(window).width() - $dialog.outerWidth()) / 2,
-                'top': ($(window).height() - $dialog.outerHeight()) / 2 + $(document).scrollTop()
-            });
-        }, 20);
-    };
-    //自动居中对话框
-    function onCenter(ev) {
-        // 点开窗口时让悬浮窗居中
-        $dialog.css({
-            'max-height': '99%',
-            'left': ($(window).width() - $dialog.outerWidth()) / 2,
-            'top': ($(window).height() - $dialog.outerHeight()) / 2 + $(document).scrollTop()
-        });
-        // 浏览器窗口大小变化后保持悬浮窗居中
-        $(window).on("resize", bbcodeWindowResize);
+
+/**
+* 悬浮窗居中
+*/
+class center {
+    constructor() {
         // 鼠标滚动时保持悬浮窗居中
-        $(window).on("scroll", bbcodeWindowScroll);
-    };
-    // 关闭居中 <移除监听>
-    function offCenter() {
-        $(window).off("resize", bbcodeWindowResize);
-        $(window).off("scroll", bbcodeWindowScroll);
-    };
-
-    // 拖动悬浮窗口   ps.是真的卡
-    var mx = 0;  // 鼠标x轴
-    var my = 0;  // 鼠标y轴
-    var dx = 0;  // 元素x轴
-    var dy = 0;  // 元素y轴
-    var isDraging = false;  // 是否允许拖动
-
-    //鼠标按下
-    $dialog.mousedown(function (e) {
-        e = e || window.event;
-        if (e.target.nodeName === 'TD' || e.target.nodeName === 'DIV' || e.target.nodeName === 'H2') {
-            mx = e.pageX;  // 鼠标X坐标
-            my = e.pageY;  // 鼠标Y坐标
-            dx = $dialog.offset().left;  // 元素x轴
-            dy = $dialog.offset().top;  // 元素y轴
-            isDraging = true;  //标记对话框可拖动
+        const bbcodeWindowScroll = (ev) => {
+            ev.data.css({ 'top': ($(window).height() - ev.data.outerHeight()) / 2 + $(document).scrollTop() });
         };
-    });
-
-    // 鼠标松开
-    $dialog.mouseup(function () {
-        isDraging = false;
-    });
-
-    // 鼠标离开
-    $dialog.mouseleave(function () {
-        isDraging = false;
-    });
-
-    //鼠标移动
-    $(document).mousemove(function (e) {
-        e = e || window.event;
-        var x = e.pageX;  // 鼠标X坐标
-        var y = e.pageY;  // 鼠标Y坐标
-        if (isDraging) { // 判断能否允许拖动
-            var moveX = dx + x - mx;  // 元素新的left值
-            var moveY = dy + y - my; // 元素新的top值
-            // 范围
-            // var pageW = $(window).width();
-            // var pageH = $(window).height();
-            // var dialogW = $dialog.width();
-            // var dialogH = $dialog.height();
-            // var maxX = pageW - dialogW;       //X轴可拖动最大值
-            // var maxY = pageH - dialogH;       //Y轴可拖动最大值
-            // moveX = Math.min(Math.max(0, moveX), maxX);     //X轴可拖动范围
-            // moveY = Math.min(Math.max(0, moveY), maxY);     //Y轴可拖动范围
-            // 设置元素的left,top
-            $dialog.css({ "left": moveX + 'px', "top": moveY + 'px' });
+        // 浏览器窗口大小变化后保持悬浮窗居中
+        // 不知道为什么用 setTimeout 后，页面上有两个悬浮窗时，总有一个悬浮窗无法居中
+        const bbcodeWindowResize = (ev) => {
+            ev.data.css({
+                'left': ($(window).width() - ev.data.outerWidth()) / 2,
+                'top': ($(window).height() - ev.data.outerHeight()) / 2 + $(document).scrollTop()
+            });
         };
-    });
+        //自动居中对话框
+        this.on = (ev) => {
+            // 点开窗口时让悬浮窗居中
+            ev.css({
+                'max-height': '99%',
+                'left': ($(window).width() - ev.outerWidth()) / 2,
+                'top': ($(window).height() - ev.outerHeight()) / 2 + $(document).scrollTop()
+            });
+            // 浏览器窗口大小变化后保持悬浮窗居中
+            $(window).on("resize", null, ev, bbcodeWindowResize);
+            // 鼠标滚动时保持悬浮窗居中
+            $(window).on("scroll", null, ev, bbcodeWindowScroll);
+        };
+        // 关闭居中 <移除监听>
+        this.off = () => {
+            $(window).off("resize", null, bbcodeWindowResize, null);
+            $(window).off("scroll", null, bbcodeWindowScroll, null);
+        };
+    };
+};
 
-})();
+
+/**
+* 监听用户动作
+* @param {string} type - BBCODE窗口类型
+*/
+function btnListener(type) {
+    // 下拉菜单监听
+    $(`[name="${type}_bbcode_color"]`).change(function () { onEditorActionBox('COLOR', `#${type}_box_bbcode`, this.options[this.selectedIndex].value); this.selectedIndex = 0; });
+    $(`[name="${type}_bbcode_font"]`).change(function () { onEditorActionBox('FONT', `#${type}_box_bbcode`, this.options[this.selectedIndex].value); this.selectedIndex = 0; });
+    $(`[name="${type}_bbcode_size"]`).change(function () { onEditorActionBox('SIZE', `#${type}_box_bbcode`, this.options[this.selectedIndex].value); this.selectedIndex = 0; });
+    // 按钮监听
+    $(`[name="${type}_bbcode_button"]`).click(function () { onEditorActionBox(this.value, `#${type}_box_bbcode`); });
+    // 输入框右边表情，鼠标悬浮图标变大
+    $(`[name="${type}_bbcode_smile"]`).mouseenter(function () { $(this).children('img').css({ "transform": "scale(1.35)", "transition": "all 0.3s" }); });
+    // 输入框右边表情，鼠标离开图标恢复原状
+    $(`[name="${type}_bbcode_smile"]`).mouseleave(function () { $(this).children('img').css({ "transform": "" }); });
+    // 输入框右边表情，点击图标输入表情
+    $(`[name="${type}_bbcode_smile"]`).click(function () { onEditorActionBox($(this).attr('href'), `#${type}_box_bbcode`); });
+    // 监听各种按钮的点击事件
+    $(`[name="${type}_bbcode_color"],[name="${type}_bbcode_font"],[name="${type}_bbcode_size"],[name="${type}_bbcode_button"],[name="${type}_bbcode_smile"],td.embedded.${type}_smile-icon a`).click(async function () { $(`#${type}_bbcode2_box`).children('.child').html(bbcode2html($(`#${type}_box_bbcode`).val())); });
+    // 监听bbcode写入事件
+    $(`#${type}_box_bbcode`).bind('input propertychange', async function () { $(`#${type}_bbcode2_box`).children('.child').html(bbcode2html($(this).val())); });
+
+};
+
 
 // 从弹窗添加表情实时预览结果 [https://u2.dmhy.org/moresmilies.php?form=upload&text=descr]
 (async () => {
@@ -1745,4 +1739,177 @@ function SmileIT2(smile, form, text) {
 };
 </script>`)
 
+})();
+
+
+// 举报
+(async () => {
+    let type = 'report';
+    const $report_form = $('form[action="report.php"]');  // 查找举报提交页面
+    if ($report_form.length === 0) return;
+    $report_form.find('[type="submit"]').after(`<input id="${type}_bbcode" type="button" value="高级">`);
+    await basicFrame('举报', type);  // 插入框架
+    const centerObj = new center();
+    const $dialog = $(`#${type}_dialog`);
+    btnListener(type);  // 监听按钮
+    syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);  // 同步窗口大小变化
+    mouseDrag($dialog);  // 拖动窗口
+
+    // 关闭窗口
+    $(`#${type}_close_box`).click(function () { $dialog.hide(); centerObj.off(); });
+    // 发送
+    $(`#${type}_post_box`).click(function () {
+        $('[name="reason"]').val($(`#${type}_box_bbcode`).val());
+        $report_form.find('[type="submit"]').trigger("submit");
+        $dialog.hide();
+    });
+    //点击弹出窗口
+    $(`#${type}_bbcode`).click(async function () {
+        // 获取输入框的值，如引用之类的数据
+        let text = $report_form.find('textarea').val();
+        // 如果外部输入框不为空，则引入外部输入框的值
+        if (text !== '') $(`#${type}_box_bbcode`).val(text);
+        // 显示悬浮窗口
+        $dialog.show();
+        // 设置悬浮窗口中预览窗口的最大高度
+        $(`#${type}_bbcode2_box`).css("max-height", ($(`#${type}_box_bbcode`).height() + 30) + "px");
+        const margin = $(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - $(`#${type}_bbcodejs_select_box`).width() - 2.6;
+        $(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
+        // 手动触发bbcode内容更改
+        $(`#${type}_box_bbcode`).trigger("input");
+        // 窗口居中
+        centerObj.on($dialog);
+    });
+})();
+
+
+// 聊天
+(async () => {
+    let type = 'shbox';
+    const $shbox_button = $('#hbsubmit');  // 查找聊天版清除按钮
+    if ($shbox_button.length === 0) return;  // 聊天版自动刷新时，会再次触发当前函数 || 未开启聊天版
+    $shbox_button.after(`<input id="${type}_bbcode" type="button" class="codebuttons" value="高级">`)
+
+    await basicFrame('聊天区', type);  // 插入框架
+    const centerObj = new center();
+    const $dialog = $(`#${type}_dialog`);
+    btnListener(type);  // 监听按钮
+    syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);  // 同步窗口大小变化
+    mouseDrag($dialog);  // 拖动窗口
+
+    // 关闭窗口
+    $(`#${type}_close_box`).click(function () { $dialog.hide(); centerObj.off(); });
+    // 发送
+    $(`#${type}_post_box`).click(function () {
+        $('#shbox_text').val($(`#${type}_box_bbcode`).val());
+        $('[name="shbox"]').trigger("submit");
+        $dialog.hide();
+    });
+    //点击弹出窗口
+    $(`#${type}_bbcode`).click(async function () {
+        // 获取输入框的值，如引用之类的数据
+        let text = $('#shbox_text').val();
+        // 如果外部输入框不为空，则引入外部输入框的值
+        if (text !== '') $(`#${type}_box_bbcode`).val(text);
+        // 显示悬浮窗口
+        $dialog.show();
+        // 设置悬浮窗口中预览窗口的最大高度
+        $(`#${type}_bbcode2_box`).css("max-height", ($(`#${type}_box_bbcode`).height() + 30) + "px");
+        const margin = $(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - $(`#${type}_bbcodejs_select_box`).width() - 2.6;
+        $(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
+        // 手动触发bbcode内容更改
+        $(`#${type}_box_bbcode`).trigger("input");
+        // 窗口居中
+        centerObj.on($dialog);
+    });
+})();
+
+
+// 请求续种
+(async () => {
+    if (location.pathname !== '/request.php') return;
+    let type = 'request';
+    const $request_button = $('#qr');  // 查找按钮
+    if ($request_button.length === 0) return;
+    $request_button.after(`<input id="${type}_bbcode" type="button" class="codebuttons" value="高级">`)
+
+    await basicFrame('回应/评论', type);  // 插入框架
+    const centerObj = new center();
+    const $dialog = $(`#${type}_dialog`);
+    btnListener(type);  // 监听按钮
+    syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);  // 同步窗口大小变化
+    mouseDrag($dialog);  // 拖动窗口
+
+    // 关闭窗口
+    $(`#${type}_close_box`).click(function () { $dialog.hide(); centerObj.off(); });
+    // 发送
+    $(`#${type}_post_box`).click(function () {
+        $('#compose textarea').val($(`#${type}_box_bbcode`).val());
+        $('#compose').trigger("submit");
+        $dialog.hide();
+    });
+    //点击弹出窗口
+    $(`#${type}_bbcode`).click(async function () {
+        // 获取输入框的值，如引用之类的数据
+        let text = $('#compose textarea').val();
+        // 如果外部输入框不为空，则引入外部输入框的值
+        if (text !== '') $(`#${type}_box_bbcode`).val(text);
+        // 显示悬浮窗口
+        $dialog.show();
+        // 设置悬浮窗口中预览窗口的最大高度
+        $(`#${type}_bbcode2_box`).css("max-height", ($(`#${type}_box_bbcode`).height() + 30) + "px");
+        const margin = $(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - $(`#${type}_bbcodejs_select_box`).width() - 2.6;
+        $(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
+        // 手动触发bbcode内容更改
+        $(`#${type}_box_bbcode`).trigger("input");
+        // 窗口居中
+        centerObj.on($dialog);
+    });
+})();
+
+
+// 控制面板
+(async () => {
+    if (location.pathname !== '/usercp.php') return;
+    let action;
+    let type = 'usercp';
+    const $signature_window = $('[name="signature"]');  // 查找BBCODE窗口
+    const $info_window = $('[name="info"]');  // 查找BBCODE窗口
+    if ($signature_window.length !== 0) { type = `${type}_signature`; action = 'signature'; }
+    else if ($info_window.length !== 0) { type = `${type}_info`; action = 'info'; }
+    else return;
+
+    $(`[name="${action}"]`).parent().find('a').attr({ 'href': 'javascript:void(0);false;', 'target': '', 'id': `${action}_bbcode_a` });
+    await basicFrame(action === 'signature' ? '论坛签名档' : '个人说明', type);  // 插入框架
+    const centerObj = new center();
+    const $dialog = $(`#${type}_dialog`);
+    btnListener(type);  // 监听按钮
+    syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);  // 同步窗口大小变化
+    mouseDrag($dialog);  // 拖动窗口
+
+    // 关闭窗口
+    $(`#${type}_close_box`).click(function () { $dialog.hide(); centerObj.off(); });
+    // 发送
+    $(`#${type}_post_box`).click(function () {
+        $(`[name="${action}"]`).val($(`#${type}_box_bbcode`).val());
+        $dialog.hide();
+    });
+    // 点击弹出窗口
+    $(`#${action}_bbcode_a`).click(async function () {
+        // 获取输入框的值，如引用之类的数据
+        let text = $(`[name="${action}"]`).val();
+        // 如果外部输入框不为空，则引入外部输入框的值
+        if (text !== '') $(`#${type}_box_bbcode`).val(text);
+        // 显示悬浮窗口
+        $dialog.show();
+        // 设置悬浮窗口中预览窗口的最大高度
+        $(`#${type}_bbcode2_box`).css("max-height", ($(`#${type}_box_bbcode`).height() + 30) + "px");
+        const margin = $(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - $(`#${type}_bbcodejs_select_box`).width() - 2.6;
+        $(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
+        // 手动触发bbcode内容更改
+        $(`#${type}_box_bbcode`).trigger("input");
+        $(`#${type}_post_box`).attr("value", '填写');
+        // 窗口居中
+        centerObj.on($dialog);
+    });
 })();
