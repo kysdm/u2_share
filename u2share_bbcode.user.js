@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.3
+// @version      0.4.4
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -19,7 +19,7 @@
 
 /*
 GreasyFork 地址
-    https://greasyfork.org/zh-CN/scripts/426268-u2%E5%AE%9E%E6%97%B6%E9%A2%84%E8%A7%88bbcode
+    https://greasyfork.org/zh-CN/scripts/426268
 */
 
 /*
@@ -1422,70 +1422,17 @@ function onEditorActionBox(action, element, param) {
             addTagBox(textArea, "*", null, null, true);
             break;
         };
-        case (action.match(/^#\[.+\]$/i) || {}).input: {
-            addTagBox(textArea, action.slice(2, -1), null, null, true);
+        case (action.match(/^javascript:void\('em\d+'\);$/i) || {}).input: {
+            addTagBox(textArea, action.slice(17, -3), null, null, true);
             break;
         };
+        // default: {
+        //     console.log(action);
+        // }
     }
     textArea.focus();
 };
 
-
-/**
-* 悬浮窗口拖动
-*/
-// function mouseDrag(ev) {
-//     // 拖动悬浮窗口   ps.是真的卡
-//     let mx = 0;  // 鼠标x轴
-//     let my = 0;  // 鼠标y轴
-//     let dx = 0;  // 元素x轴
-//     let dy = 0;  // 元素y轴
-//     let isDraging = false;  // 是否允许拖动
-
-//     //鼠标按下
-//     ev.mousedown(function (e) {
-//         e = e || window.event;
-//         if (e.target.nodeName === 'TD' || e.target.nodeName === 'DIV' || e.target.nodeName === 'H2') {
-//             mx = e.pageX;  // 鼠标X坐标
-//             my = e.pageY;  // 鼠标Y坐标
-//             dx = ev.offset().left;  // 元素x轴
-//             dy = ev.offset().top;  // 元素y轴
-//             isDraging = true;  //标记对话框可拖动
-//         };
-//     });
-
-//     // 鼠标松开
-//     ev.mouseup(function () {
-//         isDraging = false;
-//     });
-
-//     // 鼠标离开
-//     ev.mouseleave(function () {
-//         isDraging = false;
-//     });
-
-//     //鼠标移动
-//     $(document).mousemove(function (e) {
-//         e = e || window.event;
-//         let x = e.pageX;  // 鼠标X坐标
-//         let y = e.pageY;  // 鼠标Y坐标
-//         if (isDraging) { // 判断能否允许拖动
-//             let moveX = dx + x - mx;  // 元素新的left值
-//             let moveY = dy + y - my; // 元素新的top值
-//             // 范围
-//             // var pageW = $(window).width();
-//             // var pageH = $(window).height();
-//             // var dialogW = ev.width();
-//             // var dialogH = ev.height();
-//             // var maxX = pageW - dialogW;       //X轴可拖动最大值
-//             // var maxY = pageH - dialogH;       //Y轴可拖动最大值
-//             // moveX = Math.min(Math.max(0, moveX), maxX);     //X轴可拖动范围
-//             // moveY = Math.min(Math.max(0, moveY), maxY);     //Y轴可拖动范围
-//             // 设置元素的left,top
-//             ev.css({ "left": moveX + 'px', "top": moveY + 'px' });
-//         };
-//     });
-// };
 
 async function basicFrame(title, type) {
     let basic_html = `
@@ -1617,7 +1564,7 @@ async function basicFrame(title, type) {
     // 插入表情
     smile_list.forEach(function (item, index) {
         if (Number.isInteger((index + 4) / 4)) $(parse_html).find(`#${type}_smile-icon`).children('tbody').append(`<tr></tr>`);
-        $(parse_html).find(`#${type}_smile-icon`).find('tr:last').append(`<td class="embedded smile-icon"><a href="#[em${item}]" name="${type}_bbcode_smile"><img style="max-width: 25px;" src="pic/smilies/${item}.gif" alt=""></a></td>`);
+        $(parse_html).find(`#${type}_smile-icon`).find('tr:last').append(`<td class="embedded smile-icon"><a href="javascript:void('em${item}');" name="${type}_bbcode_smile"><img style="max-width: 25px;" src="pic/smilies/${item}.gif" alt=""></a></td>`);
     });
     // 插入字体大小菜单
     [1, 2, 3, 4, 5, 6, 7].forEach(function (item) { $(parse_html).find(`[name="${type}_bbcode_size"]`).append(`<option value="${item}">${item}</option>`); })
@@ -1656,44 +1603,6 @@ function syncWindowChange(input, preview) {
         attributeFilter: ['style']
     });
 };
-
-
-/**
-* 悬浮窗居中
-*/
-// class center {
-//     constructor() {
-//         // 鼠标滚动时保持悬浮窗居中
-//         const bbcodeWindowScroll = (ev) => {
-//             ev.data.css({ 'top': ($(window).height() - ev.data.outerHeight()) / 2 + $(document).scrollTop() });
-//         };
-//         // 浏览器窗口大小变化后保持悬浮窗居中
-//         // 不知道为什么用 setTimeout 后，页面上有两个悬浮窗时，总有一个悬浮窗无法居中
-//         const bbcodeWindowResize = (ev) => {
-//             ev.data.css({
-//                 'left': ($(window).width() - ev.data.outerWidth()) / 2,
-//                 'top': ($(window).height() - ev.data.outerHeight()) / 2 + $(document).scrollTop()
-//             });
-//         };
-//         //自动居中对话框
-//         this.on = (ev) => {
-//             // 点开窗口时让悬浮窗居中
-//             ev.css({
-//                 'left': ($(window).width() - ev.outerWidth()) / 2,
-//                 'top': ($(window).height() - ev.outerHeight()) / 2 + $(document).scrollTop()
-//             });
-//             // 浏览器窗口大小变化后保持悬浮窗居中
-//             $(window).on("resize", null, ev, bbcodeWindowResize);
-//             // 鼠标滚动时保持悬浮窗居中
-//             $(window).on("scroll", null, ev, bbcodeWindowScroll);
-//         };
-//         // 关闭居中 <移除监听>
-//         this.off = () => {
-//             $(window).off("resize", null, bbcodeWindowResize, null);
-//             $(window).off("scroll", null, bbcodeWindowScroll, null);
-//         };
-//     };
-// };
 
 
 /**
@@ -1747,7 +1656,7 @@ function SmileIT2(smile, form, text) {
 // 上传附件实时预览结果 <还是有点延迟>
 (async () => {
     if (location.pathname !== '/attachment.php') return;
-    let script = $('script').html();
+    const script = $('script').html();
     // 不是POST返回的页面，不需要处理
     script.replace(/parent\.addTag\(parent\.document\.getElementById\("(?<element>.+?)"\)/, (...args) => {
         const { element } = args.slice(-1)[0];
