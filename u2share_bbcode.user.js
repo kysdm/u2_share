@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.2
+// @version      0.4.3
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
 // @match        *://u2.dmhy.org/*
-// @exclude      *://u2.dmhy.org/attachment.php*
 // @exclude      *://u2.dmhy.org/shoutbox.php*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js
@@ -1742,6 +1741,18 @@ function SmileIT2(smile, form, text) {
 };
 </script>`)
 
+})();
+
+
+// 上传附件实时预览结果 <还是有点延迟>
+(async () => {
+    if (location.pathname !== '/attachment.php') return;
+    let script = $('script').html();
+    // 不是POST返回的页面，不需要处理
+    script.replace(/parent\.addTag\(parent\.document\.getElementById\("(?<element>.+?)"\)/, (...args) => {
+        const { element } = args.slice(-1)[0];
+        $('body').append(`<script type="text/javascript">const ref=()=>{parent.document.getElementById('${element}').dispatchEvent(new Event('input'))};setTimeout(()=>{ref()},0);</script>`);
+    });
 })();
 
 
