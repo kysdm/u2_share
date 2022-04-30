@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.0
+// @version      0.4.1
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
