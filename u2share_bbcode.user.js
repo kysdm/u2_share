@@ -1486,10 +1486,10 @@ function mouseDrag(ev) {
 
 async function basicFrame(title, type) {
     const basic_html =
-        `<style type="text/css">.${type}_dialog { position: absolute; z-index: 9999; padding-bottom: 10px; display: none; } .${type}_h2_move { cursor: move; margin-block-start: 0em; margin-block-end: 0em; } td.smile-icon { padding: 3px !important; }</style>
+        `<style type="text/css">.${type}_dialog { position: absolute; z-index: 9999; padding-bottom: 10px; display: none; width: 940px; max-height: 99% } .${type}_h2_move { cursor: move; margin-block-start: 0em; margin-block-end: 0em; } td.smile-icon { padding: 3px !important; }</style>
 <div class="${type}_dialog" id="${type}_dialog">
   <form id="${type}_compose_custom" method="post" name="${type}_compose_custom">
-    <table class="main" width="940" border="0" cellspacing="0" cellpadding="0">
+    <table class="main" border="0" cellspacing="0" cellpadding="0">
       <tbody>
         <tr>
           <td class="embedded">
@@ -1537,7 +1537,7 @@ async function basicFrame(title, type) {
                                   </tr>
                                   <tr>
                                     <td align="left">
-                                      <textarea class="${type}_box_bbcode" cols="100" style="width: 99%" id="${type}_box_bbcode" rows="20"></textarea>
+                                      <textarea class="${type}_box_bbcode" cols="100" style="width: 99%" id="${type}_box_bbcode" rows="18"></textarea>
                                     </td>
                                     <td align="center" width="150">
                                       <table id="${type}_smile-icon" cellspacing="1" cellpadding="3">
@@ -1679,7 +1679,6 @@ class center {
         this.on = (ev) => {
             // 点开窗口时让悬浮窗居中
             ev.css({
-                'max-height': '99%',
                 'left': ($(window).width() - ev.outerWidth()) / 2,
                 'top': ($(window).height() - ev.outerHeight()) / 2 + $(document).scrollTop()
             });
