@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.4
+// @version      0.4.5
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -15,6 +15,8 @@
 
 /*
 本脚本基于 Bamboo Green 界面风格进行修改
+为什么会有近似功能的函数呢，问就是历史原因
+等不能跑的时候再动祖传代码
 /*
 
 /*
@@ -29,7 +31,6 @@ GreasyFork 地址
 
 /*
 无法显示的 Tag
-    由U2自带上传工具上传的文件
     Flash 有关的 Tag <u2好像本来就不支持>
     我不知道的特殊操作
 */
@@ -53,45 +54,29 @@ $('body').append(`<script type="text/javascript"> function createTag(name,attrib
     if ($('.bbcode').length === 0) return;  // 判断页面是否存在 bbcode 输入框
     new init();
     const url = location.href.match(/u2\.dmhy\.org\/(upload|forums|comment|contactstaff|sendmessage)\.php/i) || ['', ''];
-    await syncScroll('#bbcodejs_tbody', url[1], '.bbcode', '#bbcode2')
+    await syncScroll('#bbcodejs_tbody', url[1], '.bbcode', '#bbcode2');
     if (url[1] === 'upload') { await autoSaveUpload(); } else { await autoSaveMessage('#bbcodejs_tbody', '.bbcode', '#qr', url[1], '#compose'); }
 
     $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
         + '</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2">'
         + '<div id="bbcode2" style="min-height: 25px; max-height: ' + ($('.bbcode').height() + 30) + 'px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;">'
-        + '<div class="child">' + bbcode2html($('.bbcode').val()) + '</div></div></td></tr></tbody></table></td>');
+        + '<div class="child">' + await bbcode2html($('.bbcode').val()) + '</div></div></td></tr></tbody></table></td>');
 
-    // https://developer.mozilla.org/zh-CN/docs/Web/API/MutationObserver
-    let MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
-    let element = document.querySelector('.bbcode');
-    var height_now, height_last;
-    var observer = new MutationObserver((mutations) => {
-        mutations.forEach(function (mutation) {
-            if (mutation.type == "attributes") {
-                height_now = Number(mutation.target.style.height.replace('px', '')) + 30;
-                if (height_last === height_now) { return } else { height_last = height_now; };
-                $("#bbcode2").css("max-height", height_now + "px");
-            };
-        })
-    });
-    observer.observe(element, {
-        attributes: true,
-        attributeFilter: ['style']
-    });
+    syncWindowChange('.bbcode', '#bbcode2');
 
     $('.bbcode').bind('input propertychange', async function updateValue() {
-        let html = bbcode2html($(this).val());
+        let html = await bbcode2html($(this).val());
         $('#bbcode2').children('.child').html(html);
     });
 
     $('.codebuttons').click(async function updateValue() {
-        let html = bbcode2html($('.bbcode').val());
+        let html = await bbcode2html($('.bbcode').val());
         $('#bbcode2').children('.child').html(html);
     });
 
     $("td.embedded.smile-icon a").click(async function updateValue() {
         await sleep(0);
-        let html = bbcode2html($('.bbcode').val());
+        let html = await bbcode2html($('.bbcode').val());
         $('#bbcode2').children('.child').html(html);
     });
 
@@ -422,7 +407,7 @@ async function sleep(interval) {
     })
 };
 
-function bbcode2html(bbcodestr) {
+async function bbcode2html(bbcodestr) {
     const f_reg = new RegExp("^\"?\"?$|^(?:&quot;)?(?:&quot;)?$");
 
     var tempCode = new Array();
@@ -660,19 +645,121 @@ function bbcode2html(bbcodestr) {
                 return '<img src="pic/smilies/' + x.replace("em", "") + '.gif" alt="[' + x + ']">';
             default:
                 return s;
-        }
-    })
+        };
+    });
+
+    // 附件
+    let db = localforage.createInstance({ name: "attachmap" });
+    bbcodestr = await replaceAsync(bbcodestr, /\[attach\](?<hash>\w{32})\[\/attach\]/gi, async (...args) => {
+        const { hash } = args.slice(-1)[0];
+        return await db.getItem(hash).then(async (value) => {
+            if (value !== null) {
+                // console.log('数据已存在');
+                if (value.attach_type === 'img') {
+                    return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}.thumb.jpg" onclick="Previewurl('${value.attach_url}')">`
+                } else if (value.attach_type === 'other') {
+                    return '<div class="attach">'
+                        + `<img alt="other" src="pic/attachicons/common.gif">&nbsp;&nbsp;`
+                        + `<a href="${value.attach_url}" target="_blank" id="attach${value.attach_id}">${value.attach_name}</a>`
+                        + '&nbsp;&nbsp;'
+                        + `<span class="size">(${value.attach_size})</span>`
+                        + '</div>'
+                } else if (value.attach_type === 'invalid') {
+                    // 会不会发生碰撞呢 xd
+                    return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`;
+                };
+            } else {
+                // console.log('数据不存在');
+                return await new Promise((resolve, reject) => {
+                    $.ajax({
+                        type: 'post',
+                        url: 'https://u2.dmhy.org/preview.php',
+                        contentType: "application/x-www-form-urlencoded",
+                        data: ({ "body": `[attach]${hash}[/attach]` }),
+                        success: async function (d) {
+                            // console.log('成功');
+                            let htmlobj = $.parseHTML(d);
+                            let span = $(htmlobj).find('span');
+                            let attach_normal = $(span).children('bdo').children('div.attach'); // 普通附件
+                            let attach_image = $(span).children('bdo').children('img'); // 图片附件
+                            if (attach_normal.length !== 0 && attach_image.length === 0) {
+                                // console.log('普通附件');
+                                // console.log(attach_normal);
+                                let attach_info_obj = /(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec($(attach_normal).children('a').attr('onmouseover'));
+                                const attach = {
+                                    "attach_id": $(attach_normal).children('a').attr('id').replace('attach', ''),
+                                    "attach_type": 'other',
+                                    "attach_url": $(attach_normal).children('a').attr('href'),
+                                    "attach_name": $(attach_normal).children('a').text(),
+                                    "attach_size": $(attach_normal).children('span.size').text().slice(1, -1),
+                                    "attach_time": attach_info_obj ? attach_info_obj.groups.time : ''
+                                };
+                                // 写入数据库
+                                await db.setItem(hash, attach);
+                                resolve('<div class="attach">'
+                                    + `<img alt="other" src="pic/attachicons/common.gif">&nbsp;&nbsp;`
+                                    + `<a href="${attach.attach_url}" target="_blank" id="attach${attach.attach_id}">${attach.attach_name}</a>`
+                                    + '&nbsp;&nbsp;'
+                                    + `<span class="size">(${attach.attach_size})</span>`
+                                    + '</div>');
+                            }
+                            else if (attach_normal.length === 0 && attach_image.length !== 0) {
+                                // console.log('图片附件');
+                                // 附件唯一标识符
+                                let attach_url_obj = /^Previewurl\(['"](?<url>[^'"]+)['"]\)/i.exec($(attach_image).attr('onclick'));
+                                let attach_info_obj = /(?<size>\d{1,4}\.\d{1,3}\s?[TGMK]iB).*(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec($(attach_image).attr('onmouseover'));
+                                const attach = {
+                                    "attach_id": $(attach_image).attr('id').replace('attach', ''),
+                                    "attach_type": 'img',
+                                    "attach_url": attach_url_obj ? attach_url_obj.groups.url : '',
+                                    "attach_name": $(attach_image).attr('alt'),
+                                    "attach_size": attach_info_obj ? attach_info_obj.groups.size : '',
+                                    "attach_time": attach_info_obj ? attach_info_obj.groups.time : ''
+                                };
+                                // console.log(attach);
+                                // 写入数据库
+                                await db.setItem(hash, attach);
+                                resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
+                            }
+                            else {
+                                // Attachment for key 82505eca8a43a36bc9c60a7d9609a5df not found.
+                                // 附件 82505eca8a43a36bc9c60a7d9609a5df 无效。
+                                if (d.includes(hash)) {
+                                    console.log('附件无效')
+                                    const attach = {
+                                        "attach_id": '',
+                                        "attach_type": 'invalid',
+                                        "attach_url": '',
+                                        "attach_name": '',
+                                        "attach_size": '',
+                                        "attach_time": getDateString()
+                                    };
+                                    await db.setItem(hash, attach);
+                                } else { console.log('附件未知错误: ' + d); };
+                                resolve(args[0]);
+                            };
+                        },
+                        error: function (d) {
+                            console.log('附件获取失败');
+                            reject(d.status);
+                        },
+                    });
+                }).catch(() => { return args[0]; });
+            };
+        });
+    });
+
 
     for (let i = 0, len = tempCode.length; i < len; i++) {
         // console.log(i + " : " + tempCode[i]);
         bbcodestr = bbcodestr.replace("<tempCode_" + i + ">", tempCode[i]);
-    }
+    };
 
     bbcodestr = bbcodestr.replace(/p3F#oW2@cEn_JHstp-&37DgD/g, "");
 
     if (/(<br>)$/.test(bbcodestr)) { bbcodestr = bbcodestr + '<br>' };
 
-    var htmlobj = $.parseHTML('<div>' + bbcodestr + '</div>');
+    let htmlobj = $.parseHTML('<div>' + bbcodestr + '</div>');
 
     $(htmlobj).children('fieldset').children('fieldset').children('fieldset').children('fieldset').each(function () {
         $(this).html($(this).html().replace(/(^<legend>[^<]*?<\/legend>)(.*)/i, function (s, x, y) {
@@ -943,6 +1030,19 @@ async function autoSaveUpload() {
 };
 
 
+// 异步 replace
+// https://stackoverflow.com/questions/33631041/javascript-async-await-in-replace
+async function replaceAsync(str, regex, asyncFn) {
+    const promises = [];
+    str.replace(regex, (match, ...args) => {
+        const promise = asyncFn(match, ...args);
+        promises.push(promise);
+    });
+    const data = await Promise.all(promises);
+    return str.replace(regex, () => data.shift());
+};
+
+
 // 当前时间 字符串格式
 function getDateString() {
     const time = new Date();
@@ -955,7 +1055,6 @@ function zero(obj) {
 };
 
 
-// 有时间整合两个相同作用的函数 auto_save_message - autoSaveMessage
 // elementButton 插入按钮的位置
 // elementBbcode BBCODE输入框
 // elementPost 提交按钮
@@ -1585,6 +1684,7 @@ async function basicFrame(title, type) {
 /**
 * 同步窗口大小变化
 */
+// https://developer.mozilla.org/zh-CN/docs/Web/API/MutationObserver
 function syncWindowChange(input, preview) {
     let MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
     let element = document.querySelector(input);
@@ -1609,7 +1709,7 @@ function syncWindowChange(input, preview) {
 * 监听用户动作
 * @param {string} type - BBCODE窗口类型
 */
-function btnListener(type) {
+async function btnListener(type) {
     // 下拉菜单监听
     $(`[name="${type}_bbcode_color"]`).change(function () { onEditorActionBox('COLOR', `#${type}_box_bbcode`, this.options[this.selectedIndex].value); this.selectedIndex = 0; });
     $(`[name="${type}_bbcode_font"]`).change(function () { onEditorActionBox('FONT', `#${type}_box_bbcode`, this.options[this.selectedIndex].value); this.selectedIndex = 0; });
@@ -1623,9 +1723,9 @@ function btnListener(type) {
     // 输入框右边表情，点击图标输入表情
     $(`[name="${type}_bbcode_smile"]`).click(function () { onEditorActionBox($(this).attr('href'), `#${type}_box_bbcode`); });
     // 监听各种按钮的点击事件
-    $(`[name="${type}_bbcode_color"],[name="${type}_bbcode_font"],[name="${type}_bbcode_size"],[name="${type}_bbcode_button"],[name="${type}_bbcode_smile"],td.embedded.${type}_smile-icon a`).click(async function () { $(`#${type}_bbcode2_box`).children('.child').html(bbcode2html($(`#${type}_box_bbcode`).val())); });
+    $(`[name="${type}_bbcode_color"],[name="${type}_bbcode_font"],[name="${type}_bbcode_size"],[name="${type}_bbcode_button"],[name="${type}_bbcode_smile"],td.embedded.${type}_smile-icon a`).click(async function () { $(`#${type}_bbcode2_box`).children('.child').html(await bbcode2html($(`#${type}_box_bbcode`).val())); });
     // 监听bbcode写入事件
-    $(`#${type}_box_bbcode`).bind('input propertychange', async function () { $(`#${type}_bbcode2_box`).children('.child').html(bbcode2html($(this).val())); });
+    $(`#${type}_box_bbcode`).bind('input propertychange', async function () { $(`#${type}_bbcode2_box`).children('.child').html(await bbcode2html($(this).val())); });
 
 };
 
@@ -1660,7 +1760,7 @@ function SmileIT2(smile, form, text) {
     // 不是POST返回的页面，不需要处理
     script.replace(/parent\.addTag\(parent\.document\.getElementById\("(?<element>.+?)"\)/, (...args) => {
         const { element } = args.slice(-1)[0];
-        $('body').append(`<script type="text/javascript">const ref=()=>{parent.document.getElementById('${element}').dispatchEvent(new Event('input'))};setTimeout(()=>{ref()},0);</script>`);
+        $('body').append(`<script type="text/javascript">const ref=()=>{parent.document.getElementById('${element}').dispatchEvent(new Event('input'))};ref();</script>`);
     });
 })();
 
@@ -1680,7 +1780,7 @@ function SmileIT2(smile, form, text) {
     await autoSaveMessage(`#${type}_bbcodejs_tbody_box`, `#${type}_box_bbcode`, `#${type}_post_box`, type, `${type}_compose_custom`);
     const $outer = $(`#${type}_outer`);
     // 监听按钮
-    btnListener(type);
+    await btnListener(type);
     // 同步窗口大小变化
     syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);
 
@@ -1730,7 +1830,7 @@ function SmileIT2(smile, form, text) {
     await autoSaveMessage(`#${type}_bbcodejs_tbody_box`, `#${type}_box_bbcode`, `#${type}_post_box`, type, `${type}_compose_custom`);
     const $outer = $(`#${type}_outer`);
     // 监听按钮
-    btnListener(type);
+    await btnListener(type);
     // 同步窗口大小变化
     syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);
 
@@ -1777,7 +1877,7 @@ function SmileIT2(smile, form, text) {
     const $outer = $(`#${type}_outer`);
 
     // 监听按钮
-    btnListener(type);
+    await btnListener(type);
     // 同步窗口大小变化
     syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);
 
@@ -1834,7 +1934,7 @@ function SmileIT2(smile, form, text) {
     await autoSaveMessage(`#${type}_bbcodejs_tbody_box`, `#${type}_box_bbcode`, `#${type}_post_box`, type, `${type}_compose_custom`);
     const $outer = $(`#${type}_outer`);
 
-    btnListener(type);  // 监听按钮
+    await btnListener(type);  // 监听按钮
     syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);  // 同步窗口大小变化
 
     // 关闭窗口
