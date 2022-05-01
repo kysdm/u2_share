@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.5
+// @version      0.4.6
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -736,7 +736,7 @@ async function bbcode2html(bbcodestr) {
                                     };
                                     await db.setItem(hash, attach);
                                 } else { console.log('附件未知错误: ' + d); };
-                                resolve(args[0]);
+                                resolve(`<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`);
                             };
                         },
                         error: function (d) {
