@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.0
+// @version      0.3.1
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -285,7 +285,7 @@ async function forumCommentHistoryReset() {
 
     $.ajax({
         type: 'post',
-        url: 'https://u2.kysdm.com/api/v1/comment/',
+        url: 'https://u2.kysdm.com/api/v1/comment',
         contentType: "application/json",
         dataType: 'json',
         data: JSON.stringify({ "uid": user_id, "token": token, "topicid": topicid, "type": "forum" }),
@@ -454,7 +454,7 @@ async function forumCommentHistory() {
 
     $.ajax({
         type: 'post',
-        url: 'https://u2.kysdm.com/api/v1/comment/',
+        url: 'https://u2.kysdm.com/api/v1/comment',
         contentType: "application/json",
         dataType: 'json',
         data: JSON.stringify({ "uid": user_id, "token": token, "topicid": topicid, "type": "forum" }),
@@ -513,7 +513,7 @@ async function torrentCommentHistory() {
     'use strict';
     $.ajax({
         type: 'post',
-        url: 'https://u2.kysdm.com/api/v1/comment/',
+        url: 'https://u2.kysdm.com/api/v1/comment',
         contentType: "application/json",
         dataType: 'json',
         data: JSON.stringify({ "uid": user_id, "token": token, "torrent_id": torrent_id, "type": "torrent" }),
@@ -701,7 +701,7 @@ async function torrentCommentHistoryReset() {
             $('#description').after(`<br><br><h1 align="center" id="startcomments" style="font-weight:normal; font-style: italic">正在加载用户评论...</h1><br>`);
             $.ajax({
                 type: 'post',
-                url: 'https://u2.kysdm.com/api/v1/comment/',
+                url: 'https://u2.kysdm.com/api/v1/comment',
                 contentType: "application/json",
                 dataType: 'json',
                 data: JSON.stringify({ "uid": user_id, "token": token, "torrent_id": torrent_id, "type": "torrent" }),
@@ -1240,7 +1240,7 @@ function getapi() {
         // https://www.w3school.com.cn/jquery/ajax_ajax.asp
         $.ajax({
             type: 'get',
-            url: 'https://u2.kysdm.com/api/v1/history/?token=' + token + '&maximum=50&uid=' + user_id + '&torrent=' + torrent_id,
+            url: 'https://u2.kysdm.com/api/v1/history?token=' + token + '&maximum=50&uid=' + user_id + '&torrent=' + torrent_id,
             contentType: 'application/json',
             dataType: 'json',
             cache: true,
