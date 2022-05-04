@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.0
+// @version      0.5.1
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -1822,7 +1822,7 @@ function SmileIT2(smile, form, text) {
     let type = 'shbox';
     const $shbox_button = $('#hbsubmit');  // 查找聊天版清除按钮
     if ($shbox_button.length === 0) return;  // 聊天版自动刷新时，会再次触发当前函数 || 未开启聊天版
-    $shbox_button.after(`<input id="${type}_bbcode" type="button" class="codebuttons" value="高级">`);
+    $shbox_button.after(`<input id="${type}_bbcode" type="button" class="${$('#hbsubmit').attr('class')}" value="高级">`);
     // 更改输入框类型
     $('#shbox_text').each(function () {
         const textarea = $(document.createElement('textarea')).attr({
