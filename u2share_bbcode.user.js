@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.9
+// @version      0.5.0
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -1850,8 +1850,27 @@ function SmileIT2(smile, form, text) {
     $(`#${type}_close_box`).click(function () { $outer.hide(); });
     // 发送
     $(`#${type}_post_box`).click(function () {
+        // 更改输入框类型 方法有点蠢，懒的改，又不是不能用
+        $('#shbox_text').each(function () {
+            const textarea = $(document.createElement('textarea')).attr({
+                'name': $(this).attr('name'),
+                'id': $(this).attr('id'),
+                'size': $(this).attr('size'),
+                'style': $(this).attr('style')
+            });
+            $(this).replaceWith(textarea);
+        });
         $('#shbox_text').val($(`#${type}_box_bbcode`).val());
         $('[name="shbox"]').trigger("submit");
+        $('#shbox_text').each(function () {
+            const textarea = $(document.createElement('input')).attr({
+                'name': $(this).attr('name'),
+                'id': $(this).attr('id'),
+                'size': $(this).attr('size'),
+                'style': $(this).attr('style')
+            });
+            $(this).replaceWith(textarea);
+        });
         $outer.hide();
     });
     //点击按钮
