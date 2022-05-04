@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.1
+// @version      0.3.2
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -1118,25 +1118,25 @@ function bbcode2html(bbcodestr) {
 
     // 图片
     bbcodestr = bbcodestr.replace(/\[(img|imglnk)\]([^\]]+)\[\/(?:\1)\]/gi, function (s, x, y) {
-        if (/^https?:\/\/((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(y)) {
+        if (/^((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg)$/i.test(y)) {
+            // url 以 .png 之类结尾
             switch (x) {
                 case 'img':
                     return addTempCode('<img alt="image" src="' + y + '" style="height: auto; width: auto; max-width: 100%;">');
                 case 'imglnk':
                     return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="'
                         + y + '" style="height: auto; width: auto; max-width: 100%;"></a>');
-            }
-        } else {
-            return addTempCode(s);
-        }
+            };
+        };
+        return addTempCode(s);
     });
 
     bbcodestr = bbcodestr.replace(/\[img=([^\]]+)\]/gi, function (s, x) {
-        if (/^https?:\/\/((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]).)+$/i.test(x)) {
+        if (/^((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg)$/i.test(x)) {
+            // url 以 .png 之类结尾
             return addTempCode('<img alt="image" src="' + x + '" style="height: auto; width: auto; max-width: 100%;">');
-        } else {
-            return addTempCode(s);
-        }
+        };
+        return s;
     });
 
     // 没有bbcode包裹的超链接
