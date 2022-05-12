@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.3
+// @version      0.5.4
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -57,7 +57,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
     if (jq('.bbcode').length === 0) return;  // 判断页面是否存在 bbcode 输入框
     new init();
     const url = location.href.match(/u2\.dmhy\.org\/(upload|forums|comment|contactstaff|sendmessage|edit)\.php/i);
-    if (url == null) return;
+    if (url === null) return;
     await syncScroll('#bbcodejs_tbody', url[1], '.bbcode', '#bbcode2');
     if (url[1] === 'upload') { await autoSaveUpload(); } else { await autoSaveMessage('#bbcodejs_tbody', '.bbcode', '#qr', url[1], '#compose'); }
 
@@ -1989,4 +1989,34 @@ function SmileIT2(smile, form, text) {
         jq(`#${type}_box_bbcode`).trigger("input");
         jq(`#${type}_post_box`).attr("value", '填写');
     });
+})();
+
+
+// 将 attach 标签内的图片转为 img 标签 <attach的图片太糊了，要大图还要点一下，好麻烦xd>
+(async () => {
+    if (location.pathname !== '/attachment.php') return;
+    const db = localforage.createInstance({ name: "attachmap" });
+    jq('[name=submit]').after(`<input id="bigimg" type="button" value="转IMG">`);
+
+    jq(`#bigimg`).click(async function () {
+        let em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);
+        if (!em) return;  // 没有找到id直接返回 
+        let cbbcode = jq(`#${em.groups.id}`, window.parent.document).val();
+        cbbcode = await replaceAsync(cbbcode, /\[attach\](?<hash>\w{32})\[\/attach\]/gi, async (...args) => {
+            const { hash } = args.slice(-1)[0];
+            return await db.getItem(hash).then(async (value) => {
+                if (value !== null) if (value.attach_type === 'img') return `[img]${value.attach_url}[/img]`
+                // 没有匹配到数据时，直接返回原标签
+                return args[0];
+            });
+        });
+
+        // console.log(cbbcode);
+        jq(`#${em.groups.id}`, window.parent.document).val(cbbcode);
+        // 手动触发bbcode内容更改
+        // jq(`#${em.groups.id}`, window.parent.document).trigger("input");
+        window.parent.document.getElementById(em.groups.id).dispatchEvent(new Event('input'));
+
+    });
+
 })();
