@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.2
+// @version      0.5.3
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
 // @match        *://u2.dmhy.org/*
 // @exclude      *://u2.dmhy.org/shoutbox.php*
 // @icon         https://u2.dmhy.org/favicon.ico
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // @license      Apache-2.0
 // ==/UserScript==
@@ -43,42 +43,45 @@ GreasyFork 地址
 'use strict';
 
 // 声明全局变量
-var lang = new lang_init($('#locale_selection').val());;
+// https://api.jquery.com/jQuery.noConflict/
+const jq = jQuery.noConflict();
+// 网站语言
+const lang = new lang_init(jq('#locale_selection').val());;
 // CSS
-$('body').append(`<style type="text/css">td.smile-icon { padding: 3px !important; }</style>`);
+jq('body').append(`<style type="text/css">td.smile-icon { padding: 3px !important; }</style>`);
 // JS
-$('body').append(`<script type="text/javascript"> function createTag(name,attribute,content){var components=[];components.push('[');components.push(name);if(attribute!==null){components.push('=');components.push(attribute)}components.push(']');if(content!==null){components.push(content);components.push('[/');components.push(name);components.push(']')}return components.join('')};function replaceText(str,start,end,replacement){return str.substring(0,start)+replacement+str.substring(end)};function addTag(textArea,name,attribute,content,surround){var selStart=textArea.selectionStart;var selEnd=textArea.selectionEnd;if(selStart===null||selEnd===null){selStart=selEnd=textArea.value.length}var selTarget=selStart+name.length+2+(attribute?attribute.length+1:0);if(selStart===selEnd){textArea.value=replaceText(textArea.value,selStart,selEnd,createTag(name,attribute,content))}else{var replacement=null;if(surround){replacement=createTag(name,attribute,textArea.value.substring(selStart,selEnd))}else{replacement=createTag(name,attribute,content)}textArea.value=replaceText(textArea.value,selStart,selEnd,replacement)}textArea.setSelectionRange(selTarget,selTarget)};</script>`);
+jq('body').append(`<script type="text/javascript"> function createTag(name,attribute,content){var components=[];components.push('[');components.push(name);if(attribute!==null){components.push('=');components.push(attribute)}components.push(']');if(content!==null){components.push(content);components.push('[/');components.push(name);components.push(']')}return components.join('')};function replaceText(str,start,end,replacement){return str.substring(0,start)+replacement+str.substring(end)};function addTag(textArea,name,attribute,content,surround){var selStart=textArea.selectionStart;var selEnd=textArea.selectionEnd;if(selStart===null||selEnd===null){selStart=selEnd=textArea.value.length}var selTarget=selStart+name.length+2+(attribute?attribute.length+1:0);if(selStart===selEnd){textArea.value=replaceText(textArea.value,selStart,selEnd,createTag(name,attribute,content))}else{var replacement=null;if(surround){replacement=createTag(name,attribute,textArea.value.substring(selStart,selEnd))}else{replacement=createTag(name,attribute,content)}textArea.value=replaceText(textArea.value,selStart,selEnd,replacement)}textArea.setSelectionRange(selTarget,selTarget)};</script>`);
 
 // 现存BBCODE元素
 (async () => {
-    if ($('.bbcode').length === 0) return;  // 判断页面是否存在 bbcode 输入框
+    if (jq('.bbcode').length === 0) return;  // 判断页面是否存在 bbcode 输入框
     new init();
     const url = location.href.match(/u2\.dmhy\.org\/(upload|forums|comment|contactstaff|sendmessage|edit)\.php/i);
     if (url == null) return;
     await syncScroll('#bbcodejs_tbody', url[1], '.bbcode', '#bbcode2');
     if (url[1] === 'upload') { await autoSaveUpload(); } else { await autoSaveMessage('#bbcodejs_tbody', '.bbcode', '#qr', url[1], '#compose'); }
 
-    $('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
+    jq('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
         + '</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2">'
-        + '<div id="bbcode2" style="min-height: 25px; max-height: ' + ($('.bbcode').height() + 30) + 'px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;">'
-        + '<div class="child">' + await bbcode2html($('.bbcode').val()) + '</div></div></td></tr></tbody></table></td>');
+        + '<div id="bbcode2" style="min-height: 25px; max-height: ' + (jq('.bbcode').height() + 30) + 'px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;">'
+        + '<div class="child">' + await bbcode2html(jq('.bbcode').val()) + '</div></div></td></tr></tbody></table></td>');
 
     syncWindowChange('.bbcode', '#bbcode2');
 
-    $('.bbcode').bind('input propertychange', async function updateValue() {
-        let html = await bbcode2html($(this).val());
-        $('#bbcode2').children('.child').html(html);
+    jq('.bbcode').bind('input propertychange', async function updateValue() {
+        let html = await bbcode2html(jq(this).val());
+        jq('#bbcode2').children('.child').html(html);
     });
 
-    $('.codebuttons').click(async function updateValue() {
-        let html = await bbcode2html($('.bbcode').val());
-        $('#bbcode2').children('.child').html(html);
+    jq('.codebuttons').click(async function updateValue() {
+        let html = await bbcode2html(jq('.bbcode').val());
+        jq('#bbcode2').children('.child').html(html);
     });
 
-    $("td.embedded.smile-icon a").click(async function updateValue() {
+    jq("td.embedded.smile-icon a").click(async function updateValue() {
         await sleep(0);
-        let html = await bbcode2html($('.bbcode').val());
-        $('#bbcode2').children('.child').html(html);
+        let html = await bbcode2html(jq('.bbcode').val());
+        jq('#bbcode2').children('.child').html(html);
     });
 
     if (/u2\.dmhy\.org\/upload\.php/i.test(location.href)) {
@@ -94,91 +97,91 @@ $('body').append(`<script type="text/javascript"> function createTag(name,attrib
         var main_title = '<font color="red"><b>' + lang['select_type'] + '</b></font>';
 
         function add_main_title() {
-            var type_id = $('#browsecat').val();
+            var type_id = jq('#browsecat').val();
             if (type_id === '0') {
                 // console.log('请选择分类...');
                 main_title = '<font color="red"><b>' + lang['select_type'] + '</b></font>';
             } else if (['9', '411', '413', '12', '13', '14', '15', '16', '17', '410', '412'].indexOf(type_id) !== -1) {
                 // console.log('分类ID是： ' + type_id + ' anime');
                 main_title = '<b>'
-                    + add_brackets($('#anime_chinese-input').val())
-                    + add_brackets($('#anime_english-input').val())
-                    + add_brackets($('#anime_original-input').val())
-                    + add_brackets($('#anime_source-input').val())
-                    + add_brackets($('#anime_resolution-input').val())
-                    + add_brackets($('#anime_episode-input').val())
-                    + add_brackets($('#anime_container-input').val())
-                    + add_brackets($('#anime_extra-input').val())
+                    + add_brackets(jq('#anime_chinese-input').val())
+                    + add_brackets(jq('#anime_english-input').val())
+                    + add_brackets(jq('#anime_original-input').val())
+                    + add_brackets(jq('#anime_source-input').val())
+                    + add_brackets(jq('#anime_resolution-input').val())
+                    + add_brackets(jq('#anime_episode-input').val())
+                    + add_brackets(jq('#anime_container-input').val())
+                    + add_brackets(jq('#anime_extra-input').val())
                     + '</b>';
             } else if (['21', '22', '23'].indexOf(type_id) !== -1) {
                 // console.log('分类ID是： ' + type_id + ' manga');
                 main_title = '<b>'
-                    + add_brackets($('#manga_title-input').val())
-                    + add_brackets($('#manga_author-input').val())
-                    + add_brackets($('#manga_volume-input').val())
-                    + add_brackets($('#manga_ended').find("select").val())
-                    + add_brackets($('#manga_publisher-input').val())
-                    + add_brackets($('#manga_remark-input').val())
+                    + add_brackets(jq('#manga_title-input').val())
+                    + add_brackets(jq('#manga_author-input').val())
+                    + add_brackets(jq('#manga_volume-input').val())
+                    + add_brackets(jq('#manga_ended').find("select").val())
+                    + add_brackets(jq('#manga_publisher-input').val())
+                    + add_brackets(jq('#manga_remark-input').val())
                     + '</b>';
             } else if (type_id === '30') {
                 // console.log('分类ID是： ' + type_id + ' music');
-                var prefix_1 = $('#music_prefix').find("select").val();
-                var prefix_2 = $('#music_collection').find("select").val();
+                var prefix_1 = jq('#music_prefix').find("select").val();
+                var prefix_2 = jq('#music_collection').find("select").val();
                 if (['EAC', 'XLD'].indexOf(prefix_1) !== -1) { var music_quality = false; }
                 else if (['Hi-Res', 'Web'].indexOf(prefix_1) !== -1) { var music_quality = true; };
                 switch (prefix_2) {
                     case "0": // 单张
                         main_title = '<b>'
                             + add_brackets(prefix_1)
-                            + add_brackets($('#music_date-input').val())
-                            + add_brackets($('#music_category-input').val())
-                            + add_brackets($('#music_artist-input').val())
-                            + add_brackets($('#music_title-input').val())
-                            + add_brackets($('#music_serial_number-input').val())
-                            + add_brackets((() => { if (music_quality) { return $('#music_quality-input').val(); } else { return ''; } })())
-                            + add_brackets($('#music_format-input').val())
+                            + add_brackets(jq('#music_date-input').val())
+                            + add_brackets(jq('#music_category-input').val())
+                            + add_brackets(jq('#music_artist-input').val())
+                            + add_brackets(jq('#music_title-input').val())
+                            + add_brackets(jq('#music_serial_number-input').val())
+                            + add_brackets((() => { if (music_quality) { return jq('#music_quality-input').val(); } else { return ''; } })())
+                            + add_brackets(jq('#music_format-input').val())
                             + '</b>';
                         break;
                     case "1": // 合集
                         main_title = '<b>'
                             + add_brackets(prefix_1)
                             + add_brackets('合集')
-                            + add_brackets($('#music_category-input').val())
-                            + add_brackets($('#music_title-input').val())
-                            + add_brackets($('#music_quantity-input').val())
-                            + add_brackets((() => { if (music_quality) { return $('#music_quality-input').val(); } else { return ''; } })())
+                            + add_brackets(jq('#music_category-input').val())
+                            + add_brackets(jq('#music_title-input').val())
+                            + add_brackets(jq('#music_quantity-input').val())
+                            + add_brackets((() => { if (music_quality) { return jq('#music_quality-input').val(); } else { return ''; } })())
                             + '</b>';
                         break;
                 }
             } else if (type_id === '40') {
                 // console.log('分类ID是： ' + type_id + ' other');
-                main_title = '<b>' + $('#other_title-input').val() + '</b>';
+                main_title = '<b>' + jq('#other_title-input').val() + '</b>';
             } else {
                 // console.log('分类ID是： ' + type_id);
             }
-            $('#checktitle').html(check_title(main_title));
+            jq('#checktitle').html(check_title(main_title));
         }
 
-        $("#browsecat").change(() => { new add_main_title; })
-        $(".torrent-info-input").bind('input propertychange', () => { new add_main_title; });
-        $('#other_title').after('<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['main_title'] + '</td>'
+        jq("#browsecat").change(() => { new add_main_title; })
+        jq(".torrent-info-input").bind('input propertychange', () => { new add_main_title; });
+        jq('#other_title').after('<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['main_title'] + '</td>'
             + '<td id="checktitle" class="rowfollow" valign="top" align="left" valign="middle">' + main_title + '</td></tr>'
         );
     };
 
 
     function init() {
-        var h1 = $('.codebuttons').eq(6).parent().html();
-        var h2 = $('.codebuttons').eq(7).parent().html();
-        var h3 = $('.codebuttons').eq(8).parent().html();
-        $('.codebuttons').eq(8).parent().remove();
-        $('.codebuttons').eq(7).parent().remove();
-        $('.codebuttons').eq(6).parent().remove();
+        var h1 = jq('.codebuttons').eq(6).parent().html();
+        var h2 = jq('.codebuttons').eq(7).parent().html();
+        var h3 = jq('.codebuttons').eq(8).parent().html();
+        jq('.codebuttons').eq(8).parent().remove();
+        jq('.codebuttons').eq(7).parent().remove();
+        jq('.codebuttons').eq(6).parent().remove();
 
-        $('.codebuttons').eq(2).parent().after('<td class="embedded"><input class="codebuttons" style="text-decoration: line-through;'
+        jq('.codebuttons').eq(2).parent().after('<td class="embedded"><input class="codebuttons" style="text-decoration: line-through;'
             + 'font-size:11px;margin-right:3px" type="button" value="S" onclick="onEditorActionS(\'descr\', \'EDITOR_S\')">');
 
-        $('.codebuttons').eq(5).parent()
+        jq('.codebuttons').eq(5).parent()
             .after('<td class="embedded"><input class="codebuttons" style="'
                 + 'font-size:11px;margin-right:3px" type="button" value="CODE" onclick="onEditorActionS(\'descr\', \'EDITOR_CODE\')">')
             .after('<td class="embedded"><input class="codebuttons" style="'
@@ -188,9 +191,9 @@ $('body').append(`<script type="text/javascript"> function createTag(name,attrib
             .after('<td class="embedded"><input class="codebuttons" style="'
                 + 'font-size:11px;margin-right:3px" type="button" value="RT*" onclick="onEditorActionS(\'descr\', \'EDITOR_RT\')">');
 
-        // $('.codebuttons').eq(10).attr("onclick", "onEditorActionS('descr','EDITOR_QUOTE')");
+        // jq('.codebuttons').eq(10).attr("onclick", "onEditorActionS('descr','EDITOR_QUOTE')");
 
-        $('.codebuttons').eq(10).parent()
+        jq('.codebuttons').eq(10).parent()
             .after('<td class="embedded"><input class="codebuttons" style="'
                 + 'font-size:11px;margin-right:3px" type="button" value="SPOILER*" onclick="onEditorActionS(\'descr\', \'EDITOR_SPOILER+\')">')
             .after('<td class="embedded"><input class="codebuttons" style="'
@@ -202,20 +205,20 @@ $('body').append(`<script type="text/javascript"> function createTag(name,attrib
             .after('<td class="embedded"><input class="codebuttons" style="'
                 + 'font-size:11px;margin-right:3px" type="button" value="QUOTE*" onclick="onEditorActionS(\'descr\', \'EDITOR_QUOTE+\')">');
 
-        $('.codebuttons').eq(4)
+        jq('.codebuttons').eq(4)
             .attr("onclick", "onEditorActionS('descr','EDITOR_URL')")
             .parent().after('<td class="embedded"><input class="codebuttons" style="'
                 + 'font-size:11px;margin-right:3px" type="button" value="URL*" onclick="onEditorActionS(\'descr\', \'EDITOR_URL+\')">'
             );
 
-        $('.codebuttons').parents('table').eq(0).after('<div id="bbcodejs_tbody" style="position:relative; margin-top: 4px"></div>');
+        jq('.codebuttons').parents('table').eq(0).after('<div id="bbcodejs_tbody" style="position:relative; margin-top: 4px"></div>');
 
-        $('#bbcodejs_tbody').append('<div id="bbcodejs_select" style="position: absolute; margin-top:2px; margin-bottom:2px; float: left;">' + h1 + h2 + h3 + '</div>');
+        jq('#bbcodejs_tbody').append('<div id="bbcodejs_select" style="position: absolute; margin-top:2px; margin-bottom:2px; float: left;">' + h1 + h2 + h3 + '</div>');
 
-        const margin = $('.codebuttons').parents('tbody').eq(0).width() - $("#bbcodejs_select").width() - 2.6;
-        $("#bbcodejs_select").css("margin-left", margin + "px");
+        const margin = jq('.codebuttons').parents('tbody').eq(0).width() - jq("#bbcodejs_select").width() - 2.6;
+        jq("#bbcodejs_select").css("margin-left", margin + "px");
 
-        $('body').append(
+        jq('body').append(
             '<script type="text/javascript">\n\
     function onEditorActionS(textAreaId, action, param) {\n\
         var textArea = document.querySelector(".bbcode");\n\
@@ -672,27 +675,27 @@ async function bbcode2html(bbcodestr) {
             } else {
                 // console.log('数据不存在');
                 return await new Promise((resolve, reject) => {
-                    $.ajax({
+                    jq.ajax({
                         type: 'post',
                         url: 'https://u2.dmhy.org/preview.php',
                         contentType: "application/x-www-form-urlencoded",
                         data: ({ "body": `[attach]${hash}[/attach]` }),
                         success: async function (d) {
                             // console.log('成功');
-                            let htmlobj = $.parseHTML(d);
-                            let span = $(htmlobj).find('span');
-                            let attach_normal = $(span).children('bdo').children('div.attach'); // 普通附件
-                            let attach_image = $(span).children('bdo').children('img'); // 图片附件
+                            let htmlobj = jq.parseHTML(d);
+                            let span = jq(htmlobj).find('span');
+                            let attach_normal = jq(span).children('bdo').children('div.attach'); // 普通附件
+                            let attach_image = jq(span).children('bdo').children('img'); // 图片附件
                             if (attach_normal.length !== 0 && attach_image.length === 0) {
                                 // console.log('普通附件');
                                 // console.log(attach_normal);
-                                let attach_info_obj = /(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec($(attach_normal).children('a').attr('onmouseover'));
+                                let attach_info_obj = /(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec(jq(attach_normal).children('a').attr('onmouseover'));
                                 const attach = {
-                                    "attach_id": $(attach_normal).children('a').attr('id').replace('attach', ''),
+                                    "attach_id": jq(attach_normal).children('a').attr('id').replace('attach', ''),
                                     "attach_type": 'other',
-                                    "attach_url": $(attach_normal).children('a').attr('href'),
-                                    "attach_name": $(attach_normal).children('a').text(),
-                                    "attach_size": $(attach_normal).children('span.size').text().slice(1, -1),
+                                    "attach_url": jq(attach_normal).children('a').attr('href'),
+                                    "attach_name": jq(attach_normal).children('a').text(),
+                                    "attach_size": jq(attach_normal).children('span.size').text().slice(1, -1),
                                     "attach_time": attach_info_obj ? attach_info_obj.groups.time : ''
                                 };
                                 // 写入数据库
@@ -707,13 +710,13 @@ async function bbcode2html(bbcodestr) {
                             else if (attach_normal.length === 0 && attach_image.length !== 0) {
                                 // console.log('图片附件');
                                 // 附件唯一标识符
-                                let attach_url_obj = /^Previewurl\(['"](?<url>[^'"]+)['"]\)/i.exec($(attach_image).attr('onclick'));
-                                let attach_info_obj = /(?<size>\d{1,4}\.\d{1,3}\s?[TGMK]iB).*(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec($(attach_image).attr('onmouseover'));
+                                let attach_url_obj = /^Previewurl\(['"](?<url>[^'"]+)['"]\)/i.exec(jq(attach_image).attr('onclick'));
+                                let attach_info_obj = /(?<size>\d{1,4}\.\d{1,3}\s?[TGMK]iB).*(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec(jq(attach_image).attr('onmouseover'));
                                 const attach = {
-                                    "attach_id": $(attach_image).attr('id').replace('attach', ''),
+                                    "attach_id": jq(attach_image).attr('id').replace('attach', ''),
                                     "attach_type": 'img',
                                     "attach_url": attach_url_obj ? attach_url_obj.groups.url : '',
-                                    "attach_name": $(attach_image).attr('alt'),
+                                    "attach_name": jq(attach_image).attr('alt'),
                                     "attach_size": attach_info_obj ? attach_info_obj.groups.size : '',
                                     "attach_time": attach_info_obj ? attach_info_obj.groups.time : ''
                                 };
@@ -760,10 +763,10 @@ async function bbcode2html(bbcodestr) {
 
     if (/(<br>)$/.test(bbcodestr)) { bbcodestr = bbcodestr + '<br>' };
 
-    let htmlobj = $.parseHTML('<div>' + bbcodestr + '</div>');
+    let htmlobj = jq.parseHTML('<div>' + bbcodestr + '</div>');
 
-    $(htmlobj).children('fieldset').children('fieldset').children('fieldset').children('fieldset').each(function () {
-        $(this).html($(this).html().replace(/(^<legend>[^<]*?<\/legend>)(.*)/i, function (s, x, y) {
+    jq(htmlobj).children('fieldset').children('fieldset').children('fieldset').children('fieldset').each(function () {
+        jq(this).html(jq(this).html().replace(/(^<legend>[^<]*?<\/legend>)(.*)/i, function (s, x, y) {
             return x + '<table class="spoiler" width="100%"><tbody>'
                 + '<tr><td class="colhead">' + lang['auto_fold'] + '&nbsp;&nbsp;'
                 + '<button class="spoiler-button-show" style="display: none;">' + lang['spoiler_button_1'] + '</button>'
@@ -773,7 +776,7 @@ async function bbcode2html(bbcodestr) {
         }))
     });
 
-    return $(htmlobj).html();
+    return jq(htmlobj).html();
 };
 
 
@@ -880,7 +883,7 @@ async function autoSaveUpload() {
     let num = 10; // 设置自动保存时间间隔
     let type = 'upload';
 
-    $('#bbcodejs_tbody').append(`<span id="${type}_auto_save_on" style="margin-top:4px; display: none;">`
+    jq('#bbcodejs_tbody').append(`<span id="${type}_auto_save_on" style="margin-top:4px; display: none;">`
         + `<input id="${type}_switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">`
         + `<input id="${type}_clean" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="清空数据">`
         + `<span id="${type}_auto_save_text" style="display: none;">&nbsp;&nbsp;正在保存...</span></span>`
@@ -889,13 +892,13 @@ async function autoSaveUpload() {
     );
 
     // 为自动保存按钮绑定事件
-    $(`#${type}_auto_save_on`).click(async function (ev) {
-        let button_id = $(ev.target).attr('id');
+    jq(`#${type}_auto_save_on`).click(async function (ev) {
+        let button_id = jq(ev.target).attr('id');
         switch (button_id) {
             case `${type}_switch`:
-                $(this).hide(); // 隐藏按钮
-                $(`#${type}_auto_save_off`).fadeIn(200); // 渐入按钮
-                clearInterval($(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
+                jq(this).hide(); // 隐藏按钮
+                jq(`#${type}_auto_save_off`).fadeIn(200); // 渐入按钮
+                clearInterval(jq(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
                 await db.setItem(`${type}_autoSaveMessageSwitch`, false)
                 console.log(`${type}-自动保存已关闭`);
                 break;
@@ -908,22 +911,22 @@ async function autoSaveUpload() {
         };
     });
 
-    $(`#${type}_auto_save_off`).click(async function () {
-        $(this).hide();
-        $(`#${type}_auto_save_on`).fadeIn(200);
-        $(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
+    jq(`#${type}_auto_save_off`).click(async function () {
+        jq(this).hide();
+        jq(`#${type}_auto_save_on`).fadeIn(200);
+        jq(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
         await db.setItem(`${type}_autoSaveMessageSwitch`, true)
         console.log(`${type}-自动保存已开启`);
     });
 
     // 提交候选后 删除所有保存的记录 (如果要还原记录，直接返回上一页即可。)
-    $("#qr").click(async function () {
+    jq("#qr").click(async function () {
         await clean();
         console.log(`${type}-提交上传请求`);
     });
 
     async function clean() {
-        clearInterval($(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
+        clearInterval(jq(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
         await db.removeItem(`${type}_autoSaveMessageTime`);
         await db.removeItem(`${type}_autoSaveMessageBbcode`);
         await db.removeItem(`${type}_autoSaveMessageSmallDescr`);
@@ -937,46 +940,46 @@ async function autoSaveUpload() {
     db.getItem(`${type}_autoSaveMessageSwitch`).then(async (value) => {
         if (value) {
             // 启用自动保存
-            $(`#${type}_auto_save_on`).show();
-            $(`#${type}_auto_save_off`).hide();
-            $(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
+            jq(`#${type}_auto_save_on`).show();
+            jq(`#${type}_auto_save_off`).hide();
+            jq(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
             console.log(`${type}-自动保存已开启`);
             // 检查输入框内是否已经存在字符串
             let _input_bool = true
-            $("#compose input[id$='-input']").add('#browsecat').add('.bbcode').each(function () {
-                let _input = $(this).val()
+            jq("#compose input[id$='-input']").add('#browsecat').add('.bbcode').each(function () {
+                let _input = jq(this).val()
                 if (_input !== "" && _input !== "0") { _input_bool = false; return; } // 把input和select一起做判断了 总没人在标题里单独打个0吧
             });
             // 当输入框是空白时 还原上次备份内容
             if (_input_bool) {
-                await db.getItem(`${type}_autoSaveMessageSmallDescr`).then((value) => { $('[name="small_descr"]').val(value); })
-                await db.getItem(`${type}_autoSaveMessagePoster`).then((value) => { $('[name="poster"]').val(value); });
-                await db.getItem(`${type}_autoSaveMessageAnidbUrl`).then((value) => { $('[name="anidburl"]').val(value); });
+                await db.getItem(`${type}_autoSaveMessageSmallDescr`).then((value) => { jq('[name="small_descr"]').val(value); })
+                await db.getItem(`${type}_autoSaveMessagePoster`).then((value) => { jq('[name="poster"]').val(value); });
+                await db.getItem(`${type}_autoSaveMessageAnidbUrl`).then((value) => { jq('[name="anidburl"]').val(value); });
                 await db.getItem(`${type}_autoSaveMessageInfo`).then((value) => {
                     if (value === null) return;
-                    $('#browsecat').val(value['category']);
-                    $('#browsecat').change(); // 手动触发列表更改事件
-                    $('#autocheck_placeholder').children().eq(0).prop("checked", value['auto_pass']);
-                    $('#autocheck_placeholder').children().eq(1).prop("checked", !value['auto_pass']);
-                    for (var key in value) { if (/^(anime|manga|music|other)/.test(key)) { $('#' + key + '-input').val(value[key]); }; };
+                    jq('#browsecat').val(value['category']);
+                    jq('#browsecat').change(); // 手动触发列表更改事件
+                    jq('#autocheck_placeholder').children().eq(0).prop("checked", value['auto_pass']);
+                    jq('#autocheck_placeholder').children().eq(1).prop("checked", !value['auto_pass']);
+                    for (var key in value) { if (/^(anime|manga|music|other)/.test(key)) { jq('#' + key + '-input').val(value[key]); }; };
                 });
-                await db.getItem(`${type}_autoSaveMessageBbcode`).then((value) => { $('.bbcode').val(value); }) // 还原bbcode输入框内容
-                $('[class^="torrent-info-input"]').trigger("input"); // 手动触发标题更改
-                $('.bbcode').trigger("input"); // 手动触发bbcode更改
+                await db.getItem(`${type}_autoSaveMessageBbcode`).then((value) => { jq('.bbcode').val(value); }) // 还原bbcode输入框内容
+                jq('[class^="torrent-info-input"]').trigger("input"); // 手动触发标题更改
+                jq('.bbcode').trigger("input"); // 手动触发bbcode更改
                 console.log(`${type}-已还原备份`);
             };
         } else {
             // 关闭自动保存
-            $(`#${type}_auto_save_on`).hide();
-            $(`#${type}_auto_save_off`).show();
+            jq(`#${type}_auto_save_on`).hide();
+            jq(`#${type}_auto_save_off`).show();
             await db.setItem(`${type}_autoSaveMessageSwitch`, false)
             console.log(`${type}-自动保存已关闭`);
         }
     }).catch(async function (err) {
         // 第一次运行时 <第一次运行时 数据库里什么都没有>
         // 这段其实也没什么用 数据库中如果没有这个键值 会返回 undefined
-        $(`#${type}_auto_save_on`).hide();
-        $(`#${type}_auto_save_off`).show();
+        jq(`#${type}_auto_save_on`).hide();
+        jq(`#${type}_auto_save_off`).show();
         await db.setItem(`${type}_autoSaveMessageSwitch`, false)
         console.log(`${type}-第一次运行`);
         console.log(`${type}-${err}`);
@@ -987,45 +990,45 @@ async function autoSaveUpload() {
         num--
         // console.log(num);
         if (num <= 0) {
-            $(`#${type}_auto_save_text`).fadeIn(2000);
+            jq(`#${type}_auto_save_text`).fadeIn(2000);
             await db.setItem(`${type}_autoSaveMessageTime`, getDateString()) // 记录保存数据的时间 string
-            await db.setItem(`${type}_autoSaveMessageBbcode`, $('.bbcode').val()) // 保存 bbcode 输入框内容
+            await db.setItem(`${type}_autoSaveMessageBbcode`, jq('.bbcode').val()) // 保存 bbcode 输入框内容
             // 倒是可以跑循环 直接拿到数据 就不用写这么大一堆了 (
             let upload_info = {
-                "category": $('#browsecat').val(),
-                "auto_pass": $('#autocheck_placeholder').children().eq(0).is(':checked'),
-                "anime_chinese": $('#anime_chinese-input').val(),
-                "anime_english": $('#anime_english-input').val(),
-                "anime_original": $('#anime_original-input').val(),
-                "anime_source": $('#anime_source-input').val(),
-                "anime_resolution": $('#anime_resolution-input').val(),
-                "anime_episode": $('#anime_episode-input').val(),
-                "anime_container": $('#anime_container-input').val(),
-                "anime_extra": $('#anime_extra-input').val(),
-                "manga_title": $('#manga_title-input').val(),
-                "manga_author": $('#manga_author-input').val(),
-                "manga_volume": $('#manga_volume-input').val(),
-                "manga_ended": $('#manga_ended-input').val(),
-                "manga_publisher": $('#manga_publisher-input').val(),
-                "manga_remark": $('#manga_remark-input').val(),
-                "music_prefix": $('#music_prefix-input').val(),
-                "music_collection": $('#music_collection-input').val(),
-                "music_date": $('#music_date-input').val(),
-                "music_category": $('#music_category-input').val(),
-                "music_artist": $('#music_artist-input').val(),
-                "music_title": $('#music_title-input').val(),
-                "music_serial_number": $('#music_serial_number-input').val(),
-                "music_quantity": $('#music_quantity-input').val(),
-                "music_quality": $('#music_quality-input').val(),
-                "music_format": $('#music_format-input').val(),
-                "other_title": $('#other_title-input').val()
+                "category": jq('#browsecat').val(),
+                "auto_pass": jq('#autocheck_placeholder').children().eq(0).is(':checked'),
+                "anime_chinese": jq('#anime_chinese-input').val(),
+                "anime_english": jq('#anime_english-input').val(),
+                "anime_original": jq('#anime_original-input').val(),
+                "anime_source": jq('#anime_source-input').val(),
+                "anime_resolution": jq('#anime_resolution-input').val(),
+                "anime_episode": jq('#anime_episode-input').val(),
+                "anime_container": jq('#anime_container-input').val(),
+                "anime_extra": jq('#anime_extra-input').val(),
+                "manga_title": jq('#manga_title-input').val(),
+                "manga_author": jq('#manga_author-input').val(),
+                "manga_volume": jq('#manga_volume-input').val(),
+                "manga_ended": jq('#manga_ended-input').val(),
+                "manga_publisher": jq('#manga_publisher-input').val(),
+                "manga_remark": jq('#manga_remark-input').val(),
+                "music_prefix": jq('#music_prefix-input').val(),
+                "music_collection": jq('#music_collection-input').val(),
+                "music_date": jq('#music_date-input').val(),
+                "music_category": jq('#music_category-input').val(),
+                "music_artist": jq('#music_artist-input').val(),
+                "music_title": jq('#music_title-input').val(),
+                "music_serial_number": jq('#music_serial_number-input').val(),
+                "music_quantity": jq('#music_quantity-input').val(),
+                "music_quality": jq('#music_quality-input').val(),
+                "music_format": jq('#music_format-input').val(),
+                "other_title": jq('#other_title-input').val()
             };
             await db.setItem(`${type}_autoSaveMessageInfo`, upload_info);
-            await db.setItem(`${type}_autoSaveMessageSmallDescr`, $('[name="small_descr"]').val());
-            await db.setItem(`${type}_autoSaveMessagePoster`, $('[name="poster"]').val());
-            await db.setItem(`${type}_autoSaveMessageAnidbUrl`, $('[name="anidburl"]').val());
+            await db.setItem(`${type}_autoSaveMessageSmallDescr`, jq('[name="small_descr"]').val());
+            await db.setItem(`${type}_autoSaveMessagePoster`, jq('[name="poster"]').val());
+            await db.setItem(`${type}_autoSaveMessageAnidbUrl`, jq('[name="anidburl"]').val());
             num = num_global + 4; // 重置倒计时
-            $(`#${type}_auto_save_text`).fadeOut(2000);
+            jq(`#${type}_auto_save_text`).fadeOut(2000);
         };
     }
 };
@@ -1066,7 +1069,7 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
     let num_global = 10; // 设置自动保存时间间隔
     let num = 10; // 设置自动保存时间间隔
 
-    $(elementButton).append(`<span id="${type}_auto_save_on" style="margin-top:4px; display: none;">`
+    jq(elementButton).append(`<span id="${type}_auto_save_on" style="margin-top:4px; display: none;">`
         + `<input id="${type}_switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">`
         + `<input id="${type}_clean" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="清空数据">`
         + `<span id="${type}_auto_save_text" style="display: none;">&nbsp;&nbsp;正在保存...</span></span>`
@@ -1075,13 +1078,13 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
     );
 
     // 为自动保存按钮绑定事件
-    $(`#${type}_auto_save_on`).click(async function (ev) {  // 关闭自动保存
-        let button_id = $(ev.target).attr('id');
+    jq(`#${type}_auto_save_on`).click(async function (ev) {  // 关闭自动保存
+        let button_id = jq(ev.target).attr('id');
         switch (button_id) {
             case `${type}_switch`:
-                $(this).hide(); // 隐藏按钮
-                $(`#${type}_auto_save_off`).fadeIn(200); // 渐入按钮
-                clearInterval($(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
+                jq(this).hide(); // 隐藏按钮
+                jq(`#${type}_auto_save_off`).fadeIn(200); // 渐入按钮
+                clearInterval(jq(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
                 await db.setItem(`${type}_autoSaveMessageSwitch`, false)
                 console.log(`${type}-自动保存已关闭`);
                 break;
@@ -1094,22 +1097,22 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
         };
     });
 
-    $(`#${type}_auto_save_off`).click(async function () {  // 开启自动保存
-        $(this).hide(); // 隐藏按钮
-        $(`#${type}_auto_save_on`).fadeIn(200);
-        $(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
+    jq(`#${type}_auto_save_off`).click(async function () {  // 开启自动保存
+        jq(this).hide(); // 隐藏按钮
+        jq(`#${type}_auto_save_on`).fadeIn(200);
+        jq(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
         await db.setItem(`${type}_autoSaveMessageSwitch`, true)
         console.log(`${type}-自动保存已开启`);
     });
 
     // 提交候选后 删除所有保存的记录 (如果要还原记录，直接返回上一页即可。)
-    $(elementPost).click(async function () {
-        await clean()
+    jq(elementPost).click(async function () {
+        await clean();
         console.log(`${type}-提交上传请求`);
     });
 
     async function clean() {
-        clearInterval($(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
+        clearInterval(jq(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
         await db.removeItem(`${type}_autoSaveMessageTime`);
         await db.removeItem(`${type}_autoSaveMessageBbcode`);
         await db.removeItem(`${type}_autoSaveMessageSubject`);
@@ -1120,34 +1123,34 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
     await db.getItem(`${type}_autoSaveMessageSwitch`).then(async (value) => {
         if (value) {
             // 启用自动保存
-            $(`#${type}_auto_save_on`).show();
-            $(`#${type}_auto_save_off`).hide();
-            $(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
+            jq(`#${type}_auto_save_on`).show();
+            jq(`#${type}_auto_save_off`).hide();
+            jq(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
             console.log(`${type}-自动保存已开启`);
             // 检查输入框内是否已经存在字符串
             let _input_bool = true
-            $(`${parent} input[name='subject']`).add(elementBbcode).each(function () {
-                let _input = $(this).val()
+            jq(`${parent} input[name='subject']`).add(elementBbcode).each(function () {
+                let _input = jq(this).val()
                 if (_input !== "") { _input_bool = false; return; }
             });
             // 当输入框是空白时 还原上次备份内容
             if (_input_bool) {
-                await db.getItem(`${type}_autoSaveMessageSubject`).then((value) => { $(`${parent} input[name='subject']`).val(value); });
-                await await db.getItem(`${type}_autoSaveMessageBbcode`).then((value) => { $(elementBbcode).val(value); }) // 还原bbcode输入框内容
-                $(elementBbcode).trigger("input"); // 手动触发bbcode更改
+                await db.getItem(`${type}_autoSaveMessageSubject`).then((value) => { jq(`${parent} input[name='subject']`).val(value); });
+                await await db.getItem(`${type}_autoSaveMessageBbcode`).then((value) => { jq(elementBbcode).val(value); }) // 还原bbcode输入框内容
+                jq(elementBbcode).trigger("input"); // 手动触发bbcode更改
                 console.log(`${type}-已还原备份`);
             };
         } else {
             // 关闭自动保存
-            $(`#${type}_auto_save_on`).hide();
-            $(`#${type}_auto_save_off`).show();
+            jq(`#${type}_auto_save_on`).hide();
+            jq(`#${type}_auto_save_off`).show();
             await db.setItem(`${type}_autoSaveMessageSwitch`, false);
         };
     }).catch(async function (err) {
         // 第一次运行时 <第一次运行时 数据库里什么都没有>
         // 这段其实也没什么用 数据库中如果没有这个键值 会返回 undefined
-        $(`#${type}_auto_save_on`).hide();
-        $(`#${type}_auto_save_off`).show();
+        jq(`#${type}_auto_save_on`).hide();
+        jq(`#${type}_auto_save_off`).show();
         await db.setItem(`${type}_autoSaveMessageSwitch`, false);
         console.log(`${type}-第一次运行`);
         console.log(`${type}-${err}`);
@@ -1157,12 +1160,12 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
         num--;
         // console.log(num);
         if (num <= 0) {
-            $(`#${type}_auto_save_text`).fadeIn(2000);
+            jq(`#${type}_auto_save_text`).fadeIn(2000);
             await db.setItem(`${type}_autoSaveMessageTime`, getDateString()) // 记录保存数据的时间 string
-            await db.setItem(`${type}_autoSaveMessageBbcode`, $(elementBbcode).val()) // 保存 bbcode 输入框内容
-            await db.setItem(`${type}_autoSaveMessageSubject`, $(`${parent} input[name='subject']`).val());
+            await db.setItem(`${type}_autoSaveMessageBbcode`, jq(elementBbcode).val()) // 保存 bbcode 输入框内容
+            await db.setItem(`${type}_autoSaveMessageSubject`, jq(`${parent} input[name='subject']`).val());
             num = num_global + 4; // 重置倒计时
-            $(`#${type}_auto_save_text`).fadeOut(2000);
+            jq(`#${type}_auto_save_text`).fadeOut(2000);
         };
     };
 };
@@ -1176,33 +1179,33 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
 async function syncScroll(element, type, bbcode, preview) {
     let db = localforage.createInstance({ name: "bbcodejs" });  // 为以后统一数据库做准备
     console.log('启用bbcodejs数据库');
-    $(element).append(`<input id="${type}_sync_scroll_on" class="codebuttons" style="font-size:11px; margin-right:3px;; display: none;" type="button" value="同步滚动已开启"></input>`
+    jq(element).append(`<input id="${type}_sync_scroll_on" class="codebuttons" style="font-size:11px; margin-right:3px;; display: none;" type="button" value="同步滚动已开启"></input>`
         + `<input id="${type}_sync_scroll_off" class="codebuttons" style="font-size: 11px; margin-right:3px; display: none;" type="button" value="同步滚动已关闭"></input>`
     );
 
     await db.getItem(`${type}_syncScrollSwitch`).then(async (value) => {
         if (value) {
-            $(`#${type}_sync_scroll_on`).show();
+            jq(`#${type}_sync_scroll_on`).show();
             new onScroll();
             console.log(`${type}-同步滚动已打开`);
         } else {
-            $(`#${type}_sync_scroll_off`).show();
+            jq(`#${type}_sync_scroll_off`).show();
             console.log(`${type}-同步滚动已关闭`);
         };
     });
 
     // 为按钮绑定事件
-    $(`#${type}_sync_scroll_off`).click(async function () {
-        $(this).hide();
-        $(`#${type}_sync_scroll_on`).fadeIn(200); // 渐入按钮
+    jq(`#${type}_sync_scroll_off`).click(async function () {
+        jq(this).hide();
+        jq(`#${type}_sync_scroll_on`).fadeIn(200); // 渐入按钮
         await db.setItem(`${type}_syncScrollSwitch`, true);
         new onScroll();
         console.log(`${type}-同步滚动已打开`);
     });
 
-    $(`#${type}_sync_scroll_on`).click(async function () {
-        $(this).hide();
-        $(`#${type}_sync_scroll_off`).fadeIn(200); // 渐入按钮
+    jq(`#${type}_sync_scroll_on`).click(async function () {
+        jq(this).hide();
+        jq(`#${type}_sync_scroll_off`).fadeIn(200); // 渐入按钮
         await db.setItem(`${type}_syncScrollSwitch`, false);
         new offScroll();
         console.log(`${type}-同步滚动已关闭`);
@@ -1211,26 +1214,26 @@ async function syncScroll(element, type, bbcode, preview) {
     // 绑定鼠标事件
     function onScroll() {
         let currentTab = 0;
-        $(bbcode).mouseover(() => { currentTab = 1; });
-        $(preview).mouseover(() => { currentTab = 2; });
+        jq(bbcode).mouseover(() => { currentTab = 1; });
+        jq(preview).mouseover(() => { currentTab = 2; });
 
-        $(bbcode).scroll(() => {
+        jq(bbcode).scroll(() => {
             if (currentTab !== 1) return;
-            let scale = ($(preview).children('.child').get(0).offsetHeight - $(preview).get(0).offsetHeight) / ($(bbcode).get(0).scrollHeight - $(bbcode).get(0).offsetHeight);
-            $(preview).scrollTop($(bbcode).scrollTop() * scale);
+            let scale = (jq(preview).children('.child').get(0).offsetHeight - jq(preview).get(0).offsetHeight) / (jq(bbcode).get(0).scrollHeight - jq(bbcode).get(0).offsetHeight);
+            jq(preview).scrollTop(jq(bbcode).scrollTop() * scale);
         });
 
-        $(preview).scroll(() => {
+        jq(preview).scroll(() => {
             if (currentTab !== 2) return;
-            let scale = ($(preview).children('.child').get(0).offsetHeight - $(preview).get(0).offsetHeight) / ($(bbcode).get(0).scrollHeight - $(bbcode).get(0).offsetHeight);
-            $(bbcode).scrollTop($(preview).scrollTop() / scale);
+            let scale = (jq(preview).children('.child').get(0).offsetHeight - jq(preview).get(0).offsetHeight) / (jq(bbcode).get(0).scrollHeight - jq(bbcode).get(0).offsetHeight);
+            jq(bbcode).scrollTop(jq(preview).scrollTop() / scale);
         });
     };
 
     // 解除鼠标事件
     function offScroll() {
-        $(bbcode).off("scroll").off("mouseover");
-        $(preview).off("scroll").off("mouseover");
+        jq(bbcode).off("scroll").off("mouseover");
+        jq(preview).off("scroll").off("mouseover");
     };
 };
 
@@ -1632,7 +1635,7 @@ async function basicFrame(title, type) {
         </table>
     </td>
 </tr>`
-    parse_html = $.parseHTML('<table>' + basic_html + '</table>');  // 转为对象
+    parse_html = jq.parseHTML('<table>' + basic_html + '</table>');  // 转为对象
     const bbcode_button = [
         { "style": "font-weight: bold;font-size:11px; margin-right:3px", "value": "B" },
         { "style": "font-style: italic;font-size:11px;margin-right:3px", "value": "I" },
@@ -1663,22 +1666,22 @@ async function basicFrame(title, type) {
         "Wheat", "Lemon Chiffon", "Pale Green", "Pale Turquoise", "Light Blue", "Plum", "White"];
     // 插入表情
     smile_list.forEach(function (item, index) {
-        if (Number.isInteger((index + 4) / 4)) $(parse_html).find(`#${type}_smile-icon`).children('tbody').append(`<tr></tr>`);
-        $(parse_html).find(`#${type}_smile-icon`).find('tr:last').append(`<td class="embedded smile-icon"><a href="javascript:void('em${item}');" name="${type}_bbcode_smile"><img style="max-width: 25px;" src="pic/smilies/${item}.gif" alt=""></a></td>`);
+        if (Number.isInteger((index + 4) / 4)) jq(parse_html).find(`#${type}_smile-icon`).children('tbody').append(`<tr></tr>`);
+        jq(parse_html).find(`#${type}_smile-icon`).find('tr:last').append(`<td class="embedded smile-icon"><a href="javascript:void('em${item}');" name="${type}_bbcode_smile"><img style="max-width: 25px;" src="pic/smilies/${item}.gif" alt=""></a></td>`);
     });
     // 插入字体大小菜单
-    [1, 2, 3, 4, 5, 6, 7].forEach(function (item) { $(parse_html).find(`[name="${type}_bbcode_size"]`).append(`<option value="${item}">${item}</option>`); })
+    [1, 2, 3, 4, 5, 6, 7].forEach(function (item) { jq(parse_html).find(`[name="${type}_bbcode_size"]`).append(`<option value="${item}">${item}</option>`); })
     // 插入字体菜单
-    font_list.forEach(function (item) { $(parse_html).find(`[name="${type}_bbcode_font"]`).append(`<option value="${item}">${item}</option>`); });
+    font_list.forEach(function (item) { jq(parse_html).find(`[name="${type}_bbcode_font"]`).append(`<option value="${item}">${item}</option>`); });
     // 插入颜色菜单
-    color_list.forEach(function (item) { $(parse_html).find(`[name="${type}_bbcode_color"]`).append(`<option style="background-color: ${item.replace(/\s/g, '').toLowerCase()}" value="${item.replace(/\s/g, '')}">${item}</option>`); });
+    color_list.forEach(function (item) { jq(parse_html).find(`[name="${type}_bbcode_color"]`).append(`<option style="background-color: ${item.replace(/\s/g, '').toLowerCase()}" value="${item.replace(/\s/g, '')}">${item}</option>`); });
     // 插入按钮
     bbcode_button.forEach(function (item) {
-        $(parse_html).find(`#${type}_bbcode_button`).find('tr:last').append(`<td class="embedded"><input class="codebuttons" style="${item.style}" type="button" value="${item.value}" name="${type}_bbcode_button"></td>`);
+        jq(parse_html).find(`#${type}_bbcode_button`).find('tr:last').append(`<td class="embedded"><input class="codebuttons" style="${item.style}" type="button" value="${item.value}" name="${type}_bbcode_button"></td>`);
     });
     // 插入预览框
-    $(parse_html).find(`#${type}_box_bbcode`).parents("tr:eq(1)").after(`<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">${lang['preview']}</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2"><div id="${type}_bbcode2_box" style="min-height: 25px; max-height: 1px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;"><div class="child"></div></div></td></tr></tbody></table></td>`);
-    return $(parse_html).html().replace(/^<tbody>([\s\S]*)<\/tbody>$/gm, '$1');
+    jq(parse_html).find(`#${type}_box_bbcode`).parents("tr:eq(1)").after(`<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">${lang['preview']}</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2"><div id="${type}_bbcode2_box" style="min-height: 25px; max-height: 1px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;"><div class="child"></div></div></td></tr></tbody></table></td>`);
+    return jq(parse_html).html().replace(/^<tbody>([\s\S]*)<\/tbody>$/gm, '$1');
 };
 
 
@@ -1695,7 +1698,7 @@ function syncWindowChange(input, preview) {
             if (mutation.type == "attributes") {
                 height_now = Number(mutation.target.style.height.replace('px', '')) + 30;
                 if (height_last === height_now) { return } else { height_last = height_now; };
-                $(preview).css("max-height", height_now + "px");
+                jq(preview).css("max-height", height_now + "px");
             };
         })
     });
@@ -1712,21 +1715,21 @@ function syncWindowChange(input, preview) {
 */
 async function btnListener(type) {
     // 下拉菜单监听
-    $(`[name="${type}_bbcode_color"]`).change(function () { onEditorActionBox('COLOR', `#${type}_box_bbcode`, this.options[this.selectedIndex].value); this.selectedIndex = 0; });
-    $(`[name="${type}_bbcode_font"]`).change(function () { onEditorActionBox('FONT', `#${type}_box_bbcode`, this.options[this.selectedIndex].value); this.selectedIndex = 0; });
-    $(`[name="${type}_bbcode_size"]`).change(function () { onEditorActionBox('SIZE', `#${type}_box_bbcode`, this.options[this.selectedIndex].value); this.selectedIndex = 0; });
+    jq(`[name="${type}_bbcode_color"]`).change(function () { onEditorActionBox('COLOR', `#${type}_box_bbcode`, this.options[this.selectedIndex].value); this.selectedIndex = 0; });
+    jq(`[name="${type}_bbcode_font"]`).change(function () { onEditorActionBox('FONT', `#${type}_box_bbcode`, this.options[this.selectedIndex].value); this.selectedIndex = 0; });
+    jq(`[name="${type}_bbcode_size"]`).change(function () { onEditorActionBox('SIZE', `#${type}_box_bbcode`, this.options[this.selectedIndex].value); this.selectedIndex = 0; });
     // 按钮监听
-    $(`[name="${type}_bbcode_button"]`).click(function () { onEditorActionBox(this.value, `#${type}_box_bbcode`); });
+    jq(`[name="${type}_bbcode_button"]`).click(function () { onEditorActionBox(this.value, `#${type}_box_bbcode`); });
     // 输入框右边表情，鼠标悬浮图标变大
-    $(`[name="${type}_bbcode_smile"]`).mouseenter(function () { $(this).children('img').css({ "transform": "scale(1.35)", "transition": "all 0.3s" }); });
+    jq(`[name="${type}_bbcode_smile"]`).mouseenter(function () { jq(this).children('img').css({ "transform": "scale(1.35)", "transition": "all 0.3s" }); });
     // 输入框右边表情，鼠标离开图标恢复原状
-    $(`[name="${type}_bbcode_smile"]`).mouseleave(function () { $(this).children('img').css({ "transform": "" }); });
+    jq(`[name="${type}_bbcode_smile"]`).mouseleave(function () { jq(this).children('img').css({ "transform": "" }); });
     // 输入框右边表情，点击图标输入表情
-    $(`[name="${type}_bbcode_smile"]`).click(function () { onEditorActionBox($(this).attr('href'), `#${type}_box_bbcode`); });
+    jq(`[name="${type}_bbcode_smile"]`).click(function () { onEditorActionBox(jq(this).attr('href'), `#${type}_box_bbcode`); });
     // 监听各种按钮的点击事件
-    $(`[name="${type}_bbcode_color"],[name="${type}_bbcode_font"],[name="${type}_bbcode_size"],[name="${type}_bbcode_button"],[name="${type}_bbcode_smile"],td.embedded.${type}_smile-icon a`).click(async function () { $(`#${type}_bbcode2_box`).children('.child').html(await bbcode2html($(`#${type}_box_bbcode`).val())); });
+    jq(`[name="${type}_bbcode_color"],[name="${type}_bbcode_font"],[name="${type}_bbcode_size"],[name="${type}_bbcode_button"],[name="${type}_bbcode_smile"],td.embedded.${type}_smile-icon a`).click(async function () { jq(`#${type}_bbcode2_box`).children('.child').html(await bbcode2html(jq(`#${type}_box_bbcode`).val())); });
     // 监听bbcode写入事件
-    $(`#${type}_box_bbcode`).bind('input propertychange', async function () { $(`#${type}_bbcode2_box`).children('.child').html(await bbcode2html($(this).val())); });
+    jq(`#${type}_box_bbcode`).bind('input propertychange', async function () { jq(`#${type}_bbcode2_box`).children('.child').html(await bbcode2html(jq(this).val())); });
 
 };
 
@@ -1737,12 +1740,12 @@ async function btnListener(type) {
 (async () => {
     if (location.pathname !== '/moresmilies.php') return;
 
-    $('td[align="center"] a').each(function () {
-        let scriptAction = $(this).attr('href');
-        $(this).attr('href', scriptAction.replace('SmileIT', 'SmileIT2'));
+    jq('td[align="center"] a').each(function () {
+        let scriptAction = jq(this).attr('href');
+        jq(this).attr('href', scriptAction.replace('SmileIT', 'SmileIT2'));
     });
 
-    $('body').append(`<script type="text/javascript">
+    jq('body').append(`<script type="text/javascript">
 function SmileIT2(smile, form, text) {
     window.opener.document.forms[form].elements[text].value = window.opener.document.forms[form].elements[text].value + " " + smile + " ";
     window.opener.document.forms[form].elements[text].focus();
@@ -1757,11 +1760,11 @@ function SmileIT2(smile, form, text) {
 // 上传附件实时预览结果 <还是有点延迟>
 (async () => {
     if (location.pathname !== '/attachment.php') return;
-    const script = $('script').html();
+    const script = jq('script').html();
     // 不是POST返回的页面，不需要处理
     script.replace(/parent\.addTag\(parent\.document\.getElementById\("(?<element>.+?)"\)/, (...args) => {
         const { element } = args.slice(-1)[0];
-        $('body').append(`<script type="text/javascript">const ref=()=>{parent.document.getElementById('${element}').dispatchEvent(new Event('input'))};ref();</script>`);
+        jq('body').append(`<script type="text/javascript">const ref=()=>{parent.document.getElementById('${element}').dispatchEvent(new Event('input'))};ref();</script>`);
     });
 })();
 
@@ -1770,49 +1773,49 @@ function SmileIT2(smile, form, text) {
 (async () => {
     let type = 'report';
     // 查找举报提交页面
-    const $report_form = $('form[action="report.php"]');
+    const $report_form = jq('form[action="report.php"]');
     if ($report_form.length === 0) return;
     $report_form.find('[type="submit"]').after(`<input id="${type}_bbcode" type="button" value="高级">`);
     // 插入框架
-    $('#outer').parent().after(await basicFrame('举报', type));
+    jq('#outer').parent().after(await basicFrame('举报', type));
     // 插入同步窗口滚动按钮
     await syncScroll(`#${type}_bbcodejs_tbody_box`, type, `#${type}_box_bbcode`, `#${type}_bbcode2_box`);
     // 插入自动保存按钮
     await autoSaveMessage(`#${type}_bbcodejs_tbody_box`, `#${type}_box_bbcode`, `#${type}_post_box`, type, `${type}_compose_custom`);
-    const $outer = $(`#${type}_outer`);
+    const $outer = jq(`#${type}_outer`);
     // 监听按钮
     await btnListener(type);
     // 同步窗口大小变化
     syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);
 
     // 关闭窗口
-    $(`#${type}_close_box`).click(function () {
-        $('#outer').show();
+    jq(`#${type}_close_box`).click(function () {
+        jq('#outer').show();
         $outer.hide();
     });
     // 发送
-    $(`#${type}_post_box`).click(function () {
-        $('[name="reason"]').val($(`#${type}_box_bbcode`).val());
+    jq(`#${type}_post_box`).click(function () {
+        jq('[name="reason"]').val(jq(`#${type}_box_bbcode`).val());
         $outer.hide();
-        $('#outer').show();
+        jq('#outer').show();
         $report_form.find('[type="submit"]').trigger("submit");
     });
     //显示窗口
-    $(`#${type}_bbcode`).click(async function () {
+    jq(`#${type}_bbcode`).click(async function () {
         // 获取输入框的值，如引用之类的数据
         let text = $report_form.find('textarea').val();
         // 如果外部输入框不为空，则引入外部输入框的值
-        if (text !== '') $(`#${type}_box_bbcode`).val(text);
+        if (text !== '') jq(`#${type}_box_bbcode`).val(text);
         // 显示窗口
         $outer.show();
         // 隐藏窗口
-        $('#outer').hide();
+        jq('#outer').hide();
         // 设置悬浮窗口中预览窗口的最大高度
-        $(`#${type}_bbcode2_box`).css("max-height", ($(`#${type}_box_bbcode`).height() + 30) + "px");
-        const margin = $(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - $(`#${type}_bbcodejs_select_box`).width() - 2.6;
-        $(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
+        jq(`#${type}_bbcode2_box`).css("max-height", (jq(`#${type}_box_bbcode`).height() + 30) + "px");
+        const margin = jq(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - jq(`#${type}_bbcodejs_select_box`).width() - 2.6;
+        jq(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
         // 手动触发bbcode内容更改
-        $(`#${type}_box_bbcode`).trigger("input");
+        jq(`#${type}_box_bbcode`).trigger("input");
     });
 })();
 
@@ -1820,62 +1823,62 @@ function SmileIT2(smile, form, text) {
 // 聊天
 (async () => {
     let type = 'shbox';
-    const $shbox_button = $('#hbsubmit');  // 查找聊天版清除按钮
+    const $shbox_button = jq('#hbsubmit');  // 查找聊天版清除按钮
     if ($shbox_button.length === 0) return;  // 聊天版自动刷新时，会再次触发当前函数 || 未开启聊天版
-    $shbox_button.after(`<input id="${type}_bbcode" type="button" class="${$('#hbsubmit').attr('class')}" value="高级">`);
+    $shbox_button.after(`<input id="${type}_bbcode" type="button" class="${jq('#hbsubmit').attr('class')}" value="高级">`);
     // 插入框架
-    $('#nav_block').parent().after(await basicFrame('群聊区', type));
+    jq('#nav_block').parent().after(await basicFrame('群聊区', type));
     // 插入同步窗口滚动按钮
     await syncScroll(`#${type}_bbcodejs_tbody_box`, type, `#${type}_box_bbcode`, `#${type}_bbcode2_box`);
     // 插入自动保存按钮
     await autoSaveMessage(`#${type}_bbcodejs_tbody_box`, `#${type}_box_bbcode`, `#${type}_post_box`, type, `${type}_compose_custom`);
-    const $outer = $(`#${type}_outer`);
+    const $outer = jq(`#${type}_outer`);
     // 监听按钮
     await btnListener(type);
     // 同步窗口大小变化
     syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);
 
     // 点击关闭窗口按钮
-    $(`#${type}_close_box`).click(function () { $outer.hide(); });
+    jq(`#${type}_close_box`).click(function () { $outer.hide(); });
     // 发送
-    $(`#${type}_post_box`).click(function () {
+    jq(`#${type}_post_box`).click(function () {
         // 更改输入框类型 方法有点蠢，懒的改，又不是不能用
-        $('#shbox_text').each(function () {
-            const textarea = $(document.createElement('textarea')).attr({
-                'name': $(this).attr('name'),
-                'id': $(this).attr('id'),
-                'size': $(this).attr('size'),
-                'style': $(this).attr('style')
+        jq('#shbox_text').each(function () {
+            const textarea = jq(document.createElement('textarea')).attr({
+                'name': jq(this).attr('name'),
+                'id': jq(this).attr('id'),
+                'size': jq(this).attr('size'),
+                'style': jq(this).attr('style')
             });
-            $(this).replaceWith(textarea);
+            jq(this).replaceWith(textarea);
         });
-        $('#shbox_text').val($(`#${type}_box_bbcode`).val());
-        $('[name="shbox"]').trigger("submit");
-        $('#shbox_text').each(function () {
-            const textarea = $(document.createElement('input')).attr({
-                'name': $(this).attr('name'),
-                'id': $(this).attr('id'),
-                'size': $(this).attr('size'),
-                'style': $(this).attr('style')
+        jq('#shbox_text').val(jq(`#${type}_box_bbcode`).val());
+        jq('[name="shbox"]').trigger("submit");
+        jq('#shbox_text').each(function () {
+            const textarea = jq(document.createElement('input')).attr({
+                'name': jq(this).attr('name'),
+                'id': jq(this).attr('id'),
+                'size': jq(this).attr('size'),
+                'style': jq(this).attr('style')
             });
-            $(this).replaceWith(textarea);
+            jq(this).replaceWith(textarea);
         });
         $outer.hide();
     });
     //点击按钮
-    $(`#${type}_bbcode`).click(async function () {
+    jq(`#${type}_bbcode`).click(async function () {
         // 获取输入框的值，如引用之类的数据
-        let text = $('#shbox_text').val();
+        let text = jq('#shbox_text').val();
         // 如果外部输入框不为空，则引入外部输入框的值
-        if (text !== '') $(`#${type}_box_bbcode`).val(text);
+        if (text !== '') jq(`#${type}_box_bbcode`).val(text);
         // 显示窗口
         $outer.is(':hidden') ? $outer.show() : $outer.hide();
         // 设置窗口中预览窗口的最大高度
-        $(`#${type}_bbcode2_box`).css("max-height", ($(`#${type}_box_bbcode`).height() + 30) + "px");
-        const margin = $(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - $(`#${type}_bbcodejs_select_box`).width() - 2.6;
-        $(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
+        jq(`#${type}_bbcode2_box`).css("max-height", (jq(`#${type}_box_bbcode`).height() + 30) + "px");
+        const margin = jq(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - jq(`#${type}_bbcodejs_select_box`).width() - 2.6;
+        jq(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
         // 手动触发bbcode内容更改
-        $(`#${type}_box_bbcode`).trigger("input");
+        jq(`#${type}_box_bbcode`).trigger("input");
     });
 })();
 
@@ -1885,16 +1888,16 @@ function SmileIT2(smile, form, text) {
     if (location.pathname !== '/request.php') return;
     let type = 'request';
     // 查找按钮
-    const $request_button = $('#qr');
+    const $request_button = jq('#qr');
     if ($request_button.length === 0) return;
     $request_button.after(`<input id="${type}_bbcode" type="button" class="codebuttons" value="高级">`)
     // 插入框架
-    $('#outer').find('tbody:first').append(await basicFrame('回应/评论', type));
+    jq('#outer').find('tbody:first').append(await basicFrame('回应/评论', type));
     // 插入同步窗口滚动按钮
     await syncScroll(`#${type}_bbcodejs_tbody_box`, type, `#${type}_box_bbcode`, `#${type}_bbcode2_box`);
     // 插入自动保存按钮
     await autoSaveMessage(`#${type}_bbcodejs_tbody_box`, `#${type}_box_bbcode`, `#${type}_post_box`, type, `${type}_compose_custom`);
-    const $outer = $(`#${type}_outer`);
+    const $outer = jq(`#${type}_outer`);
 
     // 监听按钮
     await btnListener(type);
@@ -1902,33 +1905,33 @@ function SmileIT2(smile, form, text) {
     syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);
 
     // 关闭窗口
-    $(`#${type}_close_box`).click(function () {
-        $('#compose').parentsUntil('.embedded').eq(-1).show();
+    jq(`#${type}_close_box`).click(function () {
+        jq('#compose').parentsUntil('.embedded').eq(-1).show();
         $outer.hide();
     });
     // 发送
-    $(`#${type}_post_box`).click(function () {
-        $('#compose textarea').val($(`#${type}_box_bbcode`).val());
+    jq(`#${type}_post_box`).click(function () {
+        jq('#compose textarea').val(jq(`#${type}_box_bbcode`).val());
         $outer.hide();
-        $('#compose').parentsUntil('.embedded').eq(-1).show();
-        $('#compose').trigger("submit");
+        jq('#compose').parentsUntil('.embedded').eq(-1).show();
+        jq('#compose').trigger("submit");
     });
     //点击弹出窗口
-    $(`#${type}_bbcode`).click(async function () {
+    jq(`#${type}_bbcode`).click(async function () {
         // 获取输入框的值，如引用之类的数据
-        let text = $('#compose textarea').val();
+        let text = jq('#compose textarea').val();
         // 如果外部输入框不为空，则引入外部输入框的值
-        if (text !== '') $(`#${type}_box_bbcode`).val(text);
+        if (text !== '') jq(`#${type}_box_bbcode`).val(text);
         // 显示窗口
         $outer.show();
         // 隐藏窗口
-        $('#compose').parentsUntil('.embedded').eq(-1).hide();
+        jq('#compose').parentsUntil('.embedded').eq(-1).hide();
         // 设置悬浮窗口中预览窗口的最大高度
-        $(`#${type}_bbcode2_box`).css("max-height", ($(`#${type}_box_bbcode`).height() + 30) + "px");
-        const margin = $(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - $(`#${type}_bbcodejs_select_box`).width() - 2.6;
-        $(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
+        jq(`#${type}_bbcode2_box`).css("max-height", (jq(`#${type}_box_bbcode`).height() + 30) + "px");
+        const margin = jq(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - jq(`#${type}_bbcodejs_select_box`).width() - 2.6;
+        jq(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
         // 手动触发bbcode内容更改
-        $(`#${type}_box_bbcode`).trigger("input");
+        jq(`#${type}_box_bbcode`).trigger("input");
     });
 })();
 
@@ -1938,52 +1941,52 @@ function SmileIT2(smile, form, text) {
     if (location.pathname !== '/usercp.php') return;
     let action;
     let type = 'usercp';
-    const $signature_window = $('[name="signature"]');  // 查找BBCODE窗口
-    const $info_window = $('[name="info"]');  // 查找BBCODE窗口
+    const $signature_window = jq('[name="signature"]');  // 查找BBCODE窗口
+    const $info_window = jq('[name="info"]');  // 查找BBCODE窗口
     if ($signature_window.length !== 0) { type = `${type}_signature`; action = 'signature'; }
     else if ($info_window.length !== 0) { type = `${type}_info`; action = 'info'; }
     else return;
 
-    $(`[name="${action}"]`).parent().find('a').attr({ 'href': 'javascript:void(0);false;', 'target': '', 'id': `${action}_bbcode_a` });
+    jq(`[name="${action}"]`).parent().find('a').attr({ 'href': 'javascript:void(0);false;', 'target': '', 'id': `${action}_bbcode_a` });
     // await basicFrame(action === 'signature' ? '论坛签名档' : '个人说明', type);  
     // 插入框架
-    $('#outer').find('tbody:first').append(await basicFrame(action === 'signature' ? '论坛签名档' : '个人说明', type));
+    jq('#outer').find('tbody:first').append(await basicFrame(action === 'signature' ? '论坛签名档' : '个人说明', type));
     // 插入同步窗口滚动按钮
     await syncScroll(`#${type}_bbcodejs_tbody_box`, type, `#${type}_box_bbcode`, `#${type}_bbcode2_box`);
     // 插入自动保存按钮
     await autoSaveMessage(`#${type}_bbcodejs_tbody_box`, `#${type}_box_bbcode`, `#${type}_post_box`, type, `${type}_compose_custom`);
-    const $outer = $(`#${type}_outer`);
+    const $outer = jq(`#${type}_outer`);
 
     await btnListener(type);  // 监听按钮
     syncWindowChange(`#${type}_box_bbcode`, `#${type}_bbcode2_box`);  // 同步窗口大小变化
 
     // 关闭窗口
-    $(`#${type}_close_box`).click(function () {
-        $('#outer').children('table:last').show();
+    jq(`#${type}_close_box`).click(function () {
+        jq('#outer').children('table:last').show();
         $outer.hide();
     });
     // 发送
-    $(`#${type}_post_box`).click(function () {
-        $(`[name="${action}"]`).val($(`#${type}_box_bbcode`).val());
-        $('#outer').children('table:last').show();
+    jq(`#${type}_post_box`).click(function () {
+        jq(`[name="${action}"]`).val(jq(`#${type}_box_bbcode`).val());
+        jq('#outer').children('table:last').show();
         $outer.hide();
     });
     // 点击弹出窗口
-    $(`#${action}_bbcode_a`).click(async function () {
+    jq(`#${action}_bbcode_a`).click(async function () {
         // 获取输入框的值，如引用之类的数据
-        let text = $(`[name="${action}"]`).val();
+        let text = jq(`[name="${action}"]`).val();
         // 如果外部输入框不为空，则引入外部输入框的值
-        if (text !== '') $(`#${type}_box_bbcode`).val(text);
+        if (text !== '') jq(`#${type}_box_bbcode`).val(text);
         // 显示悬浮窗口
         $outer.show();
         // 隐藏窗口
-        $('#outer').children('table:last').hide();
+        jq('#outer').children('table:last').hide();
         // 设置悬浮窗口中预览窗口的最大高度
-        $(`#${type}_bbcode2_box`).css("max-height", ($(`#${type}_box_bbcode`).height() + 30) + "px");
-        const margin = $(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - $(`#${type}_bbcodejs_select_box`).width() - 2.6;
-        $(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
+        jq(`#${type}_bbcode2_box`).css("max-height", (jq(`#${type}_box_bbcode`).height() + 30) + "px");
+        const margin = jq(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - jq(`#${type}_bbcodejs_select_box`).width() - 2.6;
+        jq(`#${type}_bbcodejs_select_box`).css("margin-left", margin + "px");
         // 手动触发bbcode内容更改
-        $(`#${type}_box_bbcode`).trigger("input");
-        $(`#${type}_post_box`).attr("value", '填写');
+        jq(`#${type}_box_bbcode`).trigger("input");
+        jq(`#${type}_post_box`).attr("value", '填写');
     });
 })();
