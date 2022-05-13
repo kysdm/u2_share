@@ -1825,9 +1825,9 @@ function SmileIT2(smile, form, text) {
     let type = 'shbox';
     const $shbox_button = jq('#hbsubmit');  // 查找聊天版清除按钮
     if ($shbox_button.length === 0) return;  // 聊天版自动刷新时，会再次触发当前函数 || 未开启聊天版
-    $shbox_button.after(`<input id="${type}_bbcode" type="button" class="${jq('#hbsubmit').attr('class')}" value="高级">`);
+    $shbox_button.after(`<input id="${type}_bbcode" type="button" class="${$shbox_button.attr('class')}" value="高级">`);
     // 插入框架
-    jq('#nav_block').parent().after(await basicFrame('群聊区', type));
+    $shbox_button.parents('tr:last()').after(await basicFrame('群聊区', type));
     // 插入同步窗口滚动按钮
     await syncScroll(`#${type}_bbcodejs_tbody_box`, type, `#${type}_box_bbcode`, `#${type}_bbcode2_box`);
     // 插入自动保存按钮
