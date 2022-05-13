@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.4
+// @version      0.5.5
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -1757,18 +1757,6 @@ function SmileIT2(smile, form, text) {
 })();
 
 
-// 上传附件实时预览结果 <还是有点延迟>
-(async () => {
-    if (location.pathname !== '/attachment.php') return;
-    const script = jq('script').html();
-    // 不是POST返回的页面，不需要处理
-    script.replace(/parent\.addTag\(parent\.document\.getElementById\("(?<element>.+?)"\)/, (...args) => {
-        const { element } = args.slice(-1)[0];
-        jq('body').append(`<script type="text/javascript">const ref=()=>{parent.document.getElementById('${element}').dispatchEvent(new Event('input'))};ref();</script>`);
-    });
-})();
-
-
 // 举报
 (async () => {
     let type = 'report';
@@ -1992,9 +1980,18 @@ function SmileIT2(smile, form, text) {
 })();
 
 
-// 将 attach 标签内的图片转为 img 标签 <attach的图片太糊了，要大图还要点一下，好麻烦xd>
 (async () => {
     if (location.pathname !== '/attachment.php') return;
+
+    // 上传附件实时预览结果 <还是有点延迟>
+    const script = jq('script').html();
+    // 不是POST返回的页面，不需要处理
+    script.replace(/parent\.addTag\(parent\.document\.getElementById\("(?<element>.+?)"\)/, (...args) => {
+        const { element } = args.slice(-1)[0];
+        jq('body').append(`<script type="text/javascript">const ref=()=>{parent.document.getElementById('${element}').dispatchEvent(new Event('input'))};ref();</script>`);
+    });
+
+    // 将 attach 标签内的图片转为 img 标签 <attach的图片太糊了，要大图还要点一下，好麻烦xd>
     const db = localforage.createInstance({ name: "attachmap" });
     jq('[name=submit]').after(`<input id="bigimg" type="button" value="转IMG">`);
 
