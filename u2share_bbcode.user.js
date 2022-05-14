@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.6
+// @version      0.5.7
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -1734,6 +1734,26 @@ async function btnListener(type) {
 };
 
 
+// attach 标签转 img 标签
+const attach2Img = async (emid, dom) => {
+    const db = localforage.createInstance({ name: "attachmap" });
+    let cbbcode = jq(`#${emid}`, dom).val();
+    cbbcode = await replaceAsync(cbbcode, /\[attach\](?<hash>\w{32})\[\/attach\]/gi, async (...args) => {
+        const { hash } = args.slice(-1)[0];
+        return await db.getItem(hash).then(async (value) => {
+            if (value !== null) if (value.attach_type === 'img') return `[img]${value.attach_url}[/img]`;
+            // 没有匹配到数据时，直接返回原标签
+            return args[0];
+        });
+    });
+    // console.log(cbbcode);
+    jq(`#${emid}`, dom).val(cbbcode);
+    // 手动触发bbcode内容更改
+    // jq(`#${emid}`, window.parent.document).trigger("input");
+    dom.getElementById(emid).dispatchEvent(new Event('input'));
+};
+
+
 // 从弹窗添加表情实时预览结果 [https://u2.dmhy.org/moresmilies.php?form=upload&text=descr]
 // 考虑更换成内部悬浮窗
 // 外部窗口填入，不记录光标位置
@@ -1829,7 +1849,9 @@ function SmileIT2(smile, form, text) {
     // 点击关闭窗口按钮
     jq(`#${type}_close_box`).click(function () { $outer.hide(); });
     // 发送
-    jq(`#${type}_post_box`).click(function () {
+    jq(`#${type}_post_box`).click(async function () {
+        // 强制将attach中的img附件转为img tag <u2已经在聊天区拒绝显示attach，见日志 67eba9ca892af4931ced86921fd017b9ee457730>
+        await attach2Img(`${type}_box_bbcode`, window.document);
         // 更改输入框类型 方法有点蠢，懒的改，又不是不能用
         jq('#shbox_text').each(function () {
             const textarea = jq(document.createElement('textarea')).attr({
@@ -1992,28 +2014,12 @@ function SmileIT2(smile, form, text) {
     });
 
     // 将 attach 标签内的图片转为 img 标签 <attach的图片太糊了，要大图还要点一下，好麻烦xd>
-    const db = localforage.createInstance({ name: "attachmap" });
     jq('[name=submit]').after(`<input id="bigimg" type="button" value="转IMG">`);
 
     jq(`#bigimg`).click(async function () {
         let em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);
         if (!em) return;  // 没有找到id直接返回 
-        let cbbcode = jq(`#${em.groups.id}`, window.parent.document).val();
-        cbbcode = await replaceAsync(cbbcode, /\[attach\](?<hash>\w{32})\[\/attach\]/gi, async (...args) => {
-            const { hash } = args.slice(-1)[0];
-            return await db.getItem(hash).then(async (value) => {
-                if (value !== null) if (value.attach_type === 'img') return `[img]${value.attach_url}[/img]`
-                // 没有匹配到数据时，直接返回原标签
-                return args[0];
-            });
-        });
-
-        // console.log(cbbcode);
-        jq(`#${em.groups.id}`, window.parent.document).val(cbbcode);
-        // 手动触发bbcode内容更改
-        // jq(`#${em.groups.id}`, window.parent.document).trigger("input");
-        window.parent.document.getElementById(em.groups.id).dispatchEvent(new Event('input'));
-
+        await attach2Img(em.groups.id, window.parent.document)
     });
 
 })();
