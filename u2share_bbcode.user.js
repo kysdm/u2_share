@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.9
+// @version      0.6.0
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -669,7 +669,8 @@ async function bbcode2html(bbcodestr) {
                             return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}.thumb.jpg" onclick="Previewurl('${value.attach_url}')">`
                         };
                     };
-                    return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}.thumb.jpg" onclick="Previewurl('${value.attach_url}')">`
+                    // 正常情况是不会到这一步的，就不判断缩图状态了
+                    return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}" onclick="Previewurl('${value.attach_url}')">`
                 } else if (value.attach_type === 'other') {
                     return '<div class="attach">'
                         + `<img alt="other" src="pic/attachicons/common.gif">&nbsp;&nbsp;`
@@ -731,19 +732,43 @@ async function bbcode2html(bbcodestr) {
                                     "attach_thumb": ''
                                 };
                                 // console.log('value.attach_thumb: ', value.attach_thumb);
-                                if (Number.isFinite(attach.attach_thumb)) {
-                                    if (attach.attach_thumb === 0) {
+                                if (value && Number.isFinite(value.attach_thumb)) {
+                                    if (value.attach_thumb === 0) {
                                         console.log('没有触发缩图');
                                         attach.attach_thumb = 0;
                                         resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
-                                    } else if (attach.attach_thumb === 1) {
+                                        await db.setItem(hash, attach);
+                                        return;
+                                    } else if (value.attach_thumb === 1) {
                                         console.log('触发缩图');
                                         attach.attach_thumb = 1;
                                         resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
+                                        await db.setItem(hash, attach);
+                                        return;
                                     };
                                 };
-                                resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
-                                await db.setItem(hash, attach);
+                                // 没有通过标准方法上传的图片，没有记录attach_thumb值
+                                // console.log(`${attach.attach_url}.thumb.jpg`);
+                                let thumb = await urlCheck(`${attach.attach_url}.thumb.jpg`).catch(e => { });  // 检查缩图是否存在
+                                if (typeof (thumb) === "undefined") {
+                                    // 发生了错误 不写数据库
+                                    resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
+                                    return;
+                                } else if (thumb === false) {
+                                    // 不存在缩图
+                                    console.log('url检测 不存在缩图');
+                                    attach.attach_thumb = 0;
+                                    resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
+                                    await db.setItem(hash, attach);
+                                    return;
+                                } else if (thumb === true) {
+                                    // 存在缩图
+                                    console.log('url检测 存在缩图');
+                                    attach.attach_thumb = 1;
+                                    resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
+                                    await db.setItem(hash, attach);
+                                    return;
+                                };
                             }
                             else {
                                 // Attachment for key 82505eca8a43a36bc9c60a7d9609a5df not found.
@@ -1780,7 +1805,6 @@ async function btnListener(type) {
 
 };
 
-
 // attach 标签转 img 标签
 const attach2Img = async (emid, dom) => {
     const db = localforage.createInstance({ name: "attachmap" });
@@ -1800,6 +1824,24 @@ const attach2Img = async (emid, dom) => {
     dom.getElementById(emid).dispatchEvent(new Event('input'));
 };
 
+// 判断链接是否有效
+const urlCheck = (url) => {
+    return new Promise((resolve) => {
+        $.ajax({
+            type: 'get',
+            cache: false,
+            url: url,
+            success: function (d) {
+                console.log('url有效');
+                resolve(true)
+            },
+            error: function (d) {
+                console.log('url无效');
+                resolve(false);
+            }
+        });
+    });
+};
 
 // 从弹窗添加表情实时预览结果 [https://u2.dmhy.org/moresmilies.php?form=upload&text=descr]
 // 考虑更换成内部悬浮窗
@@ -2117,7 +2159,7 @@ function SmileIT2(smile, form, text) {
     const imgThumb = (file) => {
         return new Promise((resolve, reject) => {
             if (file.type.indexOf('image') === 0) {
-                console.log('载入');
+                // console.log('载入');
                 let img = new Image();              //创建个Image对象
                 img.src = url.createObjectURL(file); //将图片路径存入Image对象
                 img.onload = function () {
