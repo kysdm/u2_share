@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.8
+// @version      0.5.9
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -162,7 +162,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
             jq('#checktitle').html(check_title(main_title));
         }
 
-        jq("#browsecat").change(() => { new add_main_title; })
+        jq("#browsecat").change(() => { new add_main_title; });
         jq(".torrent-info-input").bind('input propertychange', () => { new add_main_title; });
         jq('#other_title').after('<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['main_title'] + '</td>'
             + '<td id="checktitle" class="rowfollow" valign="top" align="left" valign="middle">' + main_title + '</td></tr>'
@@ -731,12 +731,12 @@ async function bbcode2html(bbcodestr) {
                                     "attach_thumb": ''
                                 };
                                 // console.log('value.attach_thumb: ', value.attach_thumb);
-                                if (Number.isFinite(value.attach_thumb)) {
-                                    if (value.attach_thumb === 0) {
+                                if (Number.isFinite(attach.attach_thumb)) {
+                                    if (attach.attach_thumb === 0) {
                                         console.log('没有触发缩图');
                                         attach.attach_thumb = 0;
                                         resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
-                                    } else if (value.attach_thumb === 1) {
+                                    } else if (attach.attach_thumb === 1) {
                                         console.log('触发缩图');
                                         attach.attach_thumb = 1;
                                         resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
@@ -978,7 +978,9 @@ async function autoSaveUpload() {
                 await db.getItem(`${type}_autoSaveMessageInfo`).then((value) => {
                     if (value === null) return;
                     jq('#browsecat').val(value['category']);
-                    jq('#browsecat').change(); // 手动触发列表更改事件
+                    // jq('#browsecat').change(); // 手动触发列表更改事件 <使用两个jq后失效了 $('#browsecat').change(); 是有效的>
+                    document.getElementById('browsecat').dispatchEvent(new Event('change')); // 手动触发列表更改事件
+                    console.log(value['category']);
                     jq('#autocheck_placeholder').children().eq(0).prop("checked", value['auto_pass']);
                     jq('#autocheck_placeholder').children().eq(1).prop("checked", !value['auto_pass']);
                     for (var key in value) { if (/^(anime|manga|music|other)/.test(key)) { jq('#' + key + '-input').val(value[key]); }; };
@@ -2168,6 +2170,7 @@ function SmileIT2(smile, form, text) {
                     // 不知道怎么计算的，怎么传都用不完配额
                     let n = jq(d).find('font[color="red"]').text();  // 剩余上传附件数量
                     jq('font[color="red"]').text(n); // 更新剩余上传附件数量
+                    jq('.progress > div').css('width', '0%');  // 重置进度条宽度
                     resolve(attach_hash);
                 },
                 error: function (e) {
