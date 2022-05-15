@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.7
+// @version      0.5.8
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -657,9 +657,18 @@ async function bbcode2html(bbcodestr) {
     bbcodestr = await replaceAsync(bbcodestr, /\[attach\](?<hash>\w{32})\[\/attach\]/gi, async (...args) => {
         const { hash } = args.slice(-1)[0];
         return await db.getItem(hash).then(async (value) => {
-            if (value !== null) {
-                // console.log('数据已存在');
+            if (value !== null && value.attach_id) {
+                console.log('数据已存在');
                 if (value.attach_type === 'img') {
+                    if (Number.isFinite(value.attach_thumb)) {
+                        if (value.attach_thumb === 0) {
+                            console.log('没有触发缩图');
+                            return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}" onclick="Previewurl('${value.attach_url}')">`
+                        } else if (value.attach_thumb === 1) {
+                            console.log('触发缩图');
+                            return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}.thumb.jpg" onclick="Previewurl('${value.attach_url}')">`
+                        };
+                    };
                     return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}.thumb.jpg" onclick="Previewurl('${value.attach_url}')">`
                 } else if (value.attach_type === 'other') {
                     return '<div class="attach">'
@@ -673,7 +682,7 @@ async function bbcode2html(bbcodestr) {
                     return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`;
                 };
             } else {
-                // console.log('数据不存在');
+                console.log('数据不存在');
                 return await new Promise((resolve, reject) => {
                     jq.ajax({
                         type: 'post',
@@ -712,18 +721,29 @@ async function bbcode2html(bbcodestr) {
                                 // 附件唯一标识符
                                 let attach_url_obj = /^Previewurl\(['"](?<url>[^'"]+)['"]\)/i.exec(jq(attach_image).attr('onclick'));
                                 let attach_info_obj = /(?<size>\d{1,4}\.\d{1,3}\s?[TGMK]iB).*(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec(jq(attach_image).attr('onmouseover'));
-                                const attach = {
+                                let attach = {
                                     "attach_id": jq(attach_image).attr('id').replace('attach', ''),
                                     "attach_type": 'img',
                                     "attach_url": attach_url_obj ? attach_url_obj.groups.url : '',
                                     "attach_name": jq(attach_image).attr('alt'),
                                     "attach_size": attach_info_obj ? attach_info_obj.groups.size : '',
-                                    "attach_time": attach_info_obj ? attach_info_obj.groups.time : ''
+                                    "attach_time": attach_info_obj ? attach_info_obj.groups.time : '',
+                                    "attach_thumb": ''
                                 };
-                                // console.log(attach);
-                                // 写入数据库
-                                await db.setItem(hash, attach);
+                                // console.log('value.attach_thumb: ', value.attach_thumb);
+                                if (Number.isFinite(value.attach_thumb)) {
+                                    if (value.attach_thumb === 0) {
+                                        console.log('没有触发缩图');
+                                        attach.attach_thumb = 0;
+                                        resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
+                                    } else if (value.attach_thumb === 1) {
+                                        console.log('触发缩图');
+                                        attach.attach_thumb = 1;
+                                        resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
+                                    };
+                                };
                                 resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
+                                await db.setItem(hash, attach);
                             }
                             else {
                                 // Attachment for key 82505eca8a43a36bc9c60a7d9609a5df not found.
@@ -1239,7 +1259,7 @@ async function syncScroll(element, type, bbcode, preview) {
 
 // 为bbcode加上[]
 function createTagBox(name, attribute, content) {
-    var components = [];
+    let components = [];
     components.push('[');
     components.push(name);
     if (attribute !== null) {
@@ -1260,17 +1280,27 @@ function replaceTextBox(str, start, end, replacement) {
     return str.substring(0, start) + replacement + str.substring(end);
 };
 
+
+/**
+ * 将标签添加到 textArea 元素。
+ * @param {HTMLTextAreaElement} textArea - 要修改的 textArea 元素
+ * @param {String} name - 标签的名称
+ * @param {String} attribute - 标签的属性。 可以为空
+ * @param {String} content - 标签的内容。 如果此参数为空，标签将是一个自闭合标签（如 [hr]）
+ * @param {Boolean} surround - 指定是否用标签包围选择，或者只是替换选择。 如果有选择且此参数为真，内容被忽略
+ * @returns {String} - 构造的 BBCode 标签
+ */
 function addTagBox(textArea, name, attribute, content, surround) {
-    var selStart = textArea.selectionStart;
-    var selEnd = textArea.selectionEnd;
+    let selStart = textArea.selectionStart;
+    let selEnd = textArea.selectionEnd;
     if (selStart === null || selEnd === null) {
         selStart = selEnd = textArea.value.length;
     }
-    var selTarget = selStart + name.length + 2 + (attribute ? attribute.length + 1 : 0);
+    let selTarget = selStart + name.length + 2 + (attribute ? attribute.length + 1 : 0);
     if (selStart === selEnd) {
         textArea.value = replaceTextBox(textArea.value, selStart, selEnd, createTagBox(name, attribute, content));
     } else {
-        var replacement = null;
+        let replacement = null;
         if (surround) {
             replacement = createTagBox(name, attribute, textArea.value.substring(selStart, selEnd));
         } else {
@@ -1281,11 +1311,26 @@ function addTagBox(textArea, name, attribute, content, surround) {
     textArea.setSelectionRange(selTarget, selTarget);
 };
 
+/**
+ * 将文本添加到 textArea 元素。
+ * @param {HTMLTextAreaElement} textArea - 要修改的 textArea 元素
+ * @param {String} content - 文本内容
+ * @returns {String} - 构造的 BBCode 标签
+ */
+function addTextBox(textArea, content) {
+    let selStart = textArea.selectionStart;
+    let selEnd = textArea.selectionEnd;
+    if (selStart === null || selEnd === null) { selStart = selEnd = textArea.value.length; };
+    let selTarget = selStart + (content ? content.length : 0);  // 计算插入文本后光标的位置
+    textArea.value = replaceTextBox(textArea.value, selStart, selEnd, content);
+    textArea.setSelectionRange(selTarget, selTarget);  // 设置光标位置
+};
+
 function onEditorActionBox(action, element, param) {
-    var textArea = document.querySelector(element);
-    var selStart = textArea.selectionStart;
-    var selEnd = textArea.selectionEnd;
-    var selectionText, url;
+    let textArea = document.querySelector(element);
+    let selStart = textArea.selectionStart;
+    let selEnd = textArea.selectionEnd;
+    let selectionText, url;
     if (selStart === null || selEnd === null) {
         selStart = selEnd = textArea.value.length;
     };
@@ -1384,7 +1429,7 @@ function onEditorActionBox(action, element, param) {
         }
         case "RT*": {
             if (selStart !== selEnd) {
-                var title = window.prompt(lang['rt_text']);
+                let title = window.prompt(lang['rt_text']);
                 if (title === null || title.length === 0) {
                     break;
                 }
@@ -1396,7 +1441,7 @@ function onEditorActionBox(action, element, param) {
                 if (text === null || text.length === 0) {
                     break;
                 }
-                var title = window.prompt(lang['rt_text']);
+                let title = window.prompt(lang['rt_text']);
                 if (title === null || title.length === 0) {
                     break;
                 }
@@ -1406,7 +1451,7 @@ function onEditorActionBox(action, element, param) {
         }
         case "QUOTE*": {
             if (selStart !== selEnd) {
-                var title = window.prompt(lang['main_body_prefix']);
+                let title = window.prompt(lang['main_body_prefix']);
                 if (title === null || title.length === 0) {
                     title = "";
                 }
@@ -1418,7 +1463,7 @@ function onEditorActionBox(action, element, param) {
                 if (text === null || text.length === 0) {
                     break;
                 }
-                var title = window.prompt(lang['main_body_prefix']);
+                let title = window.prompt(lang['main_body_prefix']);
                 if (title === null || title.length === 0) {
                     title = "";
                 }
@@ -1431,7 +1476,7 @@ function onEditorActionBox(action, element, param) {
                 selectionText = textArea.value.substring(selStart, selEnd); // 选中的文字
                 if (/^(?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+/gi.test(selectionText)) {
                     // 选中的是URL时
-                    var title = window.prompt(lang['url_name']);
+                    let title = window.prompt(lang['url_name']);
                     if (title === null || title.length === 0) {
                         // selectionText = textArea.value.substring(selStart, selEnd);
                         // addTag(textArea, "url", null, "", true);
@@ -1441,7 +1486,7 @@ function onEditorActionBox(action, element, param) {
                     };
                 } else {
                     // 选中的是文字时
-                    var url_link = window.prompt(lang['url_link']);
+                    let url_link = window.prompt(lang['url_link']);
                     if (url_link === null || url_link.length === 0) {
                         // selectionText = textArea.value.substring(selStart, selEnd);
                         // addTag(textArea, "url", null, "", true);
@@ -1455,7 +1500,7 @@ function onEditorActionBox(action, element, param) {
                 if (text === null || text.length === 0) {
                     break;
                 }
-                var title = window.prompt(lang['url_name']);
+                let title = window.prompt(lang['url_name']);
                 if (title === null || title.length === 0) {
                     title = "";
                     addTagBox(textArea, "url", null, text, false);
@@ -1467,7 +1512,7 @@ function onEditorActionBox(action, element, param) {
         }
         case "SPOILER*": {
             if (selStart !== selEnd) {
-                var title = window.prompt(lang['main_body_prefix']);
+                let title = window.prompt(lang['main_body_prefix']);
                 if (title === null || title.length === 0) {
                     addTagBox(textArea, "spoiler", null, "", true);
                     break;
@@ -1480,7 +1525,7 @@ function onEditorActionBox(action, element, param) {
                 if (text === null || text.length === 0) {
                     break;
                 }
-                var title = window.prompt(lang['main_body_prefix']);
+                let title = window.prompt(lang['main_body_prefix']);
                 if (title === null || title.length === 0) {
                     title = "";
                     addTagBox(textArea, "spoiler", null, text, false);
@@ -2002,20 +2047,139 @@ function SmileIT2(smile, form, text) {
 })();
 
 
+// 附件
 (async () => {
     if (location.pathname !== '/attachment.php') return;
+    const url = window.URL || window.webkitURL;
+    jq('input[type="file"]').attr('multiple', 'multiple'); // 允许多文件上传
+    jq('input[type="file"]').attr('accept', '.jpg,.jpeg,.png,.gif,.torrent,.zip,.rar,.7z,.gzip,.gz'); // 限制上传文件类型
+    jq('input[name="submit"]').attr('type', 'button'); // 更改按钮类型
+    jq('input[type="file"]').css('width', '20%'); // 调整文件输入框的宽度
+    jq('.embedded').after(`<td name="progress" width="25%"><div class="progress"><div></div></div></td>
+                           <td name="progress" style="width: 23%; text-align: center; font-style: italic;";><span name="progress-percent"></span></td>
+                           <td name="progress" style="width: 8%; text-align: center; font-style: italic;"><span name="progress-total"></span></td>
+                           <td name="progress" style="font-style: italic; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">
+                            <span name="progress-name"></span>
+                           </td>`);
+    jq('.progress').css({
+        'width': '99%',
+        'height': '8px',
+        'border': '1px solid #ccc',
+        'border-radius': '5px',  // 圆角
+        'margin': '8px 2px',
+        'overflow': 'hidden',  // 控制内容溢出元素框时在对应的元素区间内添加滚动条
+    });
+    jq('.inframe').css('background', 'none'); // 去除背景色
+    jq('table').css('table-layout', 'fixed'); // 设置表格宽度固定
+    jq('table tr td').css("border", "0px solid"); // 去除边框
+    jq('.progress > div').css({
+        'width': '0px',
+        'height': '100%',
+        'background-color': '#8db8ff',
+        'transition': 'all 300ms ease'
+    }); // 设置进度条颜色
+    jq('[name="progress"]').hide();  // 隐藏进度条
 
-    // 上传附件实时预览结果 <还是有点延迟>
-    const script = jq('script').html();
-    // 不是POST返回的页面，不需要处理
-    script.replace(/parent\.addTag\(parent\.document\.getElementById\("(?<element>.+?)"\)/, (...args) => {
-        const { element } = args.slice(-1)[0];
-        jq('body').append(`<script type="text/javascript">const ref=()=>{parent.document.getElementById('${element}').dispatchEvent(new Event('input'))};ref();</script>`);
+    jq('input[name="submit"]').click(async function () {
+        const emfile = jq('input[type="file"]')[0];
+        if (!emfile.value) {
+            // 没有选择文件时，不触发上传
+            window.alert('请选择文件');
+            return;
+        };
+        jq('.embedded').hide();
+        jq('[name="progress"]').show();
+        let attach_hash_list = []; // 存储上传文件的hash值
+        await (async () => {
+            for (let i = 0, len = emfile.files.length; i < len; i++) {
+                console.log(emfile.files[i]);
+                jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
+                let thumb = await imgThumb(emfile.files[i]).catch(e => { });
+                if (!thumb && thumb !== 0 && thumb !== 1 && thumb !== '') continue;  // 如果不是有效的文件，则跳过
+                let hash = await upload(emfile.files[i], thumb).catch(e => { }); // 上传文件 返回文件hash
+                if (hash) attach_hash_list.push(hash); // 存储hash值
+            };
+        })();
+        console.log(attach_hash_list);
+        let bbcode = '';
+        attach_hash_list.forEach(async (hash) => { bbcode += `[attach]${hash}[/attach]`; })
+        let em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);  // 获取text_area_id
+        addTextBox(window.parent.document.getElementById(em.groups.id), bbcode); // 添加附件bbcode
+        window.parent.document.getElementById(em.groups.id).dispatchEvent(new Event('input'));  // 触发input事件
+        jq('[name="progress"]').hide();  // 隐藏进度条
+        jq('.embedded').show();  // 显示附件菜单
+        jq('[name="file"]').val(''); // 清空输入框
     });
 
-    // 将 attach 标签内的图片转为 img 标签 <attach的图片太糊了，要大图还要点一下，好麻烦xd>
-    jq('[name=submit]').after(`<input id="bigimg" type="button" value="转IMG">`);
+    // 判断是否会触发缩图
+    const imgThumb = (file) => {
+        return new Promise((resolve, reject) => {
+            if (file.type.indexOf('image') === 0) {
+                console.log('载入');
+                let img = new Image();              //创建个Image对象
+                img.src = url.createObjectURL(file); //将图片路径存入Image对象
+                img.onload = function () {
+                    console.log('长: ' + this.height + ' | 宽: ' + this.width)
+                    resolve((this.height > 500 || this.width > 500) ? 1 : 0);
+                };
+                img.onerror = function () {
+                    window.alert(`${file.name} 不是有效的图片文件`);
+                    reject('invalid');
+                }
+            } else {
+                resolve('');
+            };
+        });
+    };
 
+    // 上传文件
+    const upload = (file, attach_thumb) => {
+        return new Promise((resolve, reject) => {
+            let formData = new FormData();  // 创建一个form类型的数据
+            formData.append('file', file);  // 获取上传文件的数据
+            if (!/\.(jpg|jpeg|png|gif|torrent|zip|rar|7z|gzip|gz)$/i.test(file.name)) { window.alert(`${file.name} 文件类型不支持`); reject(); return; }
+            if (file.size > 1024 * 1024 * 4) { window.alert(`${file.name} 文件过大`); reject(); return; }
+            jq.ajax({
+                url: "attachment.php", // 接口
+                type: 'post',
+                cache: false,
+                contentType: false,
+                processData: false,
+                data: formData,
+                xhr: function () {
+                    const xhr = new XMLHttpRequest();
+                    xhr.upload.addEventListener('progress', function (e) {
+                        let progressRate = ((e.loaded / e.total) * 100).toFixed(2) + '%';  // 计算上传进度
+                        jq('.progress > div').css('width', progressRate);  // 设置进度条宽度
+                        jq('[name="progress-percent"]').text(`${e.loaded} / ${e.total} | ${progressRate}`);
+                        jq('[name="progress-name"]').text(file.name);
+                    });
+                    return xhr;
+                },
+                success: async function (d) {
+                    let attach_hash_obj = /(?<hash>\w{32})/i.exec(jq(d).find('script').text());
+                    // if (!attach_hash_obj) return;  // 没有找到id直接返回 
+                    // <span class="striking">失败！不允许该文件扩展名。</span>
+                    const attach_hash = attach_hash_obj.groups.hash; // 附件的hash值
+                    console.log(attach_hash)
+                    const db = localforage.createInstance({ name: "attachmap" });
+                    const attach = { "attach_thumb": attach_thumb };
+                    await db.setItem(attach_hash, attach); // 写入数据库
+                    // 不知道怎么计算的，怎么传都用不完配额
+                    let n = jq(d).find('font[color="red"]').text();  // 剩余上传附件数量
+                    jq('font[color="red"]').text(n); // 更新剩余上传附件数量
+                    resolve(attach_hash);
+                },
+                error: function (e) {
+                    console.log(e)
+                    reject(e);
+                }
+            });
+        });
+    };
+
+    // 将 attach 标签内的图片转为 img 标签 <attach的图片太糊了，要大图还要点一下，好麻烦xd>
+    jq('input[name="submit"]').after(`<input id="bigimg" type="button" value="转IMG">`);
     jq(`#bigimg`).click(async function () {
         let em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);
         if (!em) return;  // 没有找到id直接返回 
