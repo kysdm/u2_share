@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.0
+// @version      0.6.1
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -1827,7 +1827,7 @@ const attach2Img = async (emid, dom) => {
 // 判断链接是否有效
 const urlCheck = (url) => {
     return new Promise((resolve) => {
-        $.ajax({
+        jq.ajax({
             type: 'get',
             cache: false,
             url: url,
@@ -2139,7 +2139,7 @@ function SmileIT2(smile, form, text) {
                 console.log(emfile.files[i]);
                 jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
                 let thumb = await imgThumb(emfile.files[i]).catch(e => { });
-                if (!thumb && thumb !== 0 && thumb !== 1 && thumb !== '') continue;  // 如果不是有效的文件，则跳过
+                if (thumb !== 0 && thumb !== 1 && thumb !== '') continue;  // 如果不是有效的文件，则跳过
                 let hash = await upload(emfile.files[i], thumb).catch(e => { }); // 上传文件 返回文件hash
                 if (hash) attach_hash_list.push(hash); // 存储hash值
             };
