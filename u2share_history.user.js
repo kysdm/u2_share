@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.3
+// @version      0.3.4
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -916,11 +916,153 @@ async function torrentInfoHistoryReset() {
         + '<div id="kdescr"><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">'
         + bbcode2html(history_data[0].description_info) + '</bdo></span></div></td></tr><tr>'
         + '<td class="rowhead nowrap" valign="top" align="right">' + lang['torrent_info'] + '</td>'
-        + '<td class="rowfollow" valign="top" align="left"><table><tbody><tr>'
-        + '<td class="no_border_wide"><b>' + lang['files'] + '</b>: ' + history_data[0].torrent_files_qty
-        + '<br></td><td class="no_border_wide"><b>' + lang['info_hash'] + ':</b>&nbsp;' + history_data[0].torrent_hash
-        + '</td></tr></tbody></table></td></tr></tbody></table><br><br></br>'
+        + `<td id="file_tree" class="rowfollow" valign="top" align="left"></td></tr></tbody></table></td></tr></tbody></table><br><br></br>`
     );
+
+    const putFileTree = (__json) => {
+        // 插入ID
+        let counter = 0;
+        const InsertSeq = (data) => {
+            for (key in data) {
+                data[key]['id'] = counter;
+                counter++;
+                if (data[key]['type'] == 'directory') InsertSeq(data[key]['children']);
+            };
+            return data;
+        };
+        // 获取文件ID
+        const getFile = (data) => {
+            let a = []
+            for (key in data) {
+                if (data[key]['type'] == 'file') a.push(data[key]['id']);
+            };
+            a = a.concat(getDirectory(data));
+            return a;
+        };
+        // 获取文件夹ID
+        const getDirectory = (data, directory = []) => {
+            for (key in data) {
+                if (data[key]['type'] == 'directory') directory.push(data[key]['id']);
+            };
+            return directory;
+        };
+        // 获取文件体积
+        const getSize = (data, size = 0) => {
+            // console.log(data);
+            for (key in data) {
+                if (data[key]['type'] == 'file') {
+                    size = size + data[key]['length'];
+                } else {
+                    size = getSize(data[key]['children'], size);
+                };
+            }
+            return size;
+        };
+        // 遍历JSON
+        const tree = (j, i) => {
+            for (let key in j) {
+                // console.log(j);
+                // console.log(j['key']);
+                if (j[key]['type'] == 'directory') {
+                    let children = j[key]['children'];
+                    let f_id_sh = getFile(children);  // 获取文件夹需要的id
+                    let f_size = convert(getSize(children))  // 文件夹大小
+                    if (f_id === 0) {
+                        f_html = f_html + `<tr id="f_id_0" tag="closed"><td class="rowfollow"><a href="javascript:void(0)" onclick="showorhide([${f_id_sh}],0)" class="faqlink">${key}</a></td><td class="rowfollow dir_size" align="right">[${f_size}]</td></tr>`;
+                    } else {
+                        f_html = f_html + `<tr id="f_id_${f_id}" style="display: none;" tag="closed"><td class="rowfollow">${space.repeat(i)}<a href="javascript:void(0)" onclick="showorhide([${f_id_sh}],${f_id})" class="faqlink">${key}</a></td><td class="rowfollow dir_size" align="right">[${f_size}]</td></tr>`;
+                    };
+                    f_id++;
+                    tree(children, i + 1);
+                }
+                else {
+                    if (f_id === 0) {
+                        // 单文件种子
+                        f_html = f_html + `<tr id="f_id_${f_id}"><td class="rowfollow">${space.repeat(i)}${key}</td><td class="rowfollow" align="right">${convert(j[key]['length'])}</td></tr>`;
+                    } else {
+                        f_html = f_html + `<tr id="f_id_${f_id}" style="display: none;"><td class="rowfollow">${space.repeat(i)}${key}</td><td class="rowfollow" align="right">${convert(j[key]['length'])}</td></tr>`;
+                    };
+                    f_id++;
+                };
+            };
+        };
+
+        // let __json = history_data[0].torrent_tree;
+        if (__json === null) {
+            // console.log('tree 为空');
+            $('#file_tree').html(
+                `<table>
+                    <tbody>
+                        <tr>
+                            <td class="no_border_wide"><b>${lang['files']}</b>: ${history_data[0].torrent_files_qty}<br></td>
+                            <td class="no_border_wide"><b>${lang['info_hash']}:</b>&nbsp;${history_data[0].torrent_hash}</td>
+                        </tr>
+                    </tbody>
+                </table>`
+            );
+            return;
+        };
+        __json = stringify(__json, function (a, b) {
+            // 对keys排序
+            if (typeof (a.value) !== 'object' || typeof (b.value) !== 'object') return 0;
+            if (a.value.type === 'directory' && b.value.type === 'file') {
+                return -1;
+            } else if (a.value.type === 'file' && b.value.type === 'directory') {
+                return 1;
+            } else {
+                return a.key.toLowerCase() < b.key.toLowerCase() ? -1 : 1;
+            };
+        });
+        __json = JSON.parse(__json);
+        __json = InsertSeq(__json);
+        // console.log(__json);
+        let f_id = 0;  // 元素id
+        let f_html = '';  // 文件列表
+        const space = '&nbsp;&nbsp;&nbsp;&nbsp;';  // 缩进
+        tree(__json, 0);
+        // $('#filelist').find('tr').after(f_html);
+        $('#file_tree').html(
+            `<table>
+                <tbody>
+                    <tr>
+                        <td class="no_border_wide"><b>${lang['files']}</b>: ${history_data[0].torrent_files_qty}<br>
+                        <span id="showfl" style="display: inline;">
+                            <a href="javascript: viewfilelist(43471)">[查看列表]</a>
+                        </span>
+                        <span id="hidefl" style="display: none;">
+                            <a href="javascript: hidefilelist()">[隐藏列表]</a>
+                        </span>
+                        ${(() => {
+                return f_id > 1
+                    ? `<span id="expandall" style="display: none;"><a href="javascript: expandall(true)">[全部展开]</a></span>
+                            <span id="closeall" style="display: none;"><a href="javascript: expandall(false)">[全部关闭]</a></span>`
+                    : ''
+            })()}
+                        </td>
+                        <td class="no_border_wide"><b>${lang['info_hash']}:</b>&nbsp;${history_data[0].torrent_hash}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <span id="filelist" style="display: none;">
+                <style>
+                    .dir_size {
+                        color: gray;
+                        white-space: nowrap;
+                    }
+                </style>
+                <table border="1" cellspacing="0" cellpadding="5">
+                    <tbody>
+                        <tr>
+                            <td class="colhead">路径</td>
+                            <td class="colhead" align="center"><img class="size" src="pic/trans.gif" alt="size"></td>
+                        </tr>
+                        ${f_html}
+                    </tbody>
+                </table>
+            </span>`
+        );
+    };
+    putFileTree(history_data[0].torrent_tree);  // 运行一次，生成列表
 
     for (let i = 0, len = history_data.length; i < len; i++) { // 循环插入到选择列表中
         $("#history_select").append("<option value='" + history_data[i].self + "'>"
@@ -960,6 +1102,7 @@ async function torrentInfoHistoryReset() {
                 + (() => { if (history_data[i].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>' + lang['size'] + ':</b>&nbsp;' + convert(history_data[i].torrent_size) } else { return ''; } })()
                 + '&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + '</b>:&nbsp;' + history_data[i].category
             );
+            putFileTree(history_data[i].torrent_tree);
         };
     });
 };
@@ -1511,7 +1654,6 @@ function lang_init(lang) {
     return lang_json[lang];
 };
 
-
 // 当前时间 字符串格式
 function getDateString() {
     function zero(obj) { return obj < 10 ? '0' + obj : obj };
@@ -1520,10 +1662,94 @@ function getDateString() {
         + ' ' + zero(time.getHours()) + ':' + zero(time.getMinutes()) + ':' + zero(time.getSeconds())
 };
 
-
 function convert(s) {
     if (s / 1024 < 1024) return (s / 1024).toFixed(3) + lang['KiB']
     if (s / 1024 / 1024 < 1024) return (s / 1024 / 1024).toFixed(3) + lang['MiB']
     if (s / 1024 / 1024 / 1024 < 1024) return (s / 1024 / 1024 / 1024).toFixed(3) + lang['GiB']
     if (s / 1024 / 1024 / 1024 / 1024 < 1024) return (s / 1024 / 1024 / 1024 / 1024).toFixed(3) + lang['TiB']
+};
+
+// 对JSON进行排序
+// https://github.com/substack/json-stable-stringify
+const stringify = function (obj, opts) {
+    if (!opts) opts = {};
+    if (typeof opts === 'function') opts = { cmp: opts };
+    var space = opts.space || '';
+    if (typeof space === 'number') space = Array(space + 1).join(' ');
+    var cycles = (typeof opts.cycles === 'boolean') ? opts.cycles : false;
+    var replacer = opts.replacer || function (key, value) { return value; };
+
+    var cmp = opts.cmp && (function (f) {
+        return function (node) {
+            return function (a, b) {
+                var aobj = { key: a, value: node[a] };
+                var bobj = { key: b, value: node[b] };
+                return f(aobj, bobj);
+            };
+        };
+    })(opts.cmp);
+
+    var seen = [];
+    return (function stringify(parent, key, node, level) {
+        var indent = space ? ('\n' + new Array(level + 1).join(space)) : '';
+        var colonSeparator = space ? ': ' : ':';
+
+        if (node && node.toJSON && typeof node.toJSON === 'function') {
+            node = node.toJSON();
+        }
+
+        node = replacer.call(parent, key, node);
+
+        if (node === undefined) {
+            return;
+        }
+        if (typeof node !== 'object' || node === null) {
+            return JSON.stringify(node);
+        }
+        if (isArray(node)) {
+            var out = [];
+            for (var i = 0; i < node.length; i++) {
+                var item = stringify(node, i, node[i], level + 1) || JSON.stringify(null);
+                out.push(indent + space + item);
+            }
+            return '[' + out.join(',') + indent + ']';
+        }
+        else {
+            if (seen.indexOf(node) !== -1) {
+                if (cycles) return JSON.stringify('__cycle__');
+                throw new TypeError('Converting circular structure to JSON');
+            }
+            else seen.push(node);
+
+            var keys = objectKeys(node).sort(cmp && cmp(node));
+            var out = [];
+            for (var i = 0; i < keys.length; i++) {
+                var key = keys[i];
+                var value = stringify(node, key, node[key], level + 1);
+
+                if (!value) continue;
+
+                var keyValue = JSON.stringify(key)
+                    + colonSeparator
+                    + value;
+                ;
+                out.push(indent + space + keyValue);
+            }
+            seen.splice(seen.indexOf(node), 1);
+            return '{' + out.join(',') + indent + '}';
+        }
+    })({ '': obj }, '', obj, 0);
+};
+
+const isArray = Array.isArray || function (x) {
+    return {}.toString.call(x) === '[object Array]';
+};
+
+const objectKeys = Object.keys || function (obj) {
+    var has = Object.prototype.hasOwnProperty || function () { return true };
+    var keys = [];
+    for (var key in obj) {
+        if (has.call(obj, key)) keys.push(key);
+    }
+    return keys;
 };
