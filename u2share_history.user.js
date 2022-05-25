@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.4
+// @version      0.3.5
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -883,7 +883,7 @@ async function torrentInfoHistoryReset() {
     $('#outer').html('<h1 align="center" id="top">'
         + (() => { return history_data[0].banned === 1 ? history_data[0].title + '&nbsp;&nbsp;&nbsp; <b>[<font class="striking">' + lang['banned'] + '</font>]</b>' : history_data[0].title; })()
         + '</h1>'
-        + '<div id="hsty" style="position: relative;"><div id="history" style="position: absolute; right:56px; margin-top: 4px;">'
+        + '<div id="hsty" style="position: relative;"><div id="history" style="position: absolute; right:75px; margin-top: 4px;">'
         + '<select name="type" id="history_select" style="visibility: visible;"></select></div></div>'
         + '<h3>(#' + torrent_id + ')</h3>'
         + '<table id="description" width="90%" min-width="940px" cellspacing="0" cellpadding="5"><tbody><tr><td class="rowhead" width="13%">' + lang['torrent_title'] + '</td>'
@@ -1027,7 +1027,7 @@ async function torrentInfoHistoryReset() {
                     <tr>
                         <td class="no_border_wide"><b>${lang['files']}</b>: ${history_data[0].torrent_files_qty}<br>
                         <span id="showfl" style="display: inline;">
-                            <a href="javascript: viewfilelist(43471)">[查看列表]</a>
+                            <a href="javascript: viewfilelist()">[查看列表]</a>
                         </span>
                         <span id="hidefl" style="display: none;">
                             <a href="javascript: hidefilelist()">[隐藏列表]</a>
