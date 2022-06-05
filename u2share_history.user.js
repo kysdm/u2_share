@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.5
+// @version      0.3.6
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -33,20 +33,21 @@ GreasyFork 地址
     https://github.com/kysdm/u2_share/commits/main/u2share_history.user.js
 */
 
+'use strict';
+
 // 声明全局变量
 var lang, torrent_id, db, user_id, topicid, key, token;
 
 (async () => {
-    'use strict';
     // 初始化
     lang = new lang_init($('#locale_selection').val()); // 获取当前网页语言
     torrent_id = location.href.match(/\.php\?id=(\d{3,5})/i) || ['', '']; if (torrent_id[1] !== '') torrent_id = torrent_id[1]; // 当前种子ID
     topicid = location.href.match(/topicid=(\d+)/i) || ['', '']; if (topicid[1] !== '') topicid = topicid[1];
     user_id = $('#info_block').find('a:first').attr('href').match(/\.php\?id=(\d{3,5})/i) || ['', '']; if (user_id[1] !== '') user_id = user_id[1]; // 当前用户ID
     db = localforage.createInstance({ name: "history" });
-    key = await db.getItem('key');
+    // key = await db.getItem('key');
     token = await db.getItem('token');
-    if (token === null || token.length !== 96) { new auth(key); return; };
+    if (token === null || token.length !== 96) { new auth(); return; };
     if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { torrentInfoHistoryReset(); torrentCommentHistoryReset(); }// 为已经删除的种子显示历史
     else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && !/(cmtpage|offer_vote|vote)=(1|p)/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
     else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && /cmtpage=1/i.test(location.href)) { torrentCommentHistory(); } // 为正常种子显示历史 <仅评论>
@@ -55,7 +56,6 @@ var lang, torrent_id, db, user_id, topicid, key, token;
 })();
 
 function auth() {
-    'use strict';
 
     $('#outer').html(`<h1 align="center">U2种子历史记录 自动鉴权工具</h1>
     <table border="0" align="center" cellspacing="0" cellpadding="5">
@@ -278,7 +278,6 @@ function auth() {
 };
 
 async function forumCommentHistoryReset() {
-    'use strict';
     const errorstr = $('#outer').find('td.text').text();
     // 正在努力加载中...
     $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>' + lang['history_text_loading'] + '</i>');
@@ -450,7 +449,6 @@ async function forumCommentHistoryReset() {
 };
 
 async function forumCommentHistory() {
-    'use strict';
 
     $.ajax({
         type: 'post',
@@ -510,7 +508,6 @@ async function forumCommentHistory() {
 };
 
 async function torrentCommentHistory() {
-    'use strict';
     $.ajax({
         type: 'post',
         url: 'https://u2.kysdm.com/api/v1/comment',
@@ -579,7 +576,6 @@ async function torrentCommentHistory() {
 
 
 async function torrentInfoHistory() {
-    'use strict';
     if ($('h3').length === 1) { // 插入 select 基本框架
         const right = ($('#outer').width() - $('h3').next().width()) / 2 + 5; // 计算偏移量
         $('#top').after('<div id="hsty" style="position: relative;"><div id="history" style="position: absolute; right:' + right + 'px; margin-top: 4px;"><select name="type" id="history_select"></div></div>');
@@ -679,7 +675,6 @@ async function torrentInfoHistory() {
 };
 
 async function torrentCommentHistoryReset() {
-    'use strict';
 
     const cidUrl = (t, c) => {
         if (/\/offers\.php/i.test(location.href)) {
@@ -850,7 +845,6 @@ async function torrentCommentHistoryReset() {
 };
 
 async function torrentInfoHistoryReset() {
-    'use strict';
     const errorstr = $('#outer').find('td.text').text();
     // 正在努力加载中...
     $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>' + lang['history_text_loading'] + '</i>');
@@ -1109,7 +1103,6 @@ async function torrentInfoHistoryReset() {
 
 
 function bbcode2html(bbcodestr) {
-    'use strict';
     const f_reg = new RegExp("^\"?\"?$|^(?:&quot;)?(?:&quot;)?$");
 
     var tempCode = new Array();
@@ -1378,7 +1371,6 @@ function bbcode2html(bbcodestr) {
 
 
 function getapi() {
-    'use strict';
     return new Promise((resolve, reject) => {
         // https://www.w3school.com.cn/jquery/ajax_ajax.asp
         $.ajax({
@@ -1398,8 +1390,7 @@ function getapi() {
 
 
 function lang_init(lang) {
-    'use strict';
-    var lang_json = {
+    const lang_json = {
         "zh_CN": {
             "quote": "引用",
             "info": "发布信息",
