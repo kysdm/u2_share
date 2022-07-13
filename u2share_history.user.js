@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.6
+// @version      0.3.7
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -462,19 +462,109 @@ async function forumCommentHistory() {
                 let __comment = d.data.comment[topicid].sort((a, b) => b.self - a.self);
                 let pidList = __comment.map(x => x.pid);
                 let counts = new Object();
-                pidList.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1)
+                pidList.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
 
-                $('[id^="pid"]').each(function () {
-                    let pid = $(this).find('[class="embedded"]').children('a').first().text().replace('#', '');
-                    __comment.forEach(x => {
-                        if (x.pid == pid && counts[pid] > 1) {
-                            if ($(`#history_comment${pid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: 1px;"><select name="type" id="history_comment${pid}_select"></div></div>`);
-                            $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
+                // $('[id^="pid"]').each(function () {
+                //     let pid = $(this).find('[class="embedded"]').children('a').first().text().replace('#', '');
+                //     __comment.forEach(x => {
+                //         if (x.pid == pid && counts[pid] > 1) {
+                //             if ($(`#history_comment${pid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: 1px;"><select name="type" id="history_comment${pid}_select"></div></div>`);
+                //             $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
+                //                 ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
+                //                 ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
+                //                 </option>`);
+                //         };
+                //     });
+                // });
+
+                __comment.forEach(x => {
+                    let del_tag = 1;
+                    $('[id^="pid"]').each(function () {
+                        let pid = $(this).find('[class="embedded"]').children('a').first().text().replace('#', '');  // 获取网页上每个评论的PID
+                        if (x.pid == pid) {
+                            del_tag = 0;  // 标记网页上有对应的PID
+                            if (counts[pid] > 1) {
+                                if ($(`#history_comment${pid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: 1px;"><select name="type" id="history_comment${pid}_select"></div></div>`);
+                                $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
                                 ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
                                 ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
                                 </option>`);
+                            };
                         };
                     });
+
+                    if (del_tag === 1) {
+                        // console.log(`${x.pid} | 被删除`);
+
+                        // 只看该作者 启用时，仅还原改用户的记录
+                        let em = /authorid=(?<authorid>\d{1,5})/i.exec(location.search);
+                        if (em && x.userid != em.groups.authorid) return true;
+
+                        $('[id^="pid"]').each(function () {
+                            let pid = $(this).find('[class="embedded"]').children('a').first().text().replace('#', '');  // 获取网页上每个评论的PID
+
+                            if (x.pid < Number(pid)) {
+
+                                const bbcode_html = `<div style="margin-top: 8pt; margin-bottom: 8pt;">
+                                <table id="pid${x.pid}" border="0" cellspacing="0" cellpadding="0" width="100%">
+                                    <tbody>
+                                        <tr>
+                                            <td class="embedded" width="99%">
+                                                <a href="forums.php?action=viewtopic&amp;${x.topicid}=14068&amp;page=p${x.pid}#pid${x.pid}">#${x.pid}</a>
+                                                <!-- 论坛应该不能匿名发帖吧 -->
+                                                <span class="nowrap"><a href="userdetails.php?id=${x.userid}"><b>
+                                                            <bdo dir="ltr">${x.username}</bdo></b></a></span>&nbsp;
+                                                <time>${x.edit_time.replace('T', ' ')}</time>
+                                            </td>
+                                            <td class="embedded nowrap" width="1%">
+                                                <a href="#top"><img class="top" src="pic/trans.gif" alt="Top" title="${lang['back_to_top']}"></a>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <table class="main-inner" border="1" cellspacing="0" cellpadding="5">
+                                <tbody>
+                                    <tr>
+                                        <td class="rowfollow" width="150" valign="top" align="left" style="padding: 0px">
+                                            <img src="//u2.dmhy.org/pic/default_avatar.png" alt="avatar" width="150px">
+                                        </td>
+                                        <td class="rowfollow" valign="top"><br>
+                                            <div class="post-body" id="pid${x.pid}body">
+                                                <span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">
+                                                ${(() => {
+                                        if (x.action === 'edit') {
+                                            return `${bbcode2html(x.bbcode)}</bdo></span>
+                                                                    ${(() => {
+                                                    if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
+                                                    else if ($('#locale_selection').val() === 'ru_RU') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
+                                                    else return `<p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </p><br><br>`;
+                                                })()}`;
+                                        } else {
+                                            return `${bbcode2html(x.bbcode)}<br><br></bdo></span>`;
+                                        };
+                                    })()}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>`
+
+                                $(`[id="pid${pid}"]`).parent().before(bbcode_html);
+
+                                if (counts[x.pid] > 1) {
+                                    if ($(`#history_comment${x.pid}_select`).length === 0) $(`[id="pid${x.pid}"]`).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: 1px;"><select name="type" id="history_comment${x.pid}_select"></div></div>`);
+                                    $(`#history_comment${x.pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
+                                ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
+                                ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
+                                </option>`);
+                                };
+
+                                return false;
+                            };
+                        });
+
+                    };
                 });
 
                 $("[id^=history_comment]").change(function () { // 监听菜单选择
@@ -522,17 +612,114 @@ async function torrentCommentHistory() {
                 let counts = new Object();
                 cidList.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1)
 
-                $('[id^="cid"]').each(function () {
-                    let cid = $(this).find('[class="embedded"]').children('a').attr('name');
-                    __comment.forEach(x => {
-                        if (x.cid == cid && counts[cid] > 1) {
-                            if ($(`#history_comment${cid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;"><select name="type" id="history_comment${cid}_select"></div></div>`);
-                            $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
-                            ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
-                            ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
-                            </option>`);
+                // $('[id^="cid"]').each(function () {
+                //     let cid = $(this).find('[class="embedded"]').children('a').attr('name');
+                //     __comment.forEach(x => {
+                //         if (x.cid == cid && counts[cid] > 1) {
+                //             if ($(`#history_comment${cid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;"><select name="type" id="history_comment${cid}_select"></div></div>`);
+                //             $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
+                //             ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
+                //             ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
+                //             </option>`);
+                //         };
+                //     });
+                // });
+
+                __comment.forEach(x => {
+                    let del_tag = 1;
+                    $('[id^="cid"]').each(function () {
+                        let cid = $(this).find('[class="embedded"]').children('a').attr('name');
+                        if (x.cid == cid) {
+                            del_tag = 0; // 标记网页上有对应的CID
+                            if (x.cid == cid && counts[cid] > 1) {
+                                if ($(`#history_comment${cid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;"><select name="type" id="history_comment${cid}_select"></div></div>`);
+                                $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
+                        ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
+                        ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
+                        </option>`);
+                            };
                         };
                     });
+
+                    if (del_tag === 1) {
+                        // console.log(`${x.cid} | 被删除`);
+
+                        $('[id^="cid"]').each(function () {
+                            let cid = $(this).find('[class="embedded"]').children('a').attr('name'); // 获取网页上每个评论的CID
+
+                            if (x.cid < Number(cid)) {
+                                if (x.userid === null && x.username === null) {
+                                    var userInfo = `<span style="color: gray">&nbsp;<i>${lang['anonymous']}</i>&nbsp;</span>`
+                                } else {
+                                    var userInfo = `<span style="color: gray">&nbsp;<span class="nowrap"><a href="userdetails.php?id=${x.userid}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span>`
+                                }
+
+                                const bbcode_html = `<div style="margin-top: 8pt; margin-bottom: 8pt;">
+                                <table id="cid${x.cid}" border="0" cellspacing="0" cellpadding="0" width="100%">
+                                    <tbody>
+                                    <tr>
+                                        <td class="embedded" width="99%">
+                                            <a href="${cidUrl(x.torrent_id, x.cid)}" name="${x.cid}">#${x.cid}</a>
+                                            ${userInfo}
+                                            <span style="color: gray">&nbsp;<time>${x.edit_time.replace('T', ' ')}</time></span></span>
+                                        </td>
+                                        <td class="embedded nowrap" width="1%">
+                                            <a href="#top"><img class="top" src="pic/trans.gif" alt="Top" title="Top"></a>&nbsp;&nbsp;
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <table class="main-inner" width="100%" border="0" cellspacing="0" cellpadding="5">
+                                <tbody>
+                                    <tr>
+                                        <td class="rowfollow" width="150" valign="top" style="padding: 0">
+                                            <img src="//u2.dmhy.org/pic/default_avatar.png" alt="avatar" width="150px"></td>
+                                        <td class="rowfollow" valign="top"><br>
+                                        ${(() => {
+                                        if (x.action === 'edit') {
+                                            return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
+                                                        ${(() => {
+                                                    if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
+                                                    else if ($('#locale_selection').val() === 'ru_RU') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
+                                                    else return `<p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </p><br><br>`;
+                                                })()}`;
+                                        } else {
+                                            return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}<br><br></bdo></span>`;
+                                        };
+                                    })()}
+                                        </td>
+                                        </tr>
+                                        </tbody>
+                                        </table>`;
+
+                                $(`[id="cid${cid}"]`).parent().before(bbcode_html); // 先插入整体框架
+
+                                if (counts[x.cid] > 1) {
+                                    console.log('有编辑记录 直接添加下拉菜单');
+                                    // 插入下拉菜单基本框架
+                                    if ($(`#history_comment${x.cid}_select`).length === 0) {
+
+                                        console.log('添加下拉菜单基本框架');
+                                        $(`[id="cid${x.cid}"]`).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;">
+                                                                                                                <div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;">
+                                                                                                                <select name="type" id="history_comment${x.cid}_select">
+                                                                                                                </div>
+                                                                                                                </div>`);
+                                    };
+                                    // 向下拉菜单写入信息
+                                    $(`#history_comment${x.cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
+                                                ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
+                                                ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
+                                                </option>`);
+                                };
+
+                                return false;
+                            };
+
+                        });
+                    };
+
                 });
 
                 $("[id^=history_comment]").change(function () { // 监听菜单选择
@@ -675,16 +862,6 @@ async function torrentInfoHistory() {
 };
 
 async function torrentCommentHistoryReset() {
-
-    const cidUrl = (t, c) => {
-        if (/\/offers\.php/i.test(location.href)) {
-            return `offers.php?id=${t}&off_details=1#cid${c}`
-        } else if (/\/details\.php/i.test(location.href))
-            return `details.php?id=${t}#cid${c}`
-        else {
-            return '/'
-        };
-    };
 
     const callback = (mutations, observer) => {
         mutations.forEach(function (mutation) {
@@ -1658,6 +1835,17 @@ function convert(s) {
     if (s / 1024 / 1024 < 1024) return (s / 1024 / 1024).toFixed(3) + lang['MiB']
     if (s / 1024 / 1024 / 1024 < 1024) return (s / 1024 / 1024 / 1024).toFixed(3) + lang['GiB']
     if (s / 1024 / 1024 / 1024 / 1024 < 1024) return (s / 1024 / 1024 / 1024 / 1024).toFixed(3) + lang['TiB']
+};
+
+// 生成种子评论cid定位url
+const cidUrl = (t, c) => {
+    if (/\/offers\.php/i.test(location.href)) {
+        return `offers.php?id=${t}&off_details=1#cid${c}`
+    } else if (/\/details\.php/i.test(location.href))
+        return `details.php?id=${t}#cid${c}`
+    else {
+        return '/'
+    };
 };
 
 // 对JSON进行排序
