@@ -611,7 +611,7 @@ async function torrentCommentHistory() {
                 let __comment = d.data.comment[torrent_id].sort((a, b) => b.self - a.self);
                 let cidList = __comment.map(x => x.cid);
                 let counts = new Object();
-                cidList.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1)
+                cidList.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
 
                 // $('[id^="cid"]').each(function () {
                 //     let cid = $(this).find('[class="embedded"]').children('a').attr('name');
@@ -644,6 +644,44 @@ async function torrentCommentHistory() {
 
                     if (del_tag === 1) {
                         // console.log(`${x.cid} | 被删除`);
+
+                        if ($('[id^="cid"]').length === 0) {
+                            // 所有评论都被删除
+                            console.log('所有评论都被删除');
+                            $('#outer').find('table:last').hide();
+                            $('#outer').find('table:last').prevAll('br').remove();
+                            $('#startcomments').remove();
+                            $('#outer').find('table:last').before('<br><h1 id="startcomments" align="center">用户评论</h1>');
+                            $('#outer').find('table:last').after(`<br>
+                            <table class="main" width="940" border="0" cellspacing="0" cellpadding="0">
+                                <tbody>
+                                    <tr>
+                                        <td class="embedded">
+                                            <table width="100%" border="1" cellspacing="0" cellpadding="10">
+                                                <tbody>
+                                                    <tr>
+                                                        <td class="text">
+                                                            <div style="margin-top: 8pt; margin-bottom: 8pt; display:none;">
+                                                                <table id="cid1000000000" border="0" cellspacing="0" cellpadding="0" width="100%">
+                                                                    <tbody>
+                                                                        <tr>
+                                                                            <td class="embedded" width="99%">
+                                                                                <a href="javascript:void(0);" name="1000000000">#1000000000</a>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>`
+                            );
+                        };
 
                         $('[id^="cid"]').each(function () {
                             let cid = $(this).find('[class="embedded"]').children('a').attr('name'); // 获取网页上每个评论的CID
