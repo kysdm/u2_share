@@ -344,7 +344,7 @@ async function forumCommentHistoryReset() {
                 <tbody>
                     <tr>
                         <td class="embedded" width="99%">
-                            <a href="forums.php?action=viewtopic&amp;${x.topicid}=14068&amp;page=p${x.pid}#pid${x.pid}">#${x.pid}</a>
+                            <a href="forums.php?action=viewtopic&amp;topicid=${x.topicid}&amp;page=p${x.pid}#pid${x.pid}">#${x.pid}</a>
                             <!-- 论坛应该不能匿名发帖吧 -->
                             <span class="nowrap"><a href="userdetails.php?id=${x.userid}"><b>
                                         <bdo dir="ltr">${x.username}</bdo></b></a></span>&nbsp;
@@ -494,12 +494,30 @@ async function forumCommentHistory() {
                         };
                     });
 
+                    console.log(pidList);
+
                     if (del_tag === 1) {
                         // console.log(`${x.pid} | 被删除`);
 
                         // 只看该作者 启用时，仅还原改用户的记录
                         let em = /authorid=(?<authorid>\d{1,5})/i.exec(location.search);
                         if (em && x.userid != em.groups.authorid) return true;
+
+                        if ($('[id="pid10000000000"]').length === 0) {
+                            $('[id="outer"]').find('td.text:first').append(
+                                `<div style="margin-top: 8pt; margin-bottom: 8pt; display:none;">
+                                    <table id="pid10000000000" border="0" cellspacing="0" cellpadding="0" width="100%">
+                                        <tbody>
+                                            <tr>
+                                                <td class="embedded" width="99%">
+                                                    <a href="javascript:void(0);">#10000000000</a>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>`
+                            );
+                        };
 
                         $('[id^="pid"]').each(function () {
                             let pid = $(this).find('[class="embedded"]').children('a').first().text().replace('#', '');  // 获取网页上每个评论的PID
@@ -511,10 +529,11 @@ async function forumCommentHistory() {
                                     <tbody>
                                         <tr>
                                             <td class="embedded" width="99%">
-                                                <a href="forums.php?action=viewtopic&amp;${x.topicid}=14068&amp;page=p${x.pid}#pid${x.pid}">#${x.pid}</a>
+                                                <a href="forums.php?action=viewtopic&amp;topicid=${x.topicid}&amp;page=p${x.pid}#pid${x.pid}">#${x.pid}</a>
                                                 <!-- 论坛应该不能匿名发帖吧 -->
-                                                <span class="nowrap"><a href="userdetails.php?id=${x.userid}"><b>
-                                                            <bdo dir="ltr">${x.username}</bdo></b></a></span>&nbsp;
+                                                <span class="nowrap">
+                                                    <a href="userdetails.php?id=${x.userid}"><b>
+                                                    <bdo dir="ltr">${x.username}</bdo></b></a></span>&nbsp;
                                                 <time>${x.edit_time.replace('T', ' ')}</time>
                                             </td>
                                             <td class="embedded nowrap" width="1%">
@@ -706,6 +725,19 @@ async function torrentCommentHistory() {
                                 </tbody>
                             </table>`
                             );
+                        } else if ($('[id="cid1000000000"]').length === 0) {
+                            $('#startcomments').nextAll('table.main:first').find('.text').append(
+                                `<div style="margin-top: 8pt; margin-bottom: 8pt; display:none;">
+                                    <table id="cid1000000000" border="0" cellspacing="0" cellpadding="0" width="100%">
+                                        <tbody>
+                                            <tr>
+                                                <td class="embedded" width="99%">
+                                                    <a href="javascript:void(0);" name="1000000000">#1000000000</a>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>`);
                         };
 
                         $('[id^="cid"]').each(function () {
