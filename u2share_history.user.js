@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.9
+// @version      0.4.0
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -450,6 +450,7 @@ async function forumCommentHistoryReset() {
 };
 
 async function forumCommentHistory() {
+    db = localforage.createInstance({ name: "history" });
 
     $.ajax({
         type: 'post',
@@ -457,13 +458,13 @@ async function forumCommentHistory() {
         contentType: "application/json",
         dataType: 'json',
         data: JSON.stringify({ "uid": user_id, "token": token, "topicid": topicid, "type": "forum" }),
-        success: function (d) {
+        success: async function (d) {
             if (d.msg === 'success') {
                 console.log('获取论坛评论成功');
                 let __comment = d.data.comment[topicid].sort((a, b) => b.self - a.self);
-                let pidList = __comment.map(x => x.pid);
+                let pid_list = __comment.map(x => x.pid);
                 let counts = new Object();
-                pidList.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
+                pid_list.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
 
                 // $('[id^="pid"]').each(function () {
                 //     let pid = $(this).find('[class="embedded"]').children('a').first().text().replace('#', '');
@@ -477,6 +478,26 @@ async function forumCommentHistory() {
                 //         };
                 //     });
                 // });
+
+                let pid_list_unique = Array.from(new Set(pid_list)).sort((a, b) => a - b); // 去重排序
+                console.log(pid_list_unique);
+                let p = $('#outer').find('p[align="center"]:first').text().replace(/\n/g, '<br>');
+                let pg = /(?<p>\d+)<br>$/i.exec(p);
+                let page_total = Number(pg.groups.p);  // 有多少页评论
+                let page_now = Number($('#outer').find('p:first').find('.gray b:last').text());
+                console.log(`现在在评论第 ${page_now} 页 | ${page_total}`);
+                var pid_each = await db.getItem('forum_pid_each') || 0;; // 每页最大显示楼层数量 <当数据库没有值时，pid_list_valid会是空值，>
+
+                let em = /page=(?<pu>\d+|last)/i.exec(location.search);
+                if ((!em && page_total > 1) || (em && page_total > Number(em.groups.pu) + 1)) {
+                    // 评论完整填满一个页面时，计算单个页面最大显示评论数量
+                    // 后期改动最大显示评论数量的数值后，直接进入帖子最后一页可能会出现不属于当前页面的评论
+                    pid_each = $('table[id^=pid]').length;
+                    await db.setItem('forum_pid_each', pid_each);
+                };
+
+                var pid_list_valid = pid_list_unique.slice(pid_each * page_now - pid_each, pid_each * page_now);  // 截取属于当前页面的PID
+                console.log(pid_list_valid);
 
                 __comment.forEach(x => {
                     let del_tag = 1;
@@ -494,11 +515,9 @@ async function forumCommentHistory() {
                         };
                     });
 
-                    console.log(pidList);
-
                     if (del_tag === 1) {
                         // console.log(`${x.pid} | 被删除`);
-
+                        if (!pid_list_valid.includes(x.pid)) return;  // 不属于当前页面的PID直接跳出
                         // 只看该作者 启用时，仅还原改用户的记录
                         let em = /authorid=(?<authorid>\d{1,5})/i.exec(location.search);
                         if (em && x.userid != em.groups.authorid) return true;
@@ -662,7 +681,7 @@ async function torrentCommentHistory() {
                     for (i = 1; i <= page_total; i++) {
                         if (Number(pg.groups.p) <= 10 * i) {
                             console.log(`现在在评论第 ${i} 页`);
-                            var cid_list_valid = cid_list_unique.slice(10 * i - 10, 10 * i);
+                            var cid_list_valid = cid_list_unique.slice(10 * i - 10, 10 * i);  // 截取属于当前页面的评论
                             console.log(cid_list_valid);
                             break;
                         };
@@ -670,7 +689,6 @@ async function torrentCommentHistory() {
                 };
 
                 __comment.forEach(x => {
-                    if (!cid_list_valid.includes(x.cid)) return;
                     let del_tag = 1;
                     $('[id^="cid"]').each(function () {
                         let cid = $(this).find('[class="embedded"]').children('a').attr('name');
@@ -688,7 +706,7 @@ async function torrentCommentHistory() {
 
                     if (del_tag === 1) {
                         // console.log(`${x.cid} | 被删除`);
-
+                        if (!cid_list_valid.includes(x.cid)) return;  // 不属于当前页面的评论直接跳出
                         if ($('[id^="cid"]').length === 0) {
                             // 所有评论都被删除
                             console.log('所有评论都被删除');
