@@ -609,9 +609,9 @@ async function torrentCommentHistory() {
             if (d.msg === 'success') {
                 console.log('获取种子评论成功');
                 let __comment = d.data.comment[torrent_id].sort((a, b) => b.self - a.self);
-                let cidList = __comment.map(x => x.cid);
+                let cid_list = __comment.map(x => x.cid);
                 let counts = new Object();
-                cidList.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
+                cid_list.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
 
                 // $('[id^="cid"]').each(function () {
                 //     let cid = $(this).find('[class="embedded"]').children('a').attr('name');
@@ -626,7 +626,32 @@ async function torrentCommentHistory() {
                 //     });
                 // });
 
+                let startcomments = $('#startcomments').text();
+                if (startcomments === '没有评论' || startcomments === '') {
+                    // 候选没有评论 || 通过的种子没有评论
+                    console.log('完全没有评论');
+                    var cid_list_valid = Array.from(new Set(cid_list));
+                } else {
+                    // 有评论
+                    let x = $('#startcomments').nextAll('p:first').text();
+                    let pg = /(?<p>\d+)$/i.exec(x);
+                    let page_total = Math.ceil(pg.groups.p / 10); // 有多少页评论
+                    let cid_list_unique = Array.from(new Set(cid_list)).sort((a, b) => a - b);  // 去重排序
+                    console.log(cid_list_unique);
+                    let page_now = $('#startcomments').nextAll('p:first').find('.gray:last').text();
+                    pg = /(?<p>\d+)$/i.exec(page_now);
+                    for (i = 1; i <= page_total; i++) {
+                        if (Number(pg.groups.p) <= 10 * i) {
+                            console.log(`现在在评论第 ${i} 页`);
+                            var cid_list_valid = cid_list_unique.slice(10 * i - 10, 10 * i);
+                            console.log(cid_list_valid);
+                            break;
+                        };
+                    };
+                };
+
                 __comment.forEach(x => {
+                    if (!cid_list_valid.includes(x.cid)) return;
                     let del_tag = 1;
                     $('[id^="cid"]').each(function () {
                         let cid = $(this).find('[class="embedded"]').children('a').attr('name');
