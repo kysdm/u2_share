@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.0
+// @version      0.4.1
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -391,13 +391,8 @@ async function forumCommentHistoryReset() {
                         if ($(`#history_comment${x.pid}_select`).length === 0) {
                             $('#comments').append(bbcode_html); // 先插入整体框架
                             console.log('添加下拉菜单基本框架');
-                            $(`[id="pid${x.pid}"]`).find('[class="embedded nowrap"]').before(`
-                                <div id="hsty" style="position: relative;">
-                                    <div id="history_comment" style="position: absolute; right:10px; margin-top: 0px;">
-                                        <select name="type" id="history_comment${x.pid}_select">
-                                    </div>
-                                /div>`
-                            );
+                            $(`[id="pid${x.pid}"]`).find('td:last').before(`<td class="embedded nowrap" width="1%"><select name="type" id="history_comment${x.pid}_select" style="margin-top: 1px;"></select>&nbsp;&nbsp;</td>`);
+
                         };
                         // 向下拉菜单写入信息
                         $(`#history_comment${x.pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
@@ -466,19 +461,6 @@ async function forumCommentHistory() {
                 let counts = new Object();
                 pid_list.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
 
-                // $('[id^="pid"]').each(function () {
-                //     let pid = $(this).find('[class="embedded"]').children('a').first().text().replace('#', '');
-                //     __comment.forEach(x => {
-                //         if (x.pid == pid && counts[pid] > 1) {
-                //             if ($(`#history_comment${pid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: 1px;"><select name="type" id="history_comment${pid}_select"></div></div>`);
-                //             $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
-                //                 ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
-                //                 ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
-                //                 </option>`);
-                //         };
-                //     });
-                // });
-
                 let pid_list_unique = Array.from(new Set(pid_list)).sort((a, b) => a - b); // 去重排序
                 console.log(pid_list_unique);
                 let p = $('#outer').find('p[align="center"]:first').text().replace(/\n/g, '<br>');
@@ -506,7 +488,7 @@ async function forumCommentHistory() {
                         if (x.pid == pid) {
                             del_tag = 0;  // 标记网页上有对应的PID
                             if (counts[pid] > 1) {
-                                if ($(`#history_comment${pid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: 1px;"><select name="type" id="history_comment${pid}_select"></div></div>`);
+                                if ($(`#history_comment${pid}_select`).length === 0) $(this).find('td:last').before(`<td class="embedded nowrap" width="1%"><select name="type" id="history_comment${x.pid}_select" style="margin-top: 1px;"></select>&nbsp;&nbsp;</td>`);
                                 $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
                                 ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
                                 ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
@@ -592,7 +574,7 @@ async function forumCommentHistory() {
                                 $(`[id="pid${pid}"]`).parent().before(bbcode_html);
 
                                 if (counts[x.pid] > 1) {
-                                    if ($(`#history_comment${x.pid}_select`).length === 0) $(`[id="pid${x.pid}"]`).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: 1px;"><select name="type" id="history_comment${x.pid}_select"></div></div>`);
+                                    if ($(`#history_comment${x.pid}_select`).length === 0) $(`[id="pid${x.pid}"]`).find('td:last').before(`<td class="embedded nowrap" width="1%"><select name="type" id="history_comment${x.pid}_select"></td>`);
                                     $(`#history_comment${x.pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
                                 ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
                                 ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
@@ -650,19 +632,6 @@ async function torrentCommentHistory() {
                 let cid_list = __comment.map(x => x.cid);
                 let counts = new Object();
                 cid_list.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
-
-                // $('[id^="cid"]').each(function () {
-                //     let cid = $(this).find('[class="embedded"]').children('a').attr('name');
-                //     __comment.forEach(x => {
-                //         if (x.cid == cid && counts[cid] > 1) {
-                //             if ($(`#history_comment${cid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;"><select name="type" id="history_comment${cid}_select"></div></div>`);
-                //             $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
-                //             ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
-                //             ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
-                //             </option>`);
-                //         };
-                //     });
-                // });
 
                 let startcomments = $('#startcomments').text();
                 if (startcomments === '没有评论' || startcomments === '') {
