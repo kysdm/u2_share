@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.1
+// @version      0.4.2
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -633,8 +633,8 @@ async function torrentCommentHistory() {
                 let counts = new Object();
                 cid_list.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
 
-                let startcomments = $('#startcomments').text();
-                if (startcomments === '没有评论' || startcomments === '') {
+                // let startcomments = $('#startcomments').text();
+                if ($('[id^="cid"]').length === 0) {
                     // 候选没有评论 || 通过的种子没有评论
                     console.log('完全没有评论');
                     var cid_list_valid = Array.from(new Set(cid_list));
