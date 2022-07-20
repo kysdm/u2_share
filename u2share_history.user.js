@@ -352,7 +352,7 @@ async function forumCommentHistoryReset() {
                         </td>
                         <td class="embedded nowrap" width="1%">
                             <font class="big">#<b>${pidListSet.findIndex((a) => a == x.pid) + 1}</b> 楼&nbsp;&nbsp;</font>
-                            <a href="#top"><img class="top" src="pic/trans.gif" alt="Top" title="${lang['back_to_top']}"></a>
+                            <a href="#top"><img class="top" src="pic/trans.gif" alt="Top" title="${lang['back_to_top']}"></a>&nbsp;&nbsp;
                         </td>
                     </tr>
                 </tbody>
@@ -538,7 +538,7 @@ async function forumCommentHistory() {
                                                 <time>${x.edit_time.replace('T', ' ')}</time>
                                             </td>
                                             <td class="embedded nowrap" width="1%">
-                                                <a href="#top"><img class="top" src="pic/trans.gif" alt="Top" title="${lang['back_to_top']}"></a>
+                                                <a href="#top"><img class="top" src="pic/trans.gif" alt="Top" title="${lang['back_to_top']}"></a>&nbsp;&nbsp;
                                             </td>
                                         </tr>
                                     </tbody>
@@ -633,8 +633,8 @@ async function torrentCommentHistory() {
                 let counts = new Object();
                 cid_list.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
 
-                let startcomments = $('#startcomments').text();
-                if (startcomments === '没有评论' || startcomments === '') {
+                // let startcomments = $('#startcomments').text();
+                if ($('[id^="cid"]').length === 0) {
                     // 候选没有评论 || 通过的种子没有评论
                     console.log('完全没有评论');
                     var cid_list_valid = Array.from(new Set(cid_list));
@@ -647,7 +647,7 @@ async function torrentCommentHistory() {
                     console.log(cid_list_unique);
                     let page_now = $('#startcomments').nextAll('p:first').find('.gray:last').text();
                     pg = /(?<p>\d+)$/i.exec(page_now);
-                    for (i = 1; i <= page_total; i++) {
+                    for (let i = 1; i <= page_total; i++) {
                         if (Number(pg.groups.p) <= 10 * i) {
                             console.log(`现在在评论第 ${i} 页`);
                             var cid_list_valid = cid_list_unique.slice(10 * i - 10, 10 * i);  // 截取属于当前页面的评论
@@ -664,7 +664,7 @@ async function torrentCommentHistory() {
                         if (x.cid == cid) {
                             del_tag = 0; // 标记网页上有对应的CID
                             if (x.cid == cid && counts[cid] > 1) {
-                                if ($(`#history_comment${cid}_select`).length === 0) $(this).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;"><div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;"><select name="type" id="history_comment${cid}_select"></div></div>`);
+                                if ($(`#history_comment${cid}_select`).length === 0) $(this).find('td:last').before(`<td class="embedded nowrap" width="1%"><select name="type" id="history_comment${cid}_select" ></select>&nbsp;&nbsp;</td>`);
                                 $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
                         ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
                         ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
@@ -782,13 +782,8 @@ async function torrentCommentHistory() {
                                     console.log('有编辑记录 直接添加下拉菜单');
                                     // 插入下拉菜单基本框架
                                     if ($(`#history_comment${x.cid}_select`).length === 0) {
-
                                         console.log('添加下拉菜单基本框架');
-                                        $(`[id="cid${x.cid}"]`).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;">
-                                                                                                                <div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;">
-                                                                                                                <select name="type" id="history_comment${x.cid}_select">
-                                                                                                                </div>
-                                                                                                                </div>`);
+                                        $(`[id="cid${x.cid}"]`).find('td:last').before(`<td class="embedded nowrap" width="1%"><select name="type" id="history_comment${x.cid}_select" ></select>&nbsp;&nbsp;</td>`);
                                     };
                                     // 向下拉菜单写入信息
                                     $(`#history_comment${x.cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
