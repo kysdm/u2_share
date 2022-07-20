@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.1
+// @version      0.6.2
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -562,7 +562,7 @@ async function bbcode2html(bbcodestr) {
 
     // 图片
     bbcodestr = bbcodestr.replace(/\[(img|imglnk)\]([^\]]+)\[\/(?:\1)\]/gi, function (s, x, y) {
-        if (/^((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp)$/i.test(y)) {
+        if (/^((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(y)) {
             // url 以 .png 之类结尾
             switch (x) {
                 case 'img':
@@ -576,7 +576,7 @@ async function bbcode2html(bbcodestr) {
     });
 
     bbcodestr = bbcodestr.replace(/\[img=([^\]]+)\]/gi, function (s, x) {
-        if (/^((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp)$/i.test(x)) {
+        if (/^((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(x)) {
             // url 以 .png 之类结尾
             return addTempCode('<img alt="image" src="' + x + '" style="height: auto; width: auto; max-width: 100%;">');
         };
