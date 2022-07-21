@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.2
+// @version      0.6.3
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -171,236 +171,33 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
 
 
     function init() {
-        var h1 = jq('.codebuttons').eq(6).parent().html();
-        var h2 = jq('.codebuttons').eq(7).parent().html();
-        var h3 = jq('.codebuttons').eq(8).parent().html();
+        const type = 'original';
+        let h1 = jq('.codebuttons').eq(6).parent().html();
+        let h2 = jq('.codebuttons').eq(7).parent().html();
+        let h3 = jq('.codebuttons').eq(8).parent().html();
         jq('.codebuttons').eq(8).parent().remove();
         jq('.codebuttons').eq(7).parent().remove();
         jq('.codebuttons').eq(6).parent().remove();
-
-        jq('.codebuttons').eq(2).parent().after('<td class="embedded"><input class="codebuttons" style="text-decoration: line-through;'
-            + 'font-size:11px;margin-right:3px" type="button" value="S" onclick="onEditorActionS(\'descr\', \'EDITOR_S\')">');
-
-        jq('.codebuttons').eq(5).parent()
-            .after('<td class="embedded"><input class="codebuttons" style="'
-                + 'font-size:11px;margin-right:3px" type="button" value="CODE" onclick="onEditorActionS(\'descr\', \'EDITOR_CODE\')">')
-            .after('<td class="embedded"><input class="codebuttons" style="'
-                + 'font-size:11px;margin-right:3px" type="button" value="PRE" onclick="onEditorActionS(\'descr\', \'EDITOR_PRE\')">')
-            .after('<td class="embedded"><input class="codebuttons" style="'
-                + 'font-size:11px;margin-right:3px" type="button" value="LIST" onclick="onEditorActionS(\'descr\', \'EDITOR_LIST\')">')
-            .after('<td class="embedded"><input class="codebuttons" style="'
-                + 'font-size:11px;margin-right:3px" type="button" value="RT*" onclick="onEditorActionS(\'descr\', \'EDITOR_RT\')">');
-
-        // jq('.codebuttons').eq(10).attr("onclick", "onEditorActionS('descr','EDITOR_QUOTE')");
-
-        jq('.codebuttons').eq(10).parent()
-            .after('<td class="embedded"><input class="codebuttons" style="'
-                + 'font-size:11px;margin-right:3px" type="button" value="SPOILER*" onclick="onEditorActionS(\'descr\', \'EDITOR_SPOILER+\')">')
-            .after('<td class="embedded"><input class="codebuttons" style="'
-                + 'font-size:11px;margin-right:3px" type="button" value="SPOILER" onclick="onEditorActionS(\'descr\', \'EDITOR_SPOILER\')">')
-            .after('<td class="embedded"><input class="codebuttons" style="'
-                + 'font-size:11px;margin-right:3px" type="button" value="MEDIAINFO" onclick="onEditorActionS(\'descr\', \'EDITOR_MEDIAINFO\')">')
-            .after('<td class="embedded"><input class="codebuttons" style="'
-                + 'font-size:11px;margin-right:3px" type="button" value="INFO" onclick="onEditorActionS(\'descr\', \'EDITOR_INFO\')">')
-            .after('<td class="embedded"><input class="codebuttons" style="'
-                + 'font-size:11px;margin-right:3px" type="button" value="QUOTE*" onclick="onEditorActionS(\'descr\', \'EDITOR_QUOTE+\')">');
-
-        jq('.codebuttons').eq(4)
-            .attr("onclick", "onEditorActionS('descr','EDITOR_URL')")
-            .parent().after('<td class="embedded"><input class="codebuttons" style="'
-                + 'font-size:11px;margin-right:3px" type="button" value="URL*" onclick="onEditorActionS(\'descr\', \'EDITOR_URL+\')">'
-            );
-
+        jq('input[value="URL"]').parent().remove();
+        jq('input[value="IMG"]').parent()
+            .before(`<td class="embedded"><input class="codebuttons" style="text-decoration: line-through; margin-right:3px" type="button" value="S" name="${type}_bbcode_button"></td>`)
+            .before(`<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="URL*" name="${type}_bbcode_button"></td>`)
+            .after(`<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="CODE" name="${type}_bbcode_button"></td>`)
+            .after(`<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="PRE" name="${type}_bbcode_button"></td>`)
+            .after(`<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="LIST" name="${type}_bbcode_button"></td>`)
+            .after(`<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="RT*" name="${type}_bbcode_button"></td>`)
+            .after(`<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="IMGINK" name="${type}_bbcode_button"></td>`);
+        jq('input[value="QUOTE"]').parent()
+            .after(`<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="SPOILER*" name="${type}_bbcode_button"></td>`)
+            .after(`<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="SPOILER" name="${type}_bbcode_button"></td>`)
+            .after(`<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="MEDIAINFO" name="${type}_bbcode_button"></td>`)
+            .after(`<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="INFO" name="${type}_bbcode_button"></td>`)
+            .after(`<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" value="QUOTE*" name="${type}_bbcode_button"></td>`);
         jq('.codebuttons').parents('table').eq(0).after('<div id="bbcodejs_tbody" style="position:relative; margin-top: 4px"></div>');
-
         jq('#bbcodejs_tbody').append('<div id="bbcodejs_select" style="position: absolute; margin-top:2px; margin-bottom:2px; float: left;">' + h1 + h2 + h3 + '</div>');
-
         const margin = jq('.codebuttons').parents('tbody').eq(0).width() - jq("#bbcodejs_select").width() - 2.6;
         jq("#bbcodejs_select").css("margin-left", margin + "px");
-
-        jq('body').append(
-            '<script type="text/javascript">\n\
-    function onEditorActionS(textAreaId, action, param) {\n\
-        var textArea = document.querySelector(".bbcode");\n\
-        var selStart = textArea.selectionStart;\n\
-        var selEnd = textArea.selectionEnd;\n\
-        var selectionText, url;\n\
-        if (selStart === null || selEnd === null) {\n\
-            selStart = selEnd = textArea.value.length;\n\
-        }\n\
-        switch (action) {\n\
-            case "EDITOR_S": {\n\
-                addTag(textArea, "s", null, "", true);\n\
-                break;\n\
-            }\n\
-            case "EDITOR_INFO": {\n\
-                addTag(textArea, "info", null, "", true);\n\
-                break;\n\
-            }\n\
-            case "EDITOR_MEDIAINFO": {\n\
-                addTag(textArea, "mediainfo", null, "", true);\n\
-                break;\n\
-            }\n\
-            case "EDITOR_PRE": {\n\
-                addTag(textArea, "pre", null, "", true);\n\
-                break;\n\
-            }\n\
-            case "EDITOR_CODE": {\n\
-                addTag(textArea, "code", null, "", true);\n\
-                break;\n\
-            }\n\
-            case "EDITOR_RT": {\n\
-                if (selStart !== selEnd) {\n\
-                    var title = window.prompt("'+ lang['rt_text'] + '");\n\
-                    if (title === null || title.length === 0) {\n\
-                        break;\n\
-                    }\n\
-                    selectionText = textArea.value.substring(selStart, selEnd);\n\
-                    console.log(selectionText);\n\
-                    addTag(textArea, "rt", title, selectionText, false);\n\
-                    // break;\n\
-                } else {\n\
-                    text = window.prompt("'+ lang['main_body'] + '");\n\
-                    if (text === null || text.length === 0) {\n\
-                        break;\n\
-                    }\n\
-                    var title = window.prompt("'+ lang['rt_text'] + '");\n\
-                    if (title === null || title.length === 0) {\n\
-                        break;\n\
-                    }\n\
-                    addTag(textArea, "rt", title, text, false);\n\
-                }\n\
-                break;\n\
-            }\n\
-            case "EDITOR_QUOTE+": {\n\
-                if (selStart !== selEnd) {\n\
-                    var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
-                    if (title === null || title.length === 0) {\n\
-                        title = "";\n\
-                    }\n\
-                    selectionText = textArea.value.substring(selStart, selEnd);\n\
-                    // addTag(textArea, "quote", null, "", true);\n\
-                    addTag(textArea, "quote", title, selectionText, false);\n\
-                } else {\n\
-                    text = window.prompt("' + lang['main_body'] + '");\n\
-                    if (text === null || text.length === 0) {\n\
-                        break;\n\
-                    }\n\
-                    var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
-                    if (title === null || title.length === 0) {\n\
-                        title = "";\n\
-                    }\n\
-                    addTag(textArea, "quote", title, text, false);\n\
-                }\n\
-                break;\n\
-            }\n\
-            case "EDITOR_URL+": {\n\
-                if (selStart !== selEnd) {\n\
-                    selectionText = textArea.value.substring(selStart, selEnd); // 选中的文字\n\
-                    if (/^(?:https?|ftp|gopher|news|telnet|mms|rtsp):\\/\\/((?!&lt;|&gt;|\\s|"|>|\'|<|\\(|\\)|\\[|\\]).)+/gi.test(selectionText)) {\n\
-                        // 选中的是URL时\n\
-                        var title = window.prompt("' + lang['url_name'] + '");\n\
-                        if (title === null || title.length === 0) {\n\
-                            // selectionText = textArea.value.substring(selStart, selEnd);\n\
-                            // addTag(textArea, "url", null, "", true);\n\
-                            break;\n\
-                        } else {\n\
-                            addTag(textArea, "url", selectionText, title, false);\n\
-                        }\n\
-                    } else {\n\
-                        // 选中的是文字时\n\
-                        var url_link = window.prompt("' + lang['url_link'] + '");\n\
-                        if (url_link === null || url_link.length === 0) {\n\
-                            // selectionText = textArea.value.substring(selStart, selEnd);\n\
-                            // addTag(textArea, "url", null, "", true);\n\
-                            break;\n\
-                        } else {\n\
-                            addTag(textArea, "url", url_link, selectionText, false);\n\
-                        }\n\
-                    }\n\
-                } else {\n\
-                    text = window.prompt("' + lang['url_link'] + '");\n\
-                    if (text === null || text.length === 0) {\n\
-                        break;\n\
-                    }\n\
-                    var title = window.prompt("' + lang['url_name'] + '");\n\
-                    if (title === null || title.length === 0) {\n\
-                        title = "";\n\
-                        addTag(textArea, "url", null, text, false);\n\
-                        break;\n\
-                    }\n\
-                    addTag(textArea, "url", text, title, false);\n\
-                }\n\
-                break;\n\
-            }\n\
-            case "EDITOR_SPOILER+": {\n\
-                if (selStart !== selEnd) {\n\
-                    var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
-                    if (title === null || title.length === 0) {\n\
-                        addTag(textArea, "spoiler", null, "", true);\n\
-                        break;\n\
-                    }\n\
-                    selectionText = textArea.value.substring(selStart, selEnd);\n\
-                    // addTag(textArea, "spoiler", null, "", true);\n\
-                    addTag(textArea, "spoiler", title, selectionText, false);\n\
-                } else {\n\
-                    text = window.prompt("' + lang['main_body'] + '");\n\
-                    if (text === null || text.length === 0) {\n\
-                        break;\n\
-                    }\n\
-                    var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
-                    if (title === null || title.length === 0) {\n\
-                        title = "";\n\
-                        addTag(textArea, "spoiler", null, text, false);\n\
-                        break;\n\
-                    }\n\
-                    addTag(textArea, "spoiler", title, text, false);\n\
-                }\n\
-                break;\n\
-            }\n\
-            case "EDITOR_SPOILER": {\n\
-                addTag(textArea, "spoiler", null, "", true);\n\
-                break;\n\
-            }\n\
-            case "EDITOR_QUOTE": {\n\
-                if (selStart !== selEnd) {\n\
-                    addTag(textArea, "quote", null, "", true);\n\
-                } else {\n\
-                    text = window.prompt("' + lang['main_body'] + '");\n\
-                    if (text === null || text.length === 0) {\n\
-                        break;\n\
-                    }\n\
-                    // var title = window.prompt("' + lang['main_body_prefix'] + '");\n\
-                    // if (title === null || title.length === 0) {\n\
-                    //     title = "";\n\
-                    // }\n\
-                    addTag(textArea, "quote", null, text, false);\n\
-                }\n\
-                break;\n\
-            }\n\
-            case "EDITOR_URL": {\n\
-                if (selStart !== selEnd) {\n\
-                    addTag(textArea, "url", null, "", true);\n\
-                } else {\n\
-                    text = window.prompt("' + lang['url_link'] + '");\n\
-                    if (text === null || text.length === 0) {\n\
-                        break;\n\
-                    }\n\
-                    addTag(textArea, "url", null, text, false);\n\
-                }\n\
-                break;\n\
-            }\n\
-            case "EDITOR_LIST": {\n\
-                if (selStart !== selEnd) {\n\
-                    break;\n\
-                }\n\
-                addTag(textArea, "*", null, null, true);\n\
-                break;\n\
-            }\n\
-        }\n\
-        textArea.focus();\n\
-    }</script>'
-        );
+        jq(`[name="${type}_bbcode_button"]`).click(function () { onEditorActionBox(this.value, `.bbcode`); });
     }
 })();
 
@@ -1411,6 +1208,26 @@ function onEditorActionBox(action, element, param) {
             }
             break;
         }
+        case 'IMGINK': {
+            if (selStart !== selEnd) {
+                selectionText = textArea.value.substring(selStart, selEnd);
+                addTagBox(textArea, 'imgink', null, selectionText, false);
+            } else {
+                url = window.prompt("请输入图片的完整路径：");
+                // url = window.prompt(EDITOR_LANG.image);
+                if (url === null) {
+                    break;
+                }
+                var urlLower = url.toLowerCase();
+                if (!urlLower.startsWith('http://') && !urlLower.startsWith('https://')) {
+                    // window.alert(EDITOR_LANG['invalid_image']);
+                    window.alert("图片URL必须以http://或https://开头。");
+                    break;
+                }
+                addTagBox(textArea, 'imgink', null, url, false);
+            }
+            break;
+        }
         case 'QUOTE': {
             addTagBox(textArea, 'quote', null, '', true);
             break;
@@ -1506,7 +1323,7 @@ function onEditorActionBox(action, element, param) {
                     let title = window.prompt(lang['url_name']);
                     if (title === null || title.length === 0) {
                         // selectionText = textArea.value.substring(selStart, selEnd);
-                        // addTag(textArea, "url", null, "", true);
+                        addTag(textArea, "url", null, "", true);
                         break;
                     } else {
                         addTagBox(textArea, "url", selectionText, title, false);
@@ -1713,9 +1530,10 @@ async function basicFrame(title, type) {
         { "style": "font-style: italic;font-size:11px;margin-right:3px", "value": "I" },
         { "style": "text-decoration: underline;font-size:11px;margin-right:3px", "value": "U" },
         { "style": "text-decoration: line-through;font-size:11px;margin-right:3px", "value": "S" },
-        { "style": "font-size:11px;margin-right:3px", "value": "URL" },
+        // { "style": "font-size:11px;margin-right:3px", "value": "URL" },
         { "style": "font-size:11px;margin-right:3px", "value": "URL*" },
         { "style": "font-size:11px;margin-right:3px", "value": "IMG" },
+        { "style": "font-size:11px;margin-right:3px", "value": "IMGINK" },
         { "style": "font-size:11px;margin-right:3px", "value": "RT*" },
         { "style": "font-size:11px;margin-right:3px", "value": "LIST" },
         { "style": "font-size:11px;margin-right:3px", "value": "PRE" },
