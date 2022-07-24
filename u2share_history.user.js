@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.4
+// @version      0.4.5
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
-// @match        *://u2.dmhy.org/details.php?id=*
-// @match        *://u2.dmhy.org/offers.php?id=*
+// @match        *://u2.dmhy.org/details.php?*
+// @match        *://u2.dmhy.org/offers.php?*
 // @match        *://u2.dmhy.org/forums.php?action=viewtopic*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
@@ -41,17 +41,17 @@ var lang, torrent_id, db, user_id, topicid, key, token;
 (async () => {
     // 初始化
     lang = new lang_init($('#locale_selection').val()); // 获取当前网页语言
-    torrent_id = location.href.match(/\.php\?id=(\d{3,5})/i) || ['', '']; if (torrent_id[1] !== '') torrent_id = torrent_id[1]; // 当前种子ID
+    let em = /.*id=(?<tid>\d{3,5})/i.exec(location.search); if (em) torrent_id = em.groups.tid; else torrent_id = null; // 当前种子ID
     topicid = location.href.match(/topicid=(\d+)/i) || ['', '']; if (topicid[1] !== '') topicid = topicid[1];
     user_id = $('#info_block').find('a:first').attr('href').match(/\.php\?id=(\d{3,5})/i) || ['', '']; if (user_id[1] !== '') user_id = user_id[1]; // 当前用户ID
     db = localforage.createInstance({ name: "history" });
     // key = await db.getItem('key');
     token = await db.getItem('token');
     if (token === null || token.length !== 96) { new auth(); return; };
-    if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { torrentInfoHistoryReset(); torrentCommentHistoryReset(); }// 为已经删除的种子显示历史
-    else if (/\/offers\.php\?id=\d{3,5}/i.test(location.href) && !/(cmtpage|offer_vote|vote)=(1|p)/i.test(location.href) && /off_details=1/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
-    else if (/\/details\.php\?id=\d{3,5}/i.test(location.href) && !/(cmtpage|offer_vote|vote)=(1|p)/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); }
-    else if (/\/(offers|details)\.php\?id=\d{3,5}/i.test(location.href) && /cmtpage=1/i.test(location.href)) { torrentCommentHistory(); } // 为正常种子显示历史 <仅评论>
+    if (torrent_id && '/offers.php' === location.pathname && !/(cmtpage|offer_vote|vote)=(1|p)/i.test(location.href) && /off_details=1/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
+    else if (torrent_id && '/details.php' === location.pathname && !/(cmtpage|offer_vote|vote)=(1|p)/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
+    else if (torrent_id && /\/(offers|details)\.php/i.test(location.pathname) && /cmtpage=1/i.test(location.href)) { torrentCommentHistory(); } // 为正常种子显示历史 <仅评论>
+    else if (torrent_id && /\/(offers|details)\.php/i.test(location.pathname) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { torrentInfoHistoryReset(); torrentCommentHistoryReset(); }// 为已经删除的种子显示历史
     else if (/\/forums\.php\?action=viewtopic/i.test(location.href) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { forumCommentHistoryReset(); } // 为被删除的论坛帖子显示历史
     else if (/\/forums\.php\?action=viewtopic/i.test(location.href)) { forumCommentHistory(); }; // 为论坛帖子显示历史
 })();
