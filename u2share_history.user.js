@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.6
+// @version      0.4.7
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -890,7 +890,7 @@ async function torrentInfoHistory() {
             + (() => {
                 if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
-                else if (history_data[i].edited_name === 'Anonymous' && history_data[i].edited_id === null) return lang['anonymous_user']
+                else if (history_data[i].edited_name === '匿名' && history_data[i].edited_id === null) return lang['anonymous_user']
                 else if (history_data[i].edited_name !== null && history_data[i].edited_id !== null) return ' ' + history_data[i].edited_name + '(' + history_data[i].edited_id + ')'
                 else return ' @BUG@'
             })()
@@ -1320,7 +1320,7 @@ async function torrentInfoHistoryReset() {
             + (() => {
                 if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
-                else if (history_data[i].edited_name === 'Anonymous' && history_data[i].edited_id === null) return lang['anonymous_user']
+                else if (history_data[i].edited_name === '匿名' && history_data[i].edited_id === null) return lang['anonymous_user']
                 else if (history_data[i].edited_name !== null && history_data[i].edited_id !== null) return ' ' + history_data[i].edited_name + '(' + history_data[i].edited_id + ')'
                 else return ' @BUG@'
             })()
