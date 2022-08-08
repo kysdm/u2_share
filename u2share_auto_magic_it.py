@@ -21,9 +21,9 @@ loguru==0.5.3
 '''
 
 INTERVAL = 60  # 周期性循环间隔 单位秒
-UID = 45940  # 自己的UID
-UPLOAD = 1.30  # 魔法上传倍率 | 上传比率范围1.3~2.33
-DOWNLOAD = 0.80  # 魔法下载倍率 | 下载比率范围0~0.8
+UID = 00000  # 自己的UID
+UPLOAD = 1.00  # 魔法上传倍率 | 上传比率范围1.3~2.33
+DOWNLOAD = 0.00  # 魔法下载倍率 | 下载比率范围0~0.8
 HOURS = 24  # 魔法时长  最低24小时
 RANGE = 'ALL'  # ALL 是地图炮 | SELF 是恢复系
 COMMENT_SWITCH = False  # True 备注消耗魔法数量 | False 反之
@@ -38,7 +38,7 @@ class U2():
     def __init__(self):
         self.session = None
 
-    async def get(self, url: str) -> dict:
+    async def get(self, url):
         if self.session is None:
             self.session = aiohttp.ClientSession()
         for i in range(15):
