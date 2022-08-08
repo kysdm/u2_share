@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.5
+// @version      0.4.7
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -48,10 +48,10 @@ var lang, torrent_id, db, user_id, topicid, key, token;
     // key = await db.getItem('key');
     token = await db.getItem('token');
     if (token === null || token.length !== 96) { new auth(); return; };
-    if (torrent_id && '/offers.php' === location.pathname && !/(cmtpage|offer_vote|vote)=(1|p)/i.test(location.href) && /off_details=1/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
+    if (torrent_id && /\/(offers|details)\.php/i.test(location.pathname) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { torrentInfoHistoryReset(); torrentCommentHistoryReset(); }// 为已经删除的种子显示历史
+    else if (torrent_id && '/offers.php' === location.pathname && !/(cmtpage|offer_vote|vote)=(1|p)/i.test(location.href) && /off_details=1/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
     else if (torrent_id && '/details.php' === location.pathname && !/(cmtpage|offer_vote|vote)=(1|p)/i.test(location.href)) { torrentInfoHistory(); torrentCommentHistory(); } // 为正常种子显示历史
     else if (torrent_id && /\/(offers|details)\.php/i.test(location.pathname) && /cmtpage=1/i.test(location.href)) { torrentCommentHistory(); } // 为正常种子显示历史 <仅评论>
-    else if (torrent_id && /\/(offers|details)\.php/i.test(location.pathname) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { torrentInfoHistoryReset(); torrentCommentHistoryReset(); }// 为已经删除的种子显示历史
     else if (/\/forums\.php\?action=viewtopic/i.test(location.href) && $('#outer').find('h2').text().match(/错误|錯誤|Ошибка|error/i)) { forumCommentHistoryReset(); } // 为被删除的论坛帖子显示历史
     else if (/\/forums\.php\?action=viewtopic/i.test(location.href)) { forumCommentHistory(); }; // 为论坛帖子显示历史
 })();
@@ -890,7 +890,7 @@ async function torrentInfoHistory() {
             + (() => {
                 if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
-                else if (history_data[i].edited_name === 'Anonymous' && history_data[i].edited_id === null) return lang['anonymous_user']
+                else if (history_data[i].edited_name === '匿名' && history_data[i].edited_id === null) return lang['anonymous_user']
                 else if (history_data[i].edited_name !== null && history_data[i].edited_id !== null) return ' ' + history_data[i].edited_name + '(' + history_data[i].edited_id + ')'
                 else return ' @BUG@'
             })()
@@ -1320,7 +1320,7 @@ async function torrentInfoHistoryReset() {
             + (() => {
                 if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
-                else if (history_data[i].edited_name === 'Anonymous' && history_data[i].edited_id === null) return lang['anonymous_user']
+                else if (history_data[i].edited_name === '匿名' && history_data[i].edited_id === null) return lang['anonymous_user']
                 else if (history_data[i].edited_name !== null && history_data[i].edited_id !== null) return ' ' + history_data[i].edited_name + '(' + history_data[i].edited_id + ')'
                 else return ' @BUG@'
             })()
