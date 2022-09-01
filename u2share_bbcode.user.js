@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.3
+// @version      0.6.4
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -78,10 +78,13 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
         jq('#bbcode2').children('.child').html(html);
     });
 
-    jq("td.embedded.smile-icon a").click(async function updateValue() {
-        await sleep(0);
-        let html = await bbcode2html(jq('.bbcode').val());
-        jq('#bbcode2').children('.child').html(html);
+    jq('#compose').find("td.embedded.smile-icon a").each(function () {
+        jq(this).attr('href', jq(this).attr('href').replace(/javascript: SmileIT\('\[(.+?)\]','[^']+?','[^']+?'\)/gis, function (s, x) { return `javascript:void('${x}');` }));
+    });
+
+    jq("td.embedded.smile-icon a").click(async function () {
+        onEditorActionBox(jq(this).attr('href'), '.bbcode');
+        jq('#bbcode2').children('.child').html(await bbcode2html(jq('.bbcode').val()));
     });
 
     if (/u2\.dmhy\.org\/upload\.php/i.test(location.href)) {
