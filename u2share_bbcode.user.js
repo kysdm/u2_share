@@ -80,12 +80,11 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
 
     jq('#compose').find("td.embedded.smile-icon a").each(function () {
         jq(this).attr('href', jq(this).attr('href').replace(/javascript: SmileIT\('\[(.+?)\]','[^']+?','[^']+?'\)/gis, function (s, x) { return `javascript:void('${x}');` }));
-    });
-
-    jq("td.embedded.smile-icon a").click(async function () {
-        onEditorActionBox(jq(this).attr('href'), '.bbcode');
-        jq('#bbcode2').children('.child').html(await bbcode2html(jq('.bbcode').val()));
-    });
+    })
+        .click(async function () {
+            onEditorActionBox(jq(this).attr('href'), '.bbcode');
+            jq('#bbcode2').children('.child').html(await bbcode2html(jq('.bbcode').val()));
+        });
 
     if (/u2\.dmhy\.org\/upload\.php/i.test(location.href)) {
 
