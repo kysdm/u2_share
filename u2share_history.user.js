@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.7
+// @version      0.4.8
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -470,10 +470,10 @@ async function forumCommentHistory() {
                 console.log(`现在在评论第 ${page_now} 页 | ${page_total}`);
                 var pid_each = await db.getItem('forum_pid_each') || 0;; // 每页最大显示楼层数量 <当数据库没有值时，pid_list_valid会是空值，>
 
-                let em = /page=(?<pu>\d+|last)/i.exec(location.search);
-                if ((!em && page_total > 1) || (em && page_total > Number(em.groups.pu) + 1)) {
+                if (page_now < page_total) {
                     // 评论完整填满一个页面时，计算单个页面最大显示评论数量
                     // 后期改动最大显示评论数量的数值后，直接进入帖子最后一页可能会出现不属于当前页面的评论
+                    console.log(`页面评论数量达到最大值`);
                     pid_each = $('table[id^=pid]').length;
                     await db.setItem('forum_pid_each', pid_each);
                 };
