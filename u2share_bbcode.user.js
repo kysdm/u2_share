@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.4
+// @version      0.6.5
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -211,8 +211,6 @@ async function sleep(interval) {
 };
 
 async function bbcode2html(bbcodestr) {
-    const f_reg = new RegExp("^\"?\"?$|^(?:&quot;)?(?:&quot;)?$");
-
     var tempCode = new Array();
     var tempCodeCount = 0;
 
@@ -221,7 +219,7 @@ async function bbcode2html(bbcodestr) {
         let returnstr = "<tempCode_" + tempCodeCount + ">";
         tempCodeCount++;
         return returnstr;
-    }
+    };
 
     const escape_reg = new RegExp("[&\"\'<>]", "g");
     bbcodestr = bbcodestr.replace(escape_reg, function (s, x) {
@@ -238,46 +236,369 @@ async function bbcode2html(bbcodestr) {
                 return '&gt;';
             default:
                 return s;
-        }
+        };
     });
 
     bbcodestr = bbcodestr.replace(/\r\n/g, () => { return '<br>' });
     bbcodestr = bbcodestr.replace(/\n/g, () => { return '<br>' });
     bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
 
-    // info/code 标签
-    const info_reg = new RegExp("\\[(mediainfo|info|code)\\](.+?)\\[\\/(\\1)\\]", "gis");
-    bbcodestr = bbcodestr.replace(info_reg, function (s, x, y) {
-        switch (x) {
-            case 'info':
-                return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: blue">'
-                    + lang['info'] + '</span></b></legend>' + y + '</fieldset>');
-            case 'mediainfo':
-                return addTempCode('<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">'
-                    + lang['mediainfo'] + '</span></b></legend>' + y + '</fieldset>');
-            case 'code':
-                return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${y}</div><br />`);
-            default:
-                return s;
+    let br_end = '';  // 对结尾的换行符进行计数
+    if (br = bbcodestr.match(/(?:<br>)+$/)) {
+        br_end = br[0];
+        const regex = new RegExp(`${br_end}$`, "");
+        bbcodestr = bbcodestr.replace(regex, '');
+    };
+
+    const addLostTags = (value, r_tag_start, r_tag_end) => {
+        let state = false;
+        // let lost_tags = new Array();
+        let tag_end_list = new Array();  // 创建存放标签结尾
+
+        let r_tag_start_exec = r_tag_start.exec(value);
+        let index_start = r_tag_start_exec ? r_tag_start_exec.index : 0;
+        let r_tag_end_exec = r_tag_end.exec(value.slice(index_start));
+        if (r_tag_end_exec) tag_end_list = r_tag_end_exec.groups.tag;
+
+        if (r_tag_start_exec && !r_tag_end_exec) {
+            let tag_start_val = r_tag_start_exec.groups.tag;;
+            console.log('检测到丢失的标签 => ' + `[/${tag_start_val}]`);
+            value = value + `[/${tag_start_val}]`;
+            state = true;
+        };
+
+        return { "value": value, "state": state };
+    };
+
+    const url = (val) => {
+        if (val) {
+            const lost = addLostTags(bbcodestr, /\[(?<tag>url)(?:=.*?)\]/i, /\[\/(?<tag>url)\]/i);
+            bbcodestr = bbcodestr.replace(/\[url=(((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\](.+?)\[\/url\]/i, function (s, x, y, z) {
+                return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + z + '</a>');
+            });
+        } else {
+            const lost = addLostTags(bbcodestr, /\[(?<tag>url)\]/i, /\[\/(?<tag>url)\]/i);
+            bbcodestr = lost.value.replace(/\[url\](.+?)\[\/url\]/i, function (s, x) {
+                if (x.match(/\s|\]/i)) {
+                    return addTempCode(s);
+                } else {
+                    return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + x + '</a>');
+                };
+            });
+        };
+    };
+
+    // 注释
+    const rt = (val) => {
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { bbcodestr = bbcodestr.replace(/\[rt=.*?\]/i, function (s) { return addTempCode(s); }); }
+        else if (!val) { bbcodestr = bbcodestr.replace('[rt]', function (s) { return addTempCode(s); }) }
+        else {
+            const lost = addLostTags(bbcodestr, /\[(?<tag>rt)=.+?\]/i, /\[\/(?<tag>rt)\]/i);
+            bbcodestr = lost.value.replace(/\[rt=(.+?)\](.*?)\[\/rt\]/i, function (all, tval, text) {
+                if (tval.match(/\[/i)) {
+                    return '[' + addTempCode(`rt=`) + `${tval}]${text}` + (lost.state ? '' : '[/rt]');
+                } else {
+                    let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
+                    if (!tmp.match(/&quot;/)) tval = tmp;
+                    return addTempCode('<ruby>' + text + '<rp>(</rp><rt>' + tval + '</rt><rp>)</rp></ruby>');
+                };
+            });
+        };
+    };
+
+    // 字体
+    const font = (val) => {
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { bbcodestr = bbcodestr.replace(/\[font=.*?]/i, function (s) { return addTempCode(s); }); }
+        else if (!val) { bbcodestr = bbcodestr.replace('[font]', function (s) { return addTempCode(s); }) }
+        else {
+            const lost = addLostTags(bbcodestr, /\[(?<tag>font)=.+?\]/i, /\[\/(?<tag>font)\]/i);
+
+            bbcodestr = lost.value.replace(/\[font=(.+?)\](.*?)\[\/font\]/i, function (all, tval, text) {
+                if (tval.match(/\[/i)) return '[' + addTempCode(`font=`) + `${tval}]${text}`;
+                let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
+                if (!/&quot;/.test(tmp)) { tval = tmp; }
+                else { if (tval.match(/&quot;/g).length === 1) tval = tval.replace('&quot;', ''); };
+
+                // 无法作用于全局的标签
+                while (style_tag = /\[(?<tag>color|size|pre|b|i|u|s)(?<val>=.*?)?\]/gi.exec(text)) {
+                    let tag = style_tag.groups.tag;
+                    let val = style_tag.groups.val;
+                    switch (tag) {
+                        case 'color':
+                            text = color(val, text); break;
+                        case 'size':
+                            text = size(val, text); break;
+                        case 'pre':
+                            text = pre(val, text); break;
+                        case 'b':
+                            text = b(val, text); break;
+                        case 'i':
+                            text = i(val, text); break;
+                        case 'u':
+                            text = u(val, text); break;
+                        case 's':
+                            text = s(val, text); break;
+                        default:
+                            break;
+                    };
+                };
+                return '<span style="font-family: ' + tval + '">' + text + '</span>';
+            });
+        };
+    };
+
+    // 颜色
+    const color = (val, textarea) => {
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[color=.*?\]/i, function (s) { return addTempCode(s); }); }
+        else if (!val) { textarea = textarea.replace('[color]', function (s) { return addTempCode(s); }) }
+        else {
+            const lost = addLostTags(textarea, /\[(?<tag>color)=.+?\]/i, /\[\/(?<tag>color)\]/i);
+            textarea = lost.value.replace(/\[color=(.+?)\](.*?)\[\/color\]/i, function (all, tval, text) {
+                if (tval.match(/\[/i)) return '[' + addTempCode(`color=`) + `${tval}]${text}` + (lost.state ? '' : '[/color]');
+                let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
+                if (!/&quot;/.test(tmp)) { tval = tmp; }
+                else { if (tval.match(/&quot;/g).length === 1) tval = tval.replace('&quot;', ''); };
+                return '<span style="color: ' + tval + '">' + text + '</span>';
+            });
+        };
+        return textarea;
+    };
+
+    // 文字大小
+    const size = (val, textarea) => {
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[size=.*?\]/i, function (s) { return addTempCode(s); }); }
+        else if (!val) { textarea = textarea.replace('[size]', function (s) { return addTempCode(s); }) }
+        else {
+            const lost = addLostTags(textarea, /\[(?<tag>size)=.+?\]/i, /\[\/(?<tag>size)\]/i);
+            textarea = lost.value.replace(/\[size=(.+?)\](.*?)\[\/size\]/i, function (all, tval, text) {
+                // size只允许1-9的数字
+                if (!tval.match(/^(?:&quot;)?[0-9](?:&quot;)?$/)) return '[' + addTempCode(`size=`) + `${tval}]${text}` + (lost.state ? '' : '[/size]');
+                let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
+                if (!/&quot;/.test(tmp)) { tval = tmp; }
+                else { if (tval.match(/&quot;/g).length === 1) tval = tval.replace('&quot;', ''); };
+                return '<font size="' + tval + '">' + text + '</font>';
+            });
+        };
+        return textarea;
+    };
+
+    const pre = (val, textarea) => {
+        if (val) { textarea = textarea.replace(/\[pre=(.*?)\]/i, function (s, v) { return addTempCode('[pre=') + v + ']'; }); };
+        const lost = addLostTags(textarea, /\[(?<tag>pre)\]/i, /\[\/(?<tag>pre)\]/i);
+        textarea = lost.value.replace(/\[pre\](.*?)\[\/pre\]/i, function (all, text) { return '<pre>' + text + '</pre>'; });
+        return textarea;
+    };
+
+    const b = (val, textarea) => {
+        if (val) { textarea = textarea.replace(/\[b=(.*?)\]/i, function (s, v) { return addTempCode('[b=') + v + ']'; }); };
+        const lost = addLostTags(textarea, /\[(?<tag>b)\]/i, /\[\/(?<tag>b)\]/i);
+        textarea = lost.value.replace(/\[b\](.*?)\[\/b\]/i, function (all, text) { return '<b>' + text + '</b>'; });
+        return textarea;
+    };
+
+    const i = (val, textarea) => {
+        if (val) { textarea = textarea.replace(/\[i=(.*?)\]/i, function (s, v) { return addTempCode('[i=') + v + ']'; }); };
+        const lost = addLostTags(textarea, /\[(?<tag>i)\]/i, /\[\/(?<tag>i)\]/i);
+        textarea = lost.value.replace(/\[i\](.*?)\[\/i\]/i, function (all, text) { return '<em>' + text + '</em>'; });
+        return textarea;
+    };
+
+    const u = (val, textarea) => {
+        if (val) { textarea = textarea.replace(/\[u=(.*?)\]/i, function (s, v) { return addTempCode('[u=') + v + ']'; }); };
+        const lost = addLostTags(textarea, /\[(?<tag>u)\]/i, /\[\/(?<tag>u)\]/i);
+        textarea = lost.value.replace(/\[u\](.*?)\[\/u\]/i, function (all, text) { return '<u>' + text + '</u>'; });
+        return textarea;
+    };
+
+    const s = (val, textarea) => {
+        if (val) { textarea = textarea.replace(/\[s=(.*?)\]/i, function (s, v) { return addTempCode('[s=') + v + ']'; }); };
+        const lost = addLostTags(textarea, /\[(?<tag>s)\]/i, /\[\/(?<tag>s)\]/i);
+        textarea = lost.value.replace(/\[s\](.*?)\[\/s\]/i, function (all, text) { return '<s>' + text + '</s>'; });
+        return textarea;
+    };
+
+    const img = (val) => {
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { bbcodestr = bbcodestr.replace(/\[img=.*?\]/i, function (s) { return addTempCode(s); }); }
+        else if (val) {
+            bbcodestr = bbcodestr.replace(/\[img=(.*?)\]/i, function (all, url) {
+                // [img=http://u2.dmhy.org/pic/logo.png]
+                if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
+                    // url 以 .png 之类结尾
+                    return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
+                } else {
+                    return addTempCode(all);
+                };
+            });
+        } else {
+            // [img]http://u2.dmhy.org/pic/logo.png[/img]
+            const lost = addLostTags(bbcodestr, /\[(?<tag>img)\]/i, /\[\/(?<tag>img)\]/i);
+            bbcodestr = lost.value.replace(/\[img\](.*?)\[\/img\]/i, function (all, url) {
+                if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
+                    // url 以 .png 之类结尾
+                    return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
+                } else {
+                    // console.log(`[img]${url}` + (lost.state ? '' : '[/img]'));
+                    return addTempCode(`[img]${url}` + (lost.state ? '' : '[/img]'));
+                };
+            });
+        };
+    };
+
+    const imglnk = (val) => {
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { bbcodestr = bbcodestr.replace(/\[imglnk=.*?\]/i, function (s) { return addTempCode(s); }); }
+        else if (val) {
+            bbcodestr = bbcodestr.replace(/\[imglnk=(.*?)\]/i, function (all, url) { return addTempCode('[imglnk=') + url + ']'; });
+        } else {
+            // [img]http://u2.dmhy.org/pic/logo.png[/img]
+            const lost = addLostTags(bbcodestr, /\[(?<tag>imglnk)\]/i, /\[\/(?<tag>imglnk)\]/i);
+            bbcodestr = lost.value.replace(/\[img\](.*?)\[\/img\]/i, function (all, url) {
+                if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
+                    // url 以 .png 之类结尾
+                    return addTempCode(`<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="${url}" style="height: auto; width: auto; max-width: 100%;"></a>`);
+                } else {
+                    return addTempCode(`[imglnk]${url}` + (lost.state ? '' : '[/imglnk]'));
+                };
+            });
+        };
+    };
+
+    const code = (val) => {
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { bbcodestr = bbcodestr.replace(/=(?:&quot;){0,2}/i, ''); }
+        else if (val) { bbcodestr = bbcodestr.replace(/\[code=(.*?)\]/i, function (s, v) { return addTempCode('[code=') + v + ']'; }); };
+        const lost = addLostTags(bbcodestr, /\[(?<tag>code)\]/i, /\[\/(?<tag>code)\]/i);
+        bbcodestr = lost.value.replace(/\[code\](.*?)\[\/code\]/i, function (all, text) {
+            return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${text.replace(/(<br>)*$/, '')}</div><br />`);
+        });
+    };
+
+    const info = (val) => {
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { bbcodestr = bbcodestr.replace(/=(?:&quot;){0,2}/i, ''); }
+        else if (val) { bbcodestr = bbcodestr.replace(/\[info=(.*?)\]/i, function (s, v) { return addTempCode('[info=') + v + ']'; }); };
+        const lost = addLostTags(bbcodestr, /\[(?<tag>info)\]/i, /\[\/(?<tag>info)\]/i);
+        bbcodestr = lost.value.replace(/\[info\](.*?)\[\/info\]/i, function (all, text) {
+            // return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${text.replace(/(<br>)*$/, '')}</div><br />`);
+            return addTempCode(`<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: blue">${lang['info']}</span></b></legend>${text.replace(/(<br>)*$/, '')}</fieldset>`);
+        });
+    };
+
+    const mediainfo = (val) => {
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { bbcodestr = bbcodestr.replace(/=(?:&quot;){0,2}/i, ''); }
+        else if (val) { bbcodestr = bbcodestr.replace(/\[mediainfo=(.*?)\]/i, function (s, v) { return addTempCode('[mediainfo=') + v + ']'; }); };
+        const lost = addLostTags(bbcodestr, /\[(?<tag>mediainfo)\]/i, /\[\/(?<tag>mediainfo)\]/i);
+        bbcodestr = lost.value.replace(/\[mediainfo\](.*?)\[\/mediainfo\]/i, function (all, text) {
+            return addTempCode(`<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">${lang['mediainfo']}</span></b></legend>${text.replace(/(<br>)*$/, '')}</fieldset>`);
+        });
+    };
+
+    const quote = (val) => {
+        if (!val) {
+            // [quote]我爱U2分享園@動漫花園。[/quote]
+            const lost = addLostTags(bbcodestr, /\[(?<tag>quote)]/i, /\[\/(?<tag>quote)\]/i);
+            bbcodestr = lost.value.replace(/\[quote\](.*?)\[\/quote\]/i, function (s, x) {
+                return '<fieldset><legend>' + lang['quote'] + '</legend>' + x.replace(/(<br>)*$/, '') + '</fieldset>';
+            });
+        } else if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') {
+            // [quote=""]我爱U2分享園@動漫花園。[/quote]
+            const lost = addLostTags(bbcodestr, /\[(?<tag>quote)=.*?\]/i, /\[\/(?<tag>quote)\]/i);
+            bbcodestr = lost.value.replace(/\[quote=.*?\](.*?)\[\/quote\]/i, function (s, x) {
+                return '<fieldset><legend>' + lang['quote'] + '</legend>' + x.replace(/(<br>)*$/, '') + '</fieldset>';
+            });
+        } else {
+            // [quote="ABC"]我爱U2分享園@動漫花園。[/quote]
+            const lost = addLostTags(bbcodestr, /\[(?<tag>quote)=.*?\]/i, /\[\/(?<tag>quote)\]/i);
+            bbcodestr = lost.value.replace(/\[quote=(.+?)\](.*?)\[\/quote\]/i, function (all, tval, text) {
+                if (tval.match(/\[/i)) return '[' + addTempCode(`quote=`) + `${tval}]${text}` + (lost.state ? '' : '[/quote]');
+                let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
+                if (!/&quot;/.test(tmp)) { tval = tmp; };
+                return '<fieldset><legend>' + lang['quote'] + ': ' + tval + '</legend>' + text.replace(/(<br>)*$/, '') + '</fieldset>';
+            });
+        };
+    };
+
+    const spoiler = (val) => {
+        if (!val) {
+            // [spoiler]我要剧透了！[/spoiler]
+            const lost = addLostTags(bbcodestr, /\[(?<tag>spoiler)]/i, /\[\/(?<tag>spoiler)\]/i);
+            bbcodestr = lost.value.replace(/\[spoiler\](.*?)\[\/spoiler\]/i, function (s, x) {
+                return `<table class="spoiler" width="100%"><tbody><tr>`
+                    + `<td class="colhead">${lang['spoiler']}&nbsp;&nbsp;<button class="spoiler-button-show" style="display: none;">${lang['spoiler_button_1']}</button>`
+                    + `<button class="spoiler-button-hide">${lang['spoiler_button_2']}</button></td></tr>`
+                    + `<tr><td><span class="spoiler-content" style="display: inline;">${x.replace(/(<br>)*$/, '')}</span></td></tr>`
+                    + `</tbody></table>`;
+            });
         }
-    });
+        else if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') {
+            // [spoiler=""]真的！[/spoiler]
+            const lost = addLostTags(bbcodestr, /\[(?<tag>spoiler)=.+?\]/i, /\[\/(?<tag>spoiler)\]/i);
+            bbcodestr = lost.value.replace(/\[spoiler=.*?\](.*?)\[\/spoiler\]/i, function (s, x) {
+                return `<table class="spoiler" width="100%"><tbody><tr>`
+                    + `<td class="colhead">${lang['spoiler']}&nbsp;&nbsp;<button class="spoiler-button-show" style="display: none;">${lang['spoiler_button_1']}</button>`
+                    + `<button class="spoiler-button-hide">${lang['spoiler_button_2']}</button></td></tr>`
+                    + `<tr><td><span class="spoiler-content" style="display: inline;">${x.replace(/(<br>)*$/, '')}</span></td></tr>`
+                    + `</tbody></table>`;
+            });
+        } else {
+            // [spoiler="剧透是不可能的！"]真的！[/spoiler]
+            const lost = addLostTags(bbcodestr, /\[(?<tag>spoiler)=.+?\]/i, /\[\/(?<tag>spoiler)\]/i);
+            bbcodestr = lost.value.replace(/\[spoiler=(.*?)\](.*?)\[\/spoiler\]/i, function (all, tval, text) {
+                if (tval.match(/\[/i)) return '[' + addTempCode(`spoiler=`) + `${tval}]${text}` + (lost.state ? '' : '[/spoiler]');
+                let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
+                if (!/&quot;/.test(tmp)) tval = tmp;
+                return `<table class="spoiler" width="100%"><tbody><tr>`
+                    + `<td class="colhead">${tval}&nbsp;&nbsp;<button class="spoiler-button-show" style="display: none;">${lang['spoiler_button_1']}</button>`
+                    + `<button class="spoiler-button-hide">${lang['spoiler_button_2']}</button></td></tr>`
+                    + `<tr><td><span class="spoiler-content" style="display: inline;">${text.replace(/(<br>)*$/, '')}</span></td></tr>`
+                    + `</tbody></table>`;
+            });
+        };
+    };
 
-    // 超链接 (绝对)
-    bbcodestr = bbcodestr.replace(/\[url=((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\](.+?)\[\/url\]/gis, function (s, x, y, z) {
-        return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + z + '</a>');
-    });
+    while (bbcode_tag = /\[(?<tag>b|i|u|s|color|size|font|rt|mediainfo|info|code|url|img|imglnk|quote|pre|spoiler)(?<val>=.*?)?\]/gi.exec(bbcodestr)) {
+        let tag = bbcode_tag.groups.tag;
+        let val = bbcode_tag.groups.val;
+        switch (tag) {
+            case 'b':
+                bbcodestr = b(val, bbcodestr); break;
+            case 'i':
+                bbcodestr = i(val, bbcodestr); break;
+            case 'u':
+                bbcodestr = u(val, bbcodestr); break;
+            case 's':
+                bbcodestr = s(val, bbcodestr); break;
+            case 'color':
+                bbcodestr = color(val, bbcodestr); break;
+            case 'size':
+                bbcodestr = size(val, bbcodestr); break;
+            case 'font':
+                font(val); break;
+            case 'rt':
+                rt(val); break;
+            case 'mediainfo':
+                mediainfo(val); break;
+            case 'info':
+                info(val); break;
+            case 'code':
+                code(val); break;
+            case 'url':
+                url(val); break;
+            case 'img':
+                img(val); break;
+            case 'imglnk':
+                imglnk(val); break;
+            case 'quote':
+                quote(val); break;
+            case 'pre':
+                bbcodestr = pre(val, bbcodestr); break;
+            case 'spoiler':
+                spoiler(val); break;
+            default:
+                break;
+        };
+    };
 
-    bbcodestr = bbcodestr.replace(/\[url\]((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\[\/url\]/gis, function (s, x) {
-        return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + x + '</a>')
-    });
-
-    // 超链接 (相对)
-    bbcodestr = bbcodestr.replace(/\[url=(((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\](.+?)\[\/url\]/gis, function (s, x, y, z) {
-        return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + z + '</a>');
-    });
-
-    bbcodestr = bbcodestr.replace(/\[url\](((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)\[\/url\]/gis, function (s, x) {
-        return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + x + '</a>')
+    // 没有bbcode包裹的超链接
+    bbcodestr = bbcodestr.replace(/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)/gi, function (s, x) {
+        return '<a class="faqlink" rel="nofollow noopener noreferer" href="' + s + '">' + s + '</a>';
     });
 
     // 单个标签 不带参
@@ -292,153 +613,8 @@ async function bbcode2html(bbcodestr) {
                 return 'https://u2.dmhy.org';
             default:
                 return s;
-        }
-    });
-
-    // 成对标签 带参
-    const d_reg = new RegExp("\\[(rt|font)=([^\\]]+)\\](.*?)\\[(/\\1)\\]", "gis");
-    while (d_reg.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(d_reg, function (s, w, x, y, z) {
-            switch (w) {
-                case 'rt':
-                    if (f_reg.test(x)) {
-                        return '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + w) + '=' + x + ']'
-                            + y + '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + z) + ']'
-                    }
-                    else {
-                        return addTempCode('<ruby>' + y + '<rp>(</rp><rt>' + x.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1") + '</rt><rp>)</rp></ruby>');
-                    }
-                case 'font':
-                    if (f_reg.test(x)) {
-                        return '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + w) + '=' + x + ']'
-                            + y + '[' + addTempCode('p3F#oW2@cEn_JHstp-&37DgD' + z) + ']';
-                    }
-                    else {
-                        return '<span style="font-family: ' + x.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1") + '">' + y + '</span>';
-                    }
-                default:
-                    return s;
-            }
-        })
-    };
-
-    // 成对标签 不带参
-    const a_reg = new RegExp("\\[(pre|b|i|u|s)\\](.*?)\\[/(\\1)\\]", "gs");
-    while (a_reg.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(a_reg, function (s, x, y, z) {
-            switch (x) {
-                case 'b':
-                    return '<b>' + y + '</b>';
-                case 'i':
-                    return '<em>' + y + '</em>';
-                case 'u':
-                    return '<u>' + y + '</u>';
-                case 's':
-                    return '<s>' + y + '</s>';
-                case 'pre':
-                    return '<pre>' + y + '</pre>';
-                default:
-                    return s;
-            }
-        })
-    };
-
-    // 颜色
-    const color_reg = new RegExp("\\[color=(?:&quot;)?([#0-9a-z]{1,15}|[a-z]+?)(?:&quot;)?\\](.*?)\\[/color\\]", "gis");
-    while (color_reg.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(color_reg, function (s, x, y) {
-            return '<span style="color: ' + x + '">' + y + '</span>';
-        })
-    };
-
-    // 文字大小
-    const size_reg = new RegExp("\\[size=(?:&quot;)?([1-7])(?:&quot;)?\\](.*?)\\[/size\\]", "gis");
-    while (size_reg.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(size_reg, function (s, x, y) {
-            return '<font size="' + x + '">' + y + '</font>';
-        })
-    };
-
-    // 图片
-    bbcodestr = bbcodestr.replace(/\[(img|imglnk)\]([^\]]+)\[\/(?:\1)\]/gi, function (s, x, y) {
-        if (/^((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(y)) {
-            // url 以 .png 之类结尾
-            switch (x) {
-                case 'img':
-                    return addTempCode('<img alt="image" src="' + y + '" style="height: auto; width: auto; max-width: 100%;">');
-                case 'imglnk':
-                    return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="'
-                        + y + '" style="height: auto; width: auto; max-width: 100%;"></a>');
-            };
         };
-        return addTempCode(s);
     });
-
-    bbcodestr = bbcodestr.replace(/\[img=([^\]]+)\]/gi, function (s, x) {
-        if (/^((?!&lt;|&gt;|"|>|'|<|;|\(|\)|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(x)) {
-            // url 以 .png 之类结尾
-            return addTempCode('<img alt="image" src="' + x + '" style="height: auto; width: auto; max-width: 100%;">');
-        };
-        return s;
-    });
-
-    // 没有bbcode包裹的超链接
-    bbcodestr = bbcodestr.replace(/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)/gi, function (s, x) {
-        return '<a class="faqlink" rel="nofollow noopener noreferer" href="' + s + '">' + s + '</a>';
-    });
-
-    // 引用
-    const quote_reg1 = new RegExp("\\[quote\\](.*?)\\[/quote\\]", "gsi");
-    while (quote_reg1.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(quote_reg1, function (s, x) {
-            return '<fieldset><legend>' + lang['quote'] + '</legend>' + x + '</fieldset>';
-        });
-    };
-    const quote_reg2 = new RegExp("\\[quote=([^\\[\\]]*)\\](.*?)\\[/quote\\]", "gsi");
-    while (quote_reg2.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(quote_reg2, function (s, x, y) {
-            if (f_reg.test(x)) {
-                return '<fieldset><legend>' + lang['quote'] + '</legend>' + y + '</fieldset>';
-            }
-            else {
-                return '<fieldset><legend>' + lang['quote'] + ': ' + x.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1") + '</legend>' + y + '</fieldset>';
-            }
-        });
-    };
-
-    // spoiler
-    const spoiler_reg1 = new RegExp("\\[spoiler\\](.*?)\\[/spoiler\\]", "gsi");
-    const spoiler_reg2 = new RegExp("\\[spoiler=([^\\]]+)\\](.*?)\\[/spoiler\\]", "gsi");
-    while (spoiler_reg1.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(spoiler_reg1, function (s, x) {
-            return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-                + lang['spoiler'] + '&nbsp;&nbsp;'
-                + '<button class="spoiler-button-show" style="display: none;">' + lang['spoiler_button_1'] + '</button>'
-                + '<button class="spoiler-button-hide">' + lang['spoiler_button_2'] + '</button>'
-                + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
-                + x + '</span></td></tr></tbody></table>';
-        });
-    };
-    while (spoiler_reg2.test(bbcodestr)) {
-        bbcodestr = bbcodestr.replace(spoiler_reg2, function (s, x, y) {
-            if (f_reg.test(x)) {
-                return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-                    + lang['spoiler'] + '&nbsp;&nbsp;'
-                    + '<button class="spoiler-button-show" style="display: none;">' + lang['spoiler_button_1'] + '</button>'
-                    + '<button class="spoiler-button-hide">' + lang['spoiler_button_2'] + '</button>'
-                    + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
-                    + y + '</span></td></tr></tbody></table>';
-            }
-            else {
-                return '<table class="spoiler" width="100%"><tbody><tr><td class="colhead">'
-                    + x.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1") + '&nbsp;&nbsp;'
-                    + '<button class="spoiler-button-show" style="display: none;">' + lang['spoiler_button_1'] + '</button>'
-                    + '<button class="spoiler-button-hide">' + lang['spoiler_button_2'] + '</button>'
-                    + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
-                    + y + '</span></td></tr></tbody></table>';
-            }
-        });
-    };
 
     // 表情
     const em_reg = new RegExp("\\[(em[1-9][0-9]*)\\]", "gi");
@@ -597,15 +773,15 @@ async function bbcode2html(bbcodestr) {
         });
     });
 
-
     for (let i = 0, len = tempCode.length; i < len; i++) {
-        // console.log(i + " : " + tempCode[i]);
         bbcodestr = bbcodestr.replace("<tempCode_" + i + ">", tempCode[i]);
     };
 
-    bbcodestr = bbcodestr.replace(/p3F#oW2@cEn_JHstp-&37DgD/g, "");
-
+    bbcodestr = bbcodestr + br_end;
     if (/(<br>)$/.test(bbcodestr)) { bbcodestr = bbcodestr + '<br>' };
+
+    console.log('BBCODE2HTML END');
+    // console.log(bbcodestr);
 
     let htmlobj = jq.parseHTML('<div>' + bbcodestr + '</div>');
 
@@ -617,7 +793,7 @@ async function bbcode2html(bbcodestr) {
                 + '<button class="spoiler-button-hide" style="">' + lang['spoiler_button_2'] + '</button>'
                 + '</td></tr><tr><td><span class="spoiler-content" style="display: inline;">'
                 + y + '</span></td></tr></tbody></table>';
-        }))
+        }));
     });
 
     return jq(htmlobj).html();
