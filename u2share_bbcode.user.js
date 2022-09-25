@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.6
+// @version      0.6.7
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -61,7 +61,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
     await syncScroll('#bbcodejs_tbody', url[1], '.bbcode', '#bbcode2');
     if (url[1] === 'upload') { await autoSaveUpload(); } else { await autoSaveMessage('#bbcodejs_tbody', '.bbcode', '#qr', url[1], '#compose'); }
 
-    jq('.bbcode').parents("tr:eq(1)").after('<tr><td class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
+    jq('.bbcode').parents("tr:eq(1)").after('<tr><td id="preview_bbcode" class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
         + '</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2">'
         + '<div id="bbcode2" style="min-height: 25px; max-height: ' + (jq('.bbcode').height() + 30) + 'px; overflow-x: auto ; overflow-y: auto; white-space: pre-wrap;">'
         + '<div class="child">' + await bbcode2html(jq('.bbcode').val()) + '</div></div></td></tr></tbody></table></td>');
@@ -213,6 +213,7 @@ async function sleep(interval) {
 async function bbcode2html(bbcodestr) {
     var tempCode = new Array();
     var tempCodeCount = 0;
+    let lost_tags = new Array();
 
     function addTempCode(value) {
         tempCode[tempCodeCount] = value;
@@ -250,19 +251,17 @@ async function bbcode2html(bbcodestr) {
         bbcodestr = bbcodestr.replace(regex, '');
     };
 
-    const addLostTags = (value, r_tag_start, r_tag_end) => {
+    const checkLostTags = (value, r_tag_start, r_tag_end) => {
         let state = false;
-        // let lost_tags = new Array();
-        // let tag_end_list = new Array();  // 创建存放标签结尾
 
         let r_tag_start_exec = r_tag_start.exec(value);
         let index_start = r_tag_start_exec ? (r_tag_start_exec.index + r_tag_start_exec[0].length) : 0;
         let r_tag_end_exec = r_tag_end.exec(value.slice(index_start));
-        // if (r_tag_end_exec) tag_end_list = r_tag_end_exec.groups.tag;
 
         if (r_tag_start_exec && !r_tag_end_exec) {
             let tag_start_val = r_tag_start_exec.groups.tag;;
             console.log('检测到丢失的标签 => ' + `[/${tag_start_val}]`);
+            lost_tags.push(`[/${tag_start_val}]`)
             // value = value + `[/${tag_start_val}]`;
             state = true;
         };
@@ -274,17 +273,17 @@ async function bbcode2html(bbcodestr) {
     const url = (val, textarea) => {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[url=.(?:&quot;){0,2}\]/i, function (s) { return '[url]'; }); }
         if (val) {
-            const lost = addLostTags(textarea, /\[(?<tag>url)=[^\[]*?/i, /\[\/(?<tag>url)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>url)=[^\[]*?/i, /\[\/(?<tag>url)\]/i);
             if (lost.state) { return textarea.replace(/\[url=[^\[]*?/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[url=(.+?)\](.*?)\[\/url\]/i, function (all, url, text) {
-                if (url.match(/\s|\[/))    return addTempCode(all);
+                if (url.match(/\s|\[/)) return addTempCode(all);
                 let tmp = url.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!tmp.match(/&quot;/)) url = tmp;
                 else { if (url.match(/&quot;/g).length === 1) url = url.replace('&quot;', ''); }
                 return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + url.replace(/&quot;/g, '"') + '">' + text + '</a>');
             });
         } else {
-            const lost = addLostTags(textarea, /\[(?<tag>url)\]/i, /\[\/(?<tag>url)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>url)\]/i, /\[\/(?<tag>url)\]/i);
             if (lost.state) { return textarea.replace(/\[url\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[url\](.+?)\[\/url\]/i, function (s, x) {
                 if (x.match(/\s|\[/i)) return addTempCode(s);
@@ -298,10 +297,10 @@ async function bbcode2html(bbcodestr) {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { return textarea.replace(/\[rt=.*?\]/i, function (s) { return addTempCode(s); }); }
         else if (!val) { return textarea.replace('[rt]', function (s) { return addTempCode(s); }) }
         else {
-            const lost = addLostTags(textarea, /\[(?<tag>rt)=[^\[]*?/i, /\[\/(?<tag>rt)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>rt)=[^\[]*?/i, /\[\/(?<tag>rt)\]/i);
             if (lost.state) { return textarea.replace(/\[rt=[^\[]*?/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[rt=(.+?)\](.*?)\[\/rt\]/i, function (all, tval, text) {
-                if (tval.match(/\[/i))    return addTempCode(all);
+                if (tval.match(/\[/i)) return addTempCode(all);
                 let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!tmp.match(/&quot;/)) tval = tmp;
                 return addTempCode('<ruby>' + text + '<rp>(</rp><rt>' + tval + '</rt><rp>)</rp></ruby>');
@@ -314,7 +313,7 @@ async function bbcode2html(bbcodestr) {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { return textarea.replace(/\[font=.*?]/i, function (s) { return addTempCode(s); }); }
         else if (!val) { return textarea.replace('[font]', function (s) { return addTempCode(s); }) }
         else {
-            const lost = addLostTags(textarea, /\[(?<tag>font)=[^\[]*?\]/i, /\[\/(?<tag>font)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>font)=[^\[]*?\]/i, /\[\/(?<tag>font)\]/i);
             if (lost.state) { return textarea.replace(/\[font=[^\[]*?/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[font=(.+?)\](.*?)\[\/font\]/i, function (all, tval, text) {
                 if (tval.match(/\[/i)) return '[' + addTempCode(`font=`) + `${tval}]${text}`;
@@ -331,10 +330,10 @@ async function bbcode2html(bbcodestr) {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { return textarea.replace(/\[color=.*?\]/i, function (s) { return addTempCode(s); }); }
         else if (!val) { return textarea.replace('[color]', function (s) { return addTempCode(s); }) }
         else {
-            const lost = addLostTags(textarea, /\[(?<tag>color)=[^\[]*?\]/i, /\[\/(?<tag>color)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>color)=[^\[]*?\]/i, /\[\/(?<tag>color)\]/i);
             if (lost.state) { return textarea.replace(/\[color=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[color=(.+?)\](.*?)\[\/color\]/i, function (all, tval, text) {
-                if (tval.match(/\[/i))   return addTempCode(all);;
+                if (tval.match(/\[/i)) return addTempCode(all);;
                 let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!/&quot;/.test(tmp)) { tval = tmp; }
                 else { if (tval.match(/&quot;/g).length === 1) tval = tval.replace('&quot;', ''); };
@@ -348,11 +347,11 @@ async function bbcode2html(bbcodestr) {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { return textarea.replace(/\[size=.*?\]/i, function (s) { return addTempCode(s); }); }
         else if (!val) { return textarea.replace('[size]', function (s) { return addTempCode(s); }) }
         else {
-            const lost = addLostTags(textarea, /\[(?<tag>size)=[^\[]*?\]/i, /\[\/(?<tag>size)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>size)=[^\[]*?\]/i, /\[\/(?<tag>size)\]/i);
             if (lost.state) { return textarea.replace(/\[size=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[size=(.+?)\](.*?)\[\/size\]/i, function (all, tval, text) {
                 // size只允许1-9的数字
-                if (!tval.match(/^(?:&quot;)?[0-9](?:&quot;)?$/))    return addTempCode(all);
+                if (!tval.match(/^(?:&quot;)?[0-9](?:&quot;)?$/)) return addTempCode(all);
                 let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!/&quot;/.test(tmp)) { tval = tmp; }
                 else { if (tval.match(/&quot;/g).length === 1) tval = tval.replace('&quot;', ''); };
@@ -363,35 +362,35 @@ async function bbcode2html(bbcodestr) {
 
     const pre = (val, textarea) => {
         if (val) { return textarea.replace(/\[pre=(.*?)\]/i, function (s, v) { return addTempCode('[pre=') + v + ']'; }); };
-        const lost = addLostTags(textarea, /\[(?<tag>pre)\]/i, /\[\/(?<tag>pre)\]/i);
+        const lost = checkLostTags(textarea, /\[(?<tag>pre)\]/i, /\[\/(?<tag>pre)\]/i);
         if (lost.state) { return textarea.replace(/\[pre\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[pre\](.*?)\[\/pre\]/i, function (all, text) { return '<pre>' + text + '</pre>'; });
     };
 
     const b = (val, textarea) => {
         if (val) { return textarea.replace(/\[b=(.*?)\]/i, function (s, v) { return addTempCode('[b=') + v + ']'; }); };
-        const lost = addLostTags(textarea, /\[(?<tag>b)\]/i, /\[\/(?<tag>b)\]/i);
+        const lost = checkLostTags(textarea, /\[(?<tag>b)\]/i, /\[\/(?<tag>b)\]/i);
         if (lost.state) { return textarea.replace(/\[b\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[b\](.*?)\[\/b\]/i, function (all, text) { return '<b>' + text + '</b>'; });
     };
 
     const i = (val, textarea) => {
         if (val) { return textarea.replace(/\[i=(.*?)\]/i, function (s, v) { return addTempCode('[i=') + v + ']'; }); };
-        const lost = addLostTags(textarea, /\[(?<tag>i)\]/i, /\[\/(?<tag>i)\]/i);
+        const lost = checkLostTags(textarea, /\[(?<tag>i)\]/i, /\[\/(?<tag>i)\]/i);
         if (lost.state) { return textarea.replace(/\[i\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[i\](.*?)\[\/i\]/i, function (all, text) { return '<em>' + text + '</em>'; });
     };
 
     const u = (val, textarea) => {
         if (val) { return textarea.replace(/\[u=(.*?)\]/i, function (s, v) { return addTempCode('[u=') + v + ']'; }); };
-        const lost = addLostTags(textarea, /\[(?<tag>u)\]/i, /\[\/(?<tag>u)\]/i);
+        const lost = checkLostTags(textarea, /\[(?<tag>u)\]/i, /\[\/(?<tag>u)\]/i);
         if (lost.state) { return textarea.replace(/\[u\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[u\](.*?)\[\/u\]/i, function (all, text) { return '<u>' + text + '</u>'; });
     };
 
     const s = (val, textarea) => {
         if (val) { return textarea.replace(/\[s=(.*?)\]/i, function (s, v) { return addTempCode('[s=') + v + ']'; }); };
-        const lost = addLostTags(textarea, /\[(?<tag>s)\]/i, /\[\/(?<tag>s)\]/i);
+        const lost = checkLostTags(textarea, /\[(?<tag>s)\]/i, /\[\/(?<tag>s)\]/i);
         if (lost.state) { return textarea.replace(/\[s\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[s\](.*?)\[\/s\]/i, function (all, text) { return '<s>' + text + '</s>'; });
     };
@@ -410,7 +409,7 @@ async function bbcode2html(bbcodestr) {
             });
         } else {
             // [img]http://u2.dmhy.org/pic/logo.png[/img]
-            const lost = addLostTags(textarea, /\[(?<tag>img)\]/i, /\[\/(?<tag>img)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>img)\]/i, /\[\/(?<tag>img)\]/i);
             if (lost.state) { return textarea.replace(/\[img\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[img\](.*?)\[\/img\]/i, function (all, url) {
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
@@ -429,7 +428,7 @@ async function bbcode2html(bbcodestr) {
             return textarea.replace(/\[imglnk=(.*?)\]/i, function (all, url) { return addTempCode('[imglnk=') + url + ']'; });
         } else {
             // [img]http://u2.dmhy.org/pic/logo.png[/img]
-            const lost = addLostTags(textarea, /\[(?<tag>imglnk)\]/i, /\[\/(?<tag>imglnk)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>imglnk)\]/i, /\[\/(?<tag>imglnk)\]/i);
             if (lost.state) { return textarea.replace(/\[imglnk\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[imglnk\](.*?)\[\/imglnk\]/i, function (all, url) {
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
@@ -445,7 +444,7 @@ async function bbcode2html(bbcodestr) {
     const code = (val, textarea) => {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[code=(?:&quot;){0,2}/, '[code]'); };
         if (val) { textarea = textarea.replace(/\[code=(.*?)\]/i, function (s, v) { return addTempCode('[code=') + v + ']'; }); };
-        const lost = addLostTags(textarea, /\[(?<tag>code)\]/i, /\[\/(?<tag>code)\]/i);
+        const lost = checkLostTags(textarea, /\[(?<tag>code)\]/i, /\[\/(?<tag>code)\]/i);
         if (lost.state) { return textarea.replace(/\[code\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[code\](.*?)\[\/code\]/i, function (all, text) {
             return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${text.replace(/(<br>)*$/, '')}</div><br />`);
@@ -455,7 +454,7 @@ async function bbcode2html(bbcodestr) {
     const info = (val, textarea) => {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[info=(?:&quot;){0,2}/, '[info]'); };
         if (val) { textarea = textarea.replace(/\[info=(.*?)\]/i, function (s, v) { return addTempCode('[info=') + v + ']'; }); };
-        const lost = addLostTags(textarea, /\[(?<tag>info)\]/i, /\[\/(?<tag>info)\]/i);
+        const lost = checkLostTags(textarea, /\[(?<tag>info)\]/i, /\[\/(?<tag>info)\]/i);
         if (lost.state) { return textarea.replace(/\[info\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[info\](.*?)\[\/info\]/i, function (all, text) {
             return addTempCode(`<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: blue">${lang['info']}</span></b></legend>${text.replace(/(<br>)*$/, '')}</fieldset>`);
@@ -465,7 +464,7 @@ async function bbcode2html(bbcodestr) {
     const mediainfo = (val, textarea) => {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[mediainfo=(?:&quot;){0,2}/, '[mediainfo]'); };
         if (val) { textarea = textarea.replace(/\[mediainfo=(.*?)\]/i, function (s, v) { return addTempCode('[mediainfo=') + v + ']'; }); };
-        const lost = addLostTags(textarea, /\[(?<tag>mediainfo)\]/i, /\[\/(?<tag>mediainfo)\]/i);
+        const lost = checkLostTags(textarea, /\[(?<tag>mediainfo)\]/i, /\[\/(?<tag>mediainfo)\]/i);
         if (lost.state) { return textarea.replace(/\[mediainfo\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[mediainfo\](.*?)\[\/mediainfo\]/i, function (all, text) {
             return addTempCode(`<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">${lang['mediainfo']}</span></b></legend>${text.replace(/(<br>)*$/, '')}</fieldset>`);
@@ -475,21 +474,21 @@ async function bbcode2html(bbcodestr) {
     const quote = (val, textarea) => {
         if (!val) {
             // [quote]我爱U2分享園@動漫花園。[/quote]
-            const lost = addLostTags(textarea, /\[(?<tag>quote)]/i, /\[\/(?<tag>quote)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>quote)]/i, /\[\/(?<tag>quote)\]/i);
             if (lost.state) { return textarea.replace(/\[quote\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[quote\](.*?)\[\/quote\]/i, function (s, x) {
                 return '<fieldset><legend>' + lang['quote'] + '</legend>' + x.replace(/(<br>)*$/, '') + '</fieldset>';
             });
         } else if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') {
             // [quote=""]我爱U2分享園@動漫花園。[/quote]
-            const lost = addLostTags(textarea, /\[(?<tag>quote)=[^\[]*?\]/i, /\[\/(?<tag>quote)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>quote)=[^\[]*?\]/i, /\[\/(?<tag>quote)\]/i);
             if (lost.state) { return textarea.replace(/\[quote=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[quote=[^\[]*?\](.*?)\[\/quote\]/i, function (s, x) {
                 return '<fieldset><legend>' + lang['quote'] + '</legend>' + x.replace(/(<br>)*$/, '') + '</fieldset>';
             });
         } else {
             // [quote="ABC"]我爱U2分享園@動漫花園。[/quote]
-            const lost = addLostTags(textarea, /\[(?<tag>quote)=[^\[]*?\]/i, /\[\/(?<tag>quote)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>quote)=[^\[]*?\]/i, /\[\/(?<tag>quote)\]/i);
             if (lost.state) { return textarea.replace(/\[quote=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[quote=([^\[]*?)\](.*?)\[\/quote\]/i, function (all, tval, text) {
                 if (tval.match(/\[/i)) return addTempCode(all);;
@@ -503,7 +502,7 @@ async function bbcode2html(bbcodestr) {
     const spoiler = (val, textarea) => {
         if (!val) {
             // [spoiler]我要剧透了！[/spoiler]
-            const lost = addLostTags(textarea, /\[(?<tag>spoiler)]/i, /\[\/(?<tag>spoiler)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>spoiler)]/i, /\[\/(?<tag>spoiler)\]/i);
             if (lost.state) { return textarea.replace(/\[spoiler\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[spoiler\](.*?)\[\/spoiler\]/i, function (s, x) {
                 return `<table class="spoiler" width="100%"><tbody><tr>`
@@ -515,7 +514,7 @@ async function bbcode2html(bbcodestr) {
         }
         else if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') {
             // [spoiler=""]真的！[/spoiler]
-            const lost = addLostTags(textarea, /\[(?<tag>spoiler)=.+?\]/i, /\[\/(?<tag>spoiler)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>spoiler)=.+?\]/i, /\[\/(?<tag>spoiler)\]/i);
             if (lost.state) { return textarea.replace(/\[spoiler=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[spoiler=.*?\](.*?)\[\/spoiler\]/i, function (s, x) {
                 return `<table class="spoiler" width="100%"><tbody><tr>`
@@ -526,10 +525,10 @@ async function bbcode2html(bbcodestr) {
             });
         } else {
             // [spoiler="剧透是不可能的！"]真的！[/spoiler]
-            const lost = addLostTags(textarea, /\[(?<tag>spoiler)=.+?\]/i, /\[\/(?<tag>spoiler)\]/i);
+            const lost = checkLostTags(textarea, /\[(?<tag>spoiler)=.+?\]/i, /\[\/(?<tag>spoiler)\]/i);
             if (lost.state) { return textarea.replace(/\[spoiler=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[spoiler=(.*?)\](.*?)\[\/spoiler\]/i, function (all, tval, text) {
-                if (tval.match(/\[/i))    return addTempCode(all);;
+                if (tval.match(/\[/i)) return addTempCode(all);;
                 let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!/&quot;/.test(tmp)) tval = tmp;
                 return `<table class="spoiler" width="100%"><tbody><tr>`
@@ -541,9 +540,163 @@ async function bbcode2html(bbcodestr) {
         };
     };
 
-    const localConvert = (textarea) => {
+    // 附件
+    const attach = async (val, textarea) => {
+        const lost = checkLostTags(textarea, /\[(?<tag>attach)\]/i, /\[\/(?<tag>attach)\]/i);
+        if (lost.state) { return textarea.replace(/\[attach\]/i, function (s) { return addTempCode(s); }); };
+        let db = localforage.createInstance({ name: "attachmap" });
+        return await replaceAsync(textarea, /\[attach(?<tag>=[^\]]*?)?\](?<hash>.*?)\[\/attach\]/i, async (...args) => {
+            const { tag, hash } = args.slice(-1)[0];
+            if (tag) { return '[' + addTempCode(`attach`) + tag + `]${hash}[/attach]`; };
+            if (/<br>/.test(hash)) { return addTempCode(`[attach]`) + hash + addTempCode('[/attach]'); };
+            if (!hash) { console.log('内部为空'); return addTempCode(args[0]); }; // attach 标签内为空时
+            if (!/^\w{32}$/.test(hash)) { return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${hash} 无效。</div>`; }; // attach 标签内hash不符合要求
+            return await db.getItem(hash).then(async (value) => {
+                if (value !== null && value.attach_id) {
+                    console.log('数据已存在');
+                    if (value.attach_type === 'img') {
+                        if (Number.isFinite(value.attach_thumb)) {
+                            if (value.attach_thumb === 0) {
+                                console.log('没有触发缩图');
+                                return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}" onclick="Previewurl('${value.attach_url}')">`
+                            } else if (value.attach_thumb === 1) {
+                                console.log('触发缩图');
+                                return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}.thumb.jpg" onclick="Previewurl('${value.attach_url}')">`
+                            };
+                        };
+                        // 正常情况是不会到这一步的，就不判断缩图状态了
+                        return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}" onclick="Previewurl('${value.attach_url}')">`
+                    } else if (value.attach_type === 'other') {
+                        return '<div class="attach">'
+                            + `<img alt="other" src="pic/attachicons/common.gif">&nbsp;&nbsp;`
+                            + `<a href="${value.attach_url}" target="_blank" id="attach${value.attach_id}">${value.attach_name}</a>`
+                            + '&nbsp;&nbsp;'
+                            + `<span class="size">(${value.attach_size})</span>`
+                            + '</div>'
+                    } else if (value.attach_type === 'invalid') {
+                        // 会不会发生碰撞呢 xd
+                        return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`;
+                    };
+                } else {
+                    console.log('数据不存在');
+                    return await new Promise((resolve, reject) => {
+                        jq.ajax({
+                            type: 'post',
+                            url: 'https://u2.dmhy.org/preview.php',
+                            contentType: "application/x-www-form-urlencoded",
+                            data: ({ "body": `[attach]${hash}[/attach]` }),
+                            success: async function (d) {
+                                // console.log('成功');
+                                let htmlobj = jq.parseHTML(d);
+                                let span = jq(htmlobj).find('span');
+                                let attach_normal = jq(span).children('bdo').children('div.attach'); // 普通附件
+                                let attach_image = jq(span).children('bdo').children('img'); // 图片附件
+                                if (attach_normal.length !== 0 && attach_image.length === 0) {
+                                    // console.log('普通附件');
+                                    // console.log(attach_normal);
+                                    let attach_info_obj = /(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec(jq(attach_normal).children('a').attr('onmouseover'));
+                                    const attach = {
+                                        "attach_id": jq(attach_normal).children('a').attr('id').replace('attach', ''),
+                                        "attach_type": 'other',
+                                        "attach_url": jq(attach_normal).children('a').attr('href'),
+                                        "attach_name": jq(attach_normal).children('a').text(),
+                                        "attach_size": jq(attach_normal).children('span.size').text().slice(1, -1),
+                                        "attach_time": attach_info_obj ? attach_info_obj.groups.time : ''
+                                    };
+                                    // 写入数据库
+                                    await db.setItem(hash, attach);
+                                    resolve('<div class="attach">'
+                                        + `<img alt="other" src="pic/attachicons/common.gif">&nbsp;&nbsp;`
+                                        + `<a href="${attach.attach_url}" target="_blank" id="attach${attach.attach_id}">${attach.attach_name}</a>`
+                                        + '&nbsp;&nbsp;'
+                                        + `<span class="size">(${attach.attach_size})</span>`
+                                        + '</div>');
+                                }
+                                else if (attach_normal.length === 0 && attach_image.length !== 0) {
+                                    // console.log('图片附件');
+                                    // 附件唯一标识符
+                                    let attach_url_obj = /^Previewurl\(['"](?<url>[^'"]+)['"]\)/i.exec(jq(attach_image).attr('onclick'));
+                                    let attach_info_obj = /(?<size>\d{1,4}\.\d{1,3}\s?[TGMK]iB).*(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec(jq(attach_image).attr('onmouseover'));
+                                    let attach = {
+                                        "attach_id": jq(attach_image).attr('id').replace('attach', ''),
+                                        "attach_type": 'img',
+                                        "attach_url": attach_url_obj ? attach_url_obj.groups.url : '',
+                                        "attach_name": jq(attach_image).attr('alt'),
+                                        "attach_size": attach_info_obj ? attach_info_obj.groups.size : '',
+                                        "attach_time": attach_info_obj ? attach_info_obj.groups.time : '',
+                                        "attach_thumb": ''
+                                    };
+                                    // console.log('value.attach_thumb: ', value.attach_thumb);
+                                    if (value && Number.isFinite(value.attach_thumb)) {
+                                        if (value.attach_thumb === 0) {
+                                            console.log('没有触发缩图');
+                                            attach.attach_thumb = 0;
+                                            resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
+                                            await db.setItem(hash, attach);
+                                            return;
+                                        } else if (value.attach_thumb === 1) {
+                                            console.log('触发缩图');
+                                            attach.attach_thumb = 1;
+                                            resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
+                                            await db.setItem(hash, attach);
+                                            return;
+                                        };
+                                    };
+                                    // 没有通过标准方法上传的图片，没有记录attach_thumb值
+                                    // console.log(`${attach.attach_url}.thumb.jpg`);
+                                    let thumb = await urlCheck(`${attach.attach_url}.thumb.jpg`).catch(e => { });  // 检查缩图是否存在
+                                    if (typeof (thumb) === "undefined") {
+                                        // 发生了错误 不写数据库
+                                        resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
+                                        return;
+                                    } else if (thumb === false) {
+                                        // 不存在缩图
+                                        console.log('url检测 不存在缩图');
+                                        attach.attach_thumb = 0;
+                                        resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
+                                        await db.setItem(hash, attach);
+                                        return;
+                                    } else if (thumb === true) {
+                                        // 存在缩图
+                                        console.log('url检测 存在缩图');
+                                        attach.attach_thumb = 1;
+                                        resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
+                                        await db.setItem(hash, attach);
+                                        return;
+                                    };
+                                }
+                                else {
+                                    // Attachment for key 82505eca8a43a36bc9c60a7d9609a5df not found.
+                                    // 附件 82505eca8a43a36bc9c60a7d9609a5df 无效。
+                                    if (d.includes(hash)) {
+                                        console.log('附件无效')
+                                        const attach = {
+                                            "attach_id": '',
+                                            "attach_type": 'invalid',
+                                            "attach_url": '',
+                                            "attach_name": '',
+                                            "attach_size": '',
+                                            "attach_time": getDateString()
+                                        };
+                                        await db.setItem(hash, attach);
+                                    } else { console.log('附件未知错误: ' + d); };
+                                    resolve(`<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`);
+                                };
+                            },
+                            error: function (d) {
+                                console.log('附件获取失败');
+                                reject(d.status);
+                            },
+                        });
+                    }).catch(() => { return args[0]; });
+                };
+            });
+        });
+    }
+
+    const localConvert = async (textarea) => {
         let convert_count = 0;
-        while (bbcode_tag = /\[(?<tag>b|i|u|s|color|size|font|rt|mediainfo|info|code|url|img|imglnk|quote|pre|spoiler)(?<val>=[^\[]*?)?\]/gi.exec(textarea)) {
+        while (bbcode_tag = /\[(?<tag>b|i|u|s|color|size|font|rt|mediainfo|info|code|url|img|imglnk|quote|pre|spoiler|attach)(?<val>=[^\[]*?)?\]/gi.exec(textarea)) {
             let tag = bbcode_tag.groups.tag;
             let val = bbcode_tag.groups.val;
             // console.log(`当前标签：` + tag);
@@ -582,16 +735,19 @@ async function bbcode2html(bbcodestr) {
                     textarea = pre(val, textarea); break;
                 case 'spoiler':
                     textarea = spoiler(val, textarea); break;
+                case 'attach':
+                    textarea = await attach(val, textarea); break;
                 default:
                     break;;
             };
             if (++convert_count > 5000) break;
             // console.log('发生次数: ' + convert_count);
+            // console.log(textarea);
         };
         return textarea;
     };
 
-    bbcodestr = localConvert(bbcodestr);
+    bbcodestr = await localConvert(bbcodestr);
 
     // 没有bbcode包裹的超链接
     bbcodestr = bbcodestr.replace(/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)/gi, function (s, x) {
@@ -624,151 +780,6 @@ async function bbcode2html(bbcodestr) {
         };
     });
 
-    // 附件
-    let db = localforage.createInstance({ name: "attachmap" });
-    bbcodestr = await replaceAsync(bbcodestr, /\[attach\](?<hash>\w{32})\[\/attach\]/gi, async (...args) => {
-        const { hash } = args.slice(-1)[0];
-        return await db.getItem(hash).then(async (value) => {
-            if (value !== null && value.attach_id) {
-                console.log('数据已存在');
-                if (value.attach_type === 'img') {
-                    if (Number.isFinite(value.attach_thumb)) {
-                        if (value.attach_thumb === 0) {
-                            console.log('没有触发缩图');
-                            return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}" onclick="Previewurl('${value.attach_url}')">`
-                        } else if (value.attach_thumb === 1) {
-                            console.log('触发缩图');
-                            return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}.thumb.jpg" onclick="Previewurl('${value.attach_url}')">`
-                        };
-                    };
-                    // 正常情况是不会到这一步的，就不判断缩图状态了
-                    return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}" onclick="Previewurl('${value.attach_url}')">`
-                } else if (value.attach_type === 'other') {
-                    return '<div class="attach">'
-                        + `<img alt="other" src="pic/attachicons/common.gif">&nbsp;&nbsp;`
-                        + `<a href="${value.attach_url}" target="_blank" id="attach${value.attach_id}">${value.attach_name}</a>`
-                        + '&nbsp;&nbsp;'
-                        + `<span class="size">(${value.attach_size})</span>`
-                        + '</div>'
-                } else if (value.attach_type === 'invalid') {
-                    // 会不会发生碰撞呢 xd
-                    return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`;
-                };
-            } else {
-                console.log('数据不存在');
-                return await new Promise((resolve, reject) => {
-                    jq.ajax({
-                        type: 'post',
-                        url: 'https://u2.dmhy.org/preview.php',
-                        contentType: "application/x-www-form-urlencoded",
-                        data: ({ "body": `[attach]${hash}[/attach]` }),
-                        success: async function (d) {
-                            // console.log('成功');
-                            let htmlobj = jq.parseHTML(d);
-                            let span = jq(htmlobj).find('span');
-                            let attach_normal = jq(span).children('bdo').children('div.attach'); // 普通附件
-                            let attach_image = jq(span).children('bdo').children('img'); // 图片附件
-                            if (attach_normal.length !== 0 && attach_image.length === 0) {
-                                // console.log('普通附件');
-                                // console.log(attach_normal);
-                                let attach_info_obj = /(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec(jq(attach_normal).children('a').attr('onmouseover'));
-                                const attach = {
-                                    "attach_id": jq(attach_normal).children('a').attr('id').replace('attach', ''),
-                                    "attach_type": 'other',
-                                    "attach_url": jq(attach_normal).children('a').attr('href'),
-                                    "attach_name": jq(attach_normal).children('a').text(),
-                                    "attach_size": jq(attach_normal).children('span.size').text().slice(1, -1),
-                                    "attach_time": attach_info_obj ? attach_info_obj.groups.time : ''
-                                };
-                                // 写入数据库
-                                await db.setItem(hash, attach);
-                                resolve('<div class="attach">'
-                                    + `<img alt="other" src="pic/attachicons/common.gif">&nbsp;&nbsp;`
-                                    + `<a href="${attach.attach_url}" target="_blank" id="attach${attach.attach_id}">${attach.attach_name}</a>`
-                                    + '&nbsp;&nbsp;'
-                                    + `<span class="size">(${attach.attach_size})</span>`
-                                    + '</div>');
-                            }
-                            else if (attach_normal.length === 0 && attach_image.length !== 0) {
-                                // console.log('图片附件');
-                                // 附件唯一标识符
-                                let attach_url_obj = /^Previewurl\(['"](?<url>[^'"]+)['"]\)/i.exec(jq(attach_image).attr('onclick'));
-                                let attach_info_obj = /(?<size>\d{1,4}\.\d{1,3}\s?[TGMK]iB).*(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec(jq(attach_image).attr('onmouseover'));
-                                let attach = {
-                                    "attach_id": jq(attach_image).attr('id').replace('attach', ''),
-                                    "attach_type": 'img',
-                                    "attach_url": attach_url_obj ? attach_url_obj.groups.url : '',
-                                    "attach_name": jq(attach_image).attr('alt'),
-                                    "attach_size": attach_info_obj ? attach_info_obj.groups.size : '',
-                                    "attach_time": attach_info_obj ? attach_info_obj.groups.time : '',
-                                    "attach_thumb": ''
-                                };
-                                // console.log('value.attach_thumb: ', value.attach_thumb);
-                                if (value && Number.isFinite(value.attach_thumb)) {
-                                    if (value.attach_thumb === 0) {
-                                        console.log('没有触发缩图');
-                                        attach.attach_thumb = 0;
-                                        resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
-                                        await db.setItem(hash, attach);
-                                        return;
-                                    } else if (value.attach_thumb === 1) {
-                                        console.log('触发缩图');
-                                        attach.attach_thumb = 1;
-                                        resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
-                                        await db.setItem(hash, attach);
-                                        return;
-                                    };
-                                };
-                                // 没有通过标准方法上传的图片，没有记录attach_thumb值
-                                // console.log(`${attach.attach_url}.thumb.jpg`);
-                                let thumb = await urlCheck(`${attach.attach_url}.thumb.jpg`).catch(e => { });  // 检查缩图是否存在
-                                if (typeof (thumb) === "undefined") {
-                                    // 发生了错误 不写数据库
-                                    resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
-                                    return;
-                                } else if (thumb === false) {
-                                    // 不存在缩图
-                                    console.log('url检测 不存在缩图');
-                                    attach.attach_thumb = 0;
-                                    resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
-                                    await db.setItem(hash, attach);
-                                    return;
-                                } else if (thumb === true) {
-                                    // 存在缩图
-                                    console.log('url检测 存在缩图');
-                                    attach.attach_thumb = 1;
-                                    resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
-                                    await db.setItem(hash, attach);
-                                    return;
-                                };
-                            }
-                            else {
-                                // Attachment for key 82505eca8a43a36bc9c60a7d9609a5df not found.
-                                // 附件 82505eca8a43a36bc9c60a7d9609a5df 无效。
-                                if (d.includes(hash)) {
-                                    console.log('附件无效')
-                                    const attach = {
-                                        "attach_id": '',
-                                        "attach_type": 'invalid',
-                                        "attach_url": '',
-                                        "attach_name": '',
-                                        "attach_size": '',
-                                        "attach_time": getDateString()
-                                    };
-                                    await db.setItem(hash, attach);
-                                } else { console.log('附件未知错误: ' + d); };
-                                resolve(`<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`);
-                            };
-                        },
-                        error: function (d) {
-                            console.log('附件获取失败');
-                            reject(d.status);
-                        },
-                    });
-                }).catch(() => { return args[0]; });
-            };
-        });
-    });
 
     for (let i = 0, len = tempCode.length; i < len; i++) {
         bbcodestr = bbcodestr.replace("<tempCode_" + i + ">", tempCode[i]);
@@ -776,6 +787,15 @@ async function bbcode2html(bbcodestr) {
 
     bbcodestr = bbcodestr + br_end;
     if (/(<br>)$/.test(bbcodestr)) { bbcodestr = bbcodestr + '<br>' };
+
+    // lost_tags
+    if (lost_tags.length !== 0) {
+        jq('#preview_bbcode').html(`⚠ ${lang['preview']}`);
+        jq('#preview_bbcode').attr('title', [...new Set(lost_tags)].join('\n'))
+    } else {
+        jq('#preview_bbcode').html(lang['preview']);
+        jq('#preview_bbcode').attr('title', '')
+    };
 
     // console.log('BBCODE2HTML END');
     // console.log(bbcodestr);
