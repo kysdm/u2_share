@@ -253,29 +253,31 @@ async function bbcode2html(bbcodestr) {
     const addLostTags = (value, r_tag_start, r_tag_end) => {
         let state = false;
         // let lost_tags = new Array();
-        let tag_end_list = new Array();  // 创建存放标签结尾
+        // let tag_end_list = new Array();  // 创建存放标签结尾
 
         let r_tag_start_exec = r_tag_start.exec(value);
         let index_start = r_tag_start_exec ? (r_tag_start_exec.index + r_tag_start_exec[0].length) : 0;
         let r_tag_end_exec = r_tag_end.exec(value.slice(index_start));
-        if (r_tag_end_exec) tag_end_list = r_tag_end_exec.groups.tag;
+        // if (r_tag_end_exec) tag_end_list = r_tag_end_exec.groups.tag;
 
         if (r_tag_start_exec && !r_tag_end_exec) {
             let tag_start_val = r_tag_start_exec.groups.tag;;
             console.log('检测到丢失的标签 => ' + `[/${tag_start_val}]`);
-            value = value + `[/${tag_start_val}]`;
+            // value = value + `[/${tag_start_val}]`;
             state = true;
         };
 
-        return { "value": value, "state": state };
+        // return { "value": value, "state": state };
+        return { "state": state };
     };
 
     const url = (val, textarea) => {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[url=.(?:&quot;){0,2}\]/i, function (s) { return '[url]'; }); }
         if (val) {
             const lost = addLostTags(textarea, /\[(?<tag>url)=[^\[]*?/i, /\[\/(?<tag>url)\]/i);
-            textarea = lost.value.replace(/\[url=(.+?)\](.+?)\[\/url\]/i, function (s, url, text) {
-                if (url.match(/\s|\[/)) return '[' + addTempCode('url=') + `${url}]${text}` + (lost.state ? '' : '[/url]');
+            if (lost.state) { return textarea.replace(/\[url=[^\[]*?/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[url=(.+?)\](.*?)\[\/url\]/i, function (all, url, text) {
+                if (url.match(/\s|\[/))    return addTempCode(all);
                 let tmp = url.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!tmp.match(/&quot;/)) url = tmp;
                 else { if (url.match(/&quot;/g).length === 1) url = url.replace('&quot;', ''); }
@@ -283,148 +285,121 @@ async function bbcode2html(bbcodestr) {
             });
         } else {
             const lost = addLostTags(textarea, /\[(?<tag>url)\]/i, /\[\/(?<tag>url)\]/i);
-            textarea = lost.value.replace(/\[url\](.+?)\[\/url\]/i, function (s, x) {
+            if (lost.state) { return textarea.replace(/\[url\]/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[url\](.+?)\[\/url\]/i, function (s, x) {
                 if (x.match(/\s|\[/i)) return addTempCode(s);
                 return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + x + '</a>');
             });
         };
-        return textarea;
     };
 
     // 注释
     const rt = (val, textarea) => {
-        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[rt=.*?\]/i, function (s) { return addTempCode(s); }); }
-        else if (!val) { textarea = textarea.replace('[rt]', function (s) { return addTempCode(s); }) }
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { return textarea.replace(/\[rt=.*?\]/i, function (s) { return addTempCode(s); }); }
+        else if (!val) { return textarea.replace('[rt]', function (s) { return addTempCode(s); }) }
         else {
             const lost = addLostTags(textarea, /\[(?<tag>rt)=[^\[]*?/i, /\[\/(?<tag>rt)\]/i);
-            textarea = lost.value.replace(/\[rt=(.+?)\](.*?)\[\/rt\]/i, function (all, tval, text) {
-                if (tval.match(/\[/i)) return '[' + addTempCode(`rt=`) + `${tval}]${text}` + (lost.state ? '' : '[/rt]');
+            if (lost.state) { return textarea.replace(/\[rt=[^\[]*?/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[rt=(.+?)\](.*?)\[\/rt\]/i, function (all, tval, text) {
+                if (tval.match(/\[/i))    return addTempCode(all);
                 let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!tmp.match(/&quot;/)) tval = tmp;
                 return addTempCode('<ruby>' + text + '<rp>(</rp><rt>' + tval + '</rt><rp>)</rp></ruby>');
-
             });
         };
-        return textarea;
     };
 
     // 字体
     const font = (val, textarea) => {
-        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[font=.*?]/i, function (s) { return addTempCode(s); }); }
-        else if (!val) { textarea = textarea.replace('[font]', function (s) { return addTempCode(s); }) }
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { return textarea.replace(/\[font=.*?]/i, function (s) { return addTempCode(s); }); }
+        else if (!val) { return textarea.replace('[font]', function (s) { return addTempCode(s); }) }
         else {
-            const lost = addLostTags(textarea, /\[(?<tag>font)=.+?\]/i, /\[\/(?<tag>font)\]/i);
-
-            textarea = lost.value.replace(/\[font=(.+?)\](.*?)\[\/font\]/i, function (all, tval, text) {
+            const lost = addLostTags(textarea, /\[(?<tag>font)=[^\[]*?\]/i, /\[\/(?<tag>font)\]/i);
+            if (lost.state) { return textarea.replace(/\[font=[^\[]*?/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[font=(.+?)\](.*?)\[\/font\]/i, function (all, tval, text) {
                 if (tval.match(/\[/i)) return '[' + addTempCode(`font=`) + `${tval}]${text}`;
                 let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!/&quot;/.test(tmp)) { tval = tmp; }
                 else { if (tval.match(/&quot;/g).length === 1) tval = tval.replace('&quot;', ''); };
-
-                // 在 font 标签内无法作用于全局的标签
-                // while (style_tag = /\[(?<tag>color|size|pre|b|i|u|s)(?<val>=.*?)?\]/gi.exec(text)) {
-                //     let tag = style_tag.groups.tag;
-                //     let val = style_tag.groups.val;
-                //     switch (tag) {
-                //         case 'color':
-                //             text = color(val, text); break;
-                //         case 'size':
-                //             text = size(val, text); break;
-                //         case 'pre':
-                //             text = pre(val, text); break;
-                //         case 'b':
-                //             text = b(val, text); break;
-                //         case 'i':
-                //             text = i(val, text); break;
-                //         case 'u':
-                //             text = u(val, text); break;
-                //         case 's':
-                //             text = s(val, text); break;
-                //         default:
-                //             break;
-                //     };
-                // };
                 return '<span style="font-family: ' + tval + '">' + text + '</span>';
             });
         };
-        return textarea;
     };
 
     // 颜色
     const color = (val, textarea) => {
-        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[color=.*?\]/i, function (s) { return addTempCode(s); }); }
-        else if (!val) { textarea = textarea.replace('[color]', function (s) { return addTempCode(s); }) }
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { return textarea.replace(/\[color=.*?\]/i, function (s) { return addTempCode(s); }); }
+        else if (!val) { return textarea.replace('[color]', function (s) { return addTempCode(s); }) }
         else {
-            const lost = addLostTags(textarea, /\[(?<tag>color)=.+?\]/i, /\[\/(?<tag>color)\]/i);
-            textarea = lost.value.replace(/\[color=(.+?)\](.*?)\[\/color\]/i, function (all, tval, text) {
-                if (tval.match(/\[/i)) return '[' + addTempCode(`color=`) + `${tval}]${text}` + (lost.state ? '' : '[/color]');
+            const lost = addLostTags(textarea, /\[(?<tag>color)=[^\[]*?\]/i, /\[\/(?<tag>color)\]/i);
+            if (lost.state) { return textarea.replace(/\[color=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[color=(.+?)\](.*?)\[\/color\]/i, function (all, tval, text) {
+                if (tval.match(/\[/i))   return addTempCode(all);;
                 let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!/&quot;/.test(tmp)) { tval = tmp; }
                 else { if (tval.match(/&quot;/g).length === 1) tval = tval.replace('&quot;', ''); };
-                // text = localConvert(text);
                 return '<span style="color: ' + tval + '">' + text + '</span>';
             });
         };
-        return textarea;
     };
 
     // 文字大小
     const size = (val, textarea) => {
-        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[size=.*?\]/i, function (s) { return addTempCode(s); }); }
-        else if (!val) { textarea = textarea.replace('[size]', function (s) { return addTempCode(s); }) }
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { return textarea.replace(/\[size=.*?\]/i, function (s) { return addTempCode(s); }); }
+        else if (!val) { return textarea.replace('[size]', function (s) { return addTempCode(s); }) }
         else {
-            const lost = addLostTags(textarea, /\[(?<tag>size)=.+?\]/i, /\[\/(?<tag>size)\]/i);
-            textarea = lost.value.replace(/\[size=(.+?)\](.*?)\[\/size\]/i, function (all, tval, text) {
+            const lost = addLostTags(textarea, /\[(?<tag>size)=[^\[]*?\]/i, /\[\/(?<tag>size)\]/i);
+            if (lost.state) { return textarea.replace(/\[size=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[size=(.+?)\](.*?)\[\/size\]/i, function (all, tval, text) {
                 // size只允许1-9的数字
-                if (!tval.match(/^(?:&quot;)?[0-9](?:&quot;)?$/)) return '[' + addTempCode(`size=`) + `${tval}]${text}` + (lost.state ? '' : '[/size]');
+                if (!tval.match(/^(?:&quot;)?[0-9](?:&quot;)?$/))    return addTempCode(all);
                 let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!/&quot;/.test(tmp)) { tval = tmp; }
                 else { if (tval.match(/&quot;/g).length === 1) tval = tval.replace('&quot;', ''); };
                 return '<font size="' + tval + '">' + text + '</font>';
             });
         };
-        return textarea;
     };
 
     const pre = (val, textarea) => {
-        if (val) { textarea = textarea.replace(/\[pre=(.*?)\]/i, function (s, v) { return addTempCode('[pre=') + v + ']'; }); };
+        if (val) { return textarea.replace(/\[pre=(.*?)\]/i, function (s, v) { return addTempCode('[pre=') + v + ']'; }); };
         const lost = addLostTags(textarea, /\[(?<tag>pre)\]/i, /\[\/(?<tag>pre)\]/i);
-        textarea = lost.value.replace(/\[pre\](.*?)\[\/pre\]/i, function (all, text) { return '<pre>' + text + '</pre>'; });
-        return textarea;
+        if (lost.state) { return textarea.replace(/\[pre\]/i, function (s) { return addTempCode(s); }); };
+        return textarea.replace(/\[pre\](.*?)\[\/pre\]/i, function (all, text) { return '<pre>' + text + '</pre>'; });
     };
 
     const b = (val, textarea) => {
-        if (val) { textarea = textarea.replace(/\[b=(.*?)\]/i, function (s, v) { return addTempCode('[b=') + v + ']'; }); };
+        if (val) { return textarea.replace(/\[b=(.*?)\]/i, function (s, v) { return addTempCode('[b=') + v + ']'; }); };
         const lost = addLostTags(textarea, /\[(?<tag>b)\]/i, /\[\/(?<tag>b)\]/i);
-        textarea = lost.value.replace(/\[b\](.*?)\[\/b\]/i, function (all, text) { return '<b>' + text + '</b>'; });
-        return textarea;
+        if (lost.state) { return textarea.replace(/\[b\]/i, function (s) { return addTempCode(s); }); };
+        return textarea.replace(/\[b\](.*?)\[\/b\]/i, function (all, text) { return '<b>' + text + '</b>'; });
     };
 
     const i = (val, textarea) => {
-        if (val) { textarea = textarea.replace(/\[i=(.*?)\]/i, function (s, v) { return addTempCode('[i=') + v + ']'; }); };
+        if (val) { return textarea.replace(/\[i=(.*?)\]/i, function (s, v) { return addTempCode('[i=') + v + ']'; }); };
         const lost = addLostTags(textarea, /\[(?<tag>i)\]/i, /\[\/(?<tag>i)\]/i);
-        textarea = lost.value.replace(/\[i\](.*?)\[\/i\]/i, function (all, text) { return '<em>' + text + '</em>'; });
-        return textarea;
+        if (lost.state) { return textarea.replace(/\[i\]/i, function (s) { return addTempCode(s); }); };
+        return textarea.replace(/\[i\](.*?)\[\/i\]/i, function (all, text) { return '<em>' + text + '</em>'; });
     };
 
     const u = (val, textarea) => {
-        if (val) { textarea = textarea.replace(/\[u=(.*?)\]/i, function (s, v) { return addTempCode('[u=') + v + ']'; }); };
+        if (val) { return textarea.replace(/\[u=(.*?)\]/i, function (s, v) { return addTempCode('[u=') + v + ']'; }); };
         const lost = addLostTags(textarea, /\[(?<tag>u)\]/i, /\[\/(?<tag>u)\]/i);
-        textarea = lost.value.replace(/\[u\](.*?)\[\/u\]/i, function (all, text) { return '<u>' + text + '</u>'; });
-        return textarea;
+        if (lost.state) { return textarea.replace(/\[u\]/i, function (s) { return addTempCode(s); }); };
+        return textarea.replace(/\[u\](.*?)\[\/u\]/i, function (all, text) { return '<u>' + text + '</u>'; });
     };
 
     const s = (val, textarea) => {
-        if (val) { textarea = textarea.replace(/\[s=(.*?)\]/i, function (s, v) { return addTempCode('[s=') + v + ']'; }); };
+        if (val) { return textarea.replace(/\[s=(.*?)\]/i, function (s, v) { return addTempCode('[s=') + v + ']'; }); };
         const lost = addLostTags(textarea, /\[(?<tag>s)\]/i, /\[\/(?<tag>s)\]/i);
-        textarea = lost.value.replace(/\[s\](.*?)\[\/s\]/i, function (all, text) { return '<s>' + text + '</s>'; });
-        return textarea;
+        if (lost.state) { return textarea.replace(/\[s\]/i, function (s) { return addTempCode(s); }); };
+        return textarea.replace(/\[s\](.*?)\[\/s\]/i, function (all, text) { return '<s>' + text + '</s>'; });
     };
 
     const img = (val, textarea) => {
-        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[img=.*?\]/i, function (s) { return addTempCode(s); }); }
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { return textarea.replace(/\[img=.*?\]/i, function (s) { return addTempCode(s); }); }
         else if (val) {
-            textarea = textarea.replace(/\[img=(.*?)\]/i, function (all, url) {
+            return textarea.replace(/\[img=(.*?)\]/i, function (all, url) {
                 // [img=http://u2.dmhy.org/pic/logo.png]
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
@@ -436,99 +411,101 @@ async function bbcode2html(bbcodestr) {
         } else {
             // [img]http://u2.dmhy.org/pic/logo.png[/img]
             const lost = addLostTags(textarea, /\[(?<tag>img)\]/i, /\[\/(?<tag>img)\]/i);
-            textarea = lost.value.replace(/\[img\](.*?)\[\/img\]/i, function (all, url) {
+            if (lost.state) { return textarea.replace(/\[img\]/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[img\](.*?)\[\/img\]/i, function (all, url) {
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
                 } else {
-                    return addTempCode(`[img]${url}` + (lost.state ? '' : '[/img]'));
+                    return addTempCode(all);
                 };
             });
         };
-        return textarea;
     };
 
     const imglnk = (val, textarea) => {
-        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[imglnk=.*?\]/i, function (s) { return addTempCode(s); }); }
+        if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { return textarea.replace(/\[imglnk=.*?\]/i, function (s) { return addTempCode(s); }); }
         else if (val) {
-            textarea = textarea.replace(/\[imglnk=(.*?)\]/i, function (all, url) { return addTempCode('[imglnk=') + url + ']'; });
+            return textarea.replace(/\[imglnk=(.*?)\]/i, function (all, url) { return addTempCode('[imglnk=') + url + ']'; });
         } else {
             // [img]http://u2.dmhy.org/pic/logo.png[/img]
             const lost = addLostTags(textarea, /\[(?<tag>imglnk)\]/i, /\[\/(?<tag>imglnk)\]/i);
-            textarea = lost.value.replace(/\[img\](.*?)\[\/img\]/i, function (all, url) {
+            if (lost.state) { return textarea.replace(/\[imglnk\]/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[imglnk\](.*?)\[\/imglnk\]/i, function (all, url) {
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode(`<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="${url}" style="height: auto; width: auto; max-width: 100%;"></a>`);
                 } else {
-                    return addTempCode(`[imglnk]${url}` + (lost.state ? '' : '[/imglnk]'));
+                    return addTempCode(all);
                 };
             });
         };
-        return textarea;
     };
 
     const code = (val, textarea) => {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[code=(?:&quot;){0,2}/, '[code]'); };
         if (val) { textarea = textarea.replace(/\[code=(.*?)\]/i, function (s, v) { return addTempCode('[code=') + v + ']'; }); };
         const lost = addLostTags(textarea, /\[(?<tag>code)\]/i, /\[\/(?<tag>code)\]/i);
-        textarea = lost.value.replace(/\[code\](.*?)\[\/code\]/i, function (all, text) {
+        if (lost.state) { return textarea.replace(/\[code\]/i, function (s) { return addTempCode(s); }); };
+        return textarea.replace(/\[code\](.*?)\[\/code\]/i, function (all, text) {
             return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${text.replace(/(<br>)*$/, '')}</div><br />`);
         });
-        return textarea;
     };
 
     const info = (val, textarea) => {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[info=(?:&quot;){0,2}/, '[info]'); };
         if (val) { textarea = textarea.replace(/\[info=(.*?)\]/i, function (s, v) { return addTempCode('[info=') + v + ']'; }); };
         const lost = addLostTags(textarea, /\[(?<tag>info)\]/i, /\[\/(?<tag>info)\]/i);
-        textarea = lost.value.replace(/\[info\](.*?)\[\/info\]/i, function (all, text) {
-            // return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${text.replace(/(<br>)*$/, '')}</div><br />`);
+        if (lost.state) { return textarea.replace(/\[info\]/i, function (s) { return addTempCode(s); }); };
+        return textarea.replace(/\[info\](.*?)\[\/info\]/i, function (all, text) {
             return addTempCode(`<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: blue">${lang['info']}</span></b></legend>${text.replace(/(<br>)*$/, '')}</fieldset>`);
         });
-        return textarea;
     };
 
     const mediainfo = (val, textarea) => {
         if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') { textarea = textarea.replace(/\[mediainfo=(?:&quot;){0,2}/, '[mediainfo]'); };
         if (val) { textarea = textarea.replace(/\[mediainfo=(.*?)\]/i, function (s, v) { return addTempCode('[mediainfo=') + v + ']'; }); };
         const lost = addLostTags(textarea, /\[(?<tag>mediainfo)\]/i, /\[\/(?<tag>mediainfo)\]/i);
-        textarea = lost.value.replace(/\[mediainfo\](.*?)\[\/mediainfo\]/i, function (all, text) {
+        if (lost.state) { return textarea.replace(/\[mediainfo\]/i, function (s) { return addTempCode(s); }); };
+        return textarea.replace(/\[mediainfo\](.*?)\[\/mediainfo\]/i, function (all, text) {
             return addTempCode(`<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">${lang['mediainfo']}</span></b></legend>${text.replace(/(<br>)*$/, '')}</fieldset>`);
         });
-        return textarea;
     };
 
     const quote = (val, textarea) => {
         if (!val) {
             // [quote]我爱U2分享園@動漫花園。[/quote]
             const lost = addLostTags(textarea, /\[(?<tag>quote)]/i, /\[\/(?<tag>quote)\]/i);
-            textarea = lost.value.replace(/\[quote\](.*?)\[\/quote\]/i, function (s, x) {
+            if (lost.state) { return textarea.replace(/\[quote\]/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[quote\](.*?)\[\/quote\]/i, function (s, x) {
                 return '<fieldset><legend>' + lang['quote'] + '</legend>' + x.replace(/(<br>)*$/, '') + '</fieldset>';
             });
         } else if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') {
             // [quote=""]我爱U2分享園@動漫花園。[/quote]
-            const lost = addLostTags(textarea, /\[(?<tag>quote)=.*?\]/i, /\[\/(?<tag>quote)\]/i);
-            textarea = lost.value.replace(/\[quote=.*?\](.*?)\[\/quote\]/i, function (s, x) {
+            const lost = addLostTags(textarea, /\[(?<tag>quote)=[^\[]*?\]/i, /\[\/(?<tag>quote)\]/i);
+            if (lost.state) { return textarea.replace(/\[quote=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[quote=[^\[]*?\](.*?)\[\/quote\]/i, function (s, x) {
                 return '<fieldset><legend>' + lang['quote'] + '</legend>' + x.replace(/(<br>)*$/, '') + '</fieldset>';
             });
         } else {
             // [quote="ABC"]我爱U2分享園@動漫花園。[/quote]
-            const lost = addLostTags(textarea, /\[(?<tag>quote)=.*?\]/i, /\[\/(?<tag>quote)\]/i);
-            textarea = lost.value.replace(/\[quote=(.+?)\](.*?)\[\/quote\]/i, function (all, tval, text) {
-                if (tval.match(/\[/i)) return '[' + addTempCode(`quote=`) + `${tval}]${text}` + (lost.state ? '' : '[/quote]');
+            const lost = addLostTags(textarea, /\[(?<tag>quote)=[^\[]*?\]/i, /\[\/(?<tag>quote)\]/i);
+            if (lost.state) { return textarea.replace(/\[quote=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[quote=([^\[]*?)\](.*?)\[\/quote\]/i, function (all, tval, text) {
+                if (tval.match(/\[/i)) return addTempCode(all);;
                 let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!/&quot;/.test(tmp)) { tval = tmp; };
                 return '<fieldset><legend>' + lang['quote'] + ': ' + tval + '</legend>' + text.replace(/(<br>)*$/, '') + '</fieldset>';
             });
         };
-        return textarea;
     };
 
     const spoiler = (val, textarea) => {
         if (!val) {
             // [spoiler]我要剧透了！[/spoiler]
             const lost = addLostTags(textarea, /\[(?<tag>spoiler)]/i, /\[\/(?<tag>spoiler)\]/i);
-            textarea = lost.value.replace(/\[spoiler\](.*?)\[\/spoiler\]/i, function (s, x) {
+            if (lost.state) { return textarea.replace(/\[spoiler\]/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[spoiler\](.*?)\[\/spoiler\]/i, function (s, x) {
                 return `<table class="spoiler" width="100%"><tbody><tr>`
                     + `<td class="colhead">${lang['spoiler']}&nbsp;&nbsp;<button class="spoiler-button-show" style="display: none;">${lang['spoiler_button_1']}</button>`
                     + `<button class="spoiler-button-hide">${lang['spoiler_button_2']}</button></td></tr>`
@@ -539,7 +516,8 @@ async function bbcode2html(bbcodestr) {
         else if (val === '=' || val === '=&quot;' || val === '=&quot;&quot;') {
             // [spoiler=""]真的！[/spoiler]
             const lost = addLostTags(textarea, /\[(?<tag>spoiler)=.+?\]/i, /\[\/(?<tag>spoiler)\]/i);
-            textarea = lost.value.replace(/\[spoiler=.*?\](.*?)\[\/spoiler\]/i, function (s, x) {
+            if (lost.state) { return textarea.replace(/\[spoiler=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[spoiler=.*?\](.*?)\[\/spoiler\]/i, function (s, x) {
                 return `<table class="spoiler" width="100%"><tbody><tr>`
                     + `<td class="colhead">${lang['spoiler']}&nbsp;&nbsp;<button class="spoiler-button-show" style="display: none;">${lang['spoiler_button_1']}</button>`
                     + `<button class="spoiler-button-hide">${lang['spoiler_button_2']}</button></td></tr>`
@@ -549,8 +527,9 @@ async function bbcode2html(bbcodestr) {
         } else {
             // [spoiler="剧透是不可能的！"]真的！[/spoiler]
             const lost = addLostTags(textarea, /\[(?<tag>spoiler)=.+?\]/i, /\[\/(?<tag>spoiler)\]/i);
-            textarea = lost.value.replace(/\[spoiler=(.*?)\](.*?)\[\/spoiler\]/i, function (all, tval, text) {
-                if (tval.match(/\[/i)) return '[' + addTempCode(`spoiler=`) + `${tval}]${text}` + (lost.state ? '' : '[/spoiler]');
+            if (lost.state) { return textarea.replace(/\[spoiler=[^\[]*?\]/i, function (s) { return addTempCode(s); }); };
+            return textarea.replace(/\[spoiler=(.*?)\](.*?)\[\/spoiler\]/i, function (all, tval, text) {
+                if (tval.match(/\[/i))    return addTempCode(all);;
                 let tmp = tval.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                 if (!/&quot;/.test(tmp)) tval = tmp;
                 return `<table class="spoiler" width="100%"><tbody><tr>`
@@ -560,16 +539,14 @@ async function bbcode2html(bbcodestr) {
                     + `</tbody></table>`;
             });
         };
-        return textarea;
     };
 
     const localConvert = (textarea) => {
-        console.log('内部转换');
-        let loop_count = 0;
+        let convert_count = 0;
         while (bbcode_tag = /\[(?<tag>b|i|u|s|color|size|font|rt|mediainfo|info|code|url|img|imglnk|quote|pre|spoiler)(?<val>=[^\[]*?)?\]/gi.exec(textarea)) {
             let tag = bbcode_tag.groups.tag;
             let val = bbcode_tag.groups.val;
-            console.log(`当前标签：` + tag);
+            // console.log(`当前标签：` + tag);
             switch (tag) {
                 case 'b':
                     textarea = b(val, textarea); break;
@@ -608,57 +585,13 @@ async function bbcode2html(bbcodestr) {
                 default:
                     break;;
             };
-            //   if (loop_count > 10) break;
-            // loop_count++;
-            console.log('发生次数: ' + loop_count);
+            if (++convert_count > 5000) break;
+            // console.log('发生次数: ' + convert_count);
         };
         return textarea;
     };
 
     bbcodestr = localConvert(bbcodestr);
-
-    // while (bbcode_tag = /\[(?<tag>b|i|u|s|color|size|font|rt|mediainfo|info|code|url|img|imglnk|quote|pre|spoiler)(?<val>=.*?)?\]/gi.exec(bbcodestr)) {
-    //     let tag = bbcode_tag.groups.tag;
-    //     let val = bbcode_tag.groups.val;
-    //     switch (tag) {
-    //         case 'b':
-    //             bbcodestr = b(val, bbcodestr); break;
-    //         case 'i':
-    //             bbcodestr = i(val, bbcodestr); break;
-    //         case 'u':
-    //             bbcodestr = u(val, bbcodestr); break;
-    //         case 's':
-    //             bbcodestr = s(val, bbcodestr); break;
-    //         case 'color':
-    //             bbcodestr = color(val, bbcodestr); break;
-    //         case 'size':
-    //             bbcodestr = size(val, bbcodestr); break;
-    //         case 'font':
-    //             bbcodestr = font(val, bbcodestr); break;
-    //         case 'rt':
-    //             bbcodestr = rt(val, bbcodestr); break;
-    //         case 'mediainfo':
-    //             bbcodestr = mediainfo(val, bbcodestr); break;
-    //         case 'info':
-    //             bbcodestr = info(val, bbcodestr); break;
-    //         case 'code':
-    //             bbcodestr = code(val, bbcodestr); break;
-    //         case 'url':
-    //             bbcodestr = url(val, bbcodestr); break;
-    //         case 'img':
-    //             bbcodestr = img(val, bbcodestr); break;
-    //         case 'imglnk':
-    //             bbcodestr = imglnk(val, bbcodestr); break;
-    //         case 'quote':
-    //             bbcodestr = quote(val, bbcodestr); break;
-    //         case 'pre':
-    //             bbcodestr = pre(val, bbcodestr); break;
-    //         case 'spoiler':
-    //             bbcodestr = spoiler(val, bbcodestr); break;
-    //         default:
-    //             break;
-    //     };
-    // };
 
     // 没有bbcode包裹的超链接
     bbcodestr = bbcodestr.replace(/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)/gi, function (s, x) {
@@ -844,8 +777,8 @@ async function bbcode2html(bbcodestr) {
     bbcodestr = bbcodestr + br_end;
     if (/(<br>)$/.test(bbcodestr)) { bbcodestr = bbcodestr + '<br>' };
 
-    console.log('BBCODE2HTML END');
-    console.log(bbcodestr);
+    // console.log('BBCODE2HTML END');
+    // console.log(bbcodestr);
 
     let htmlobj = jq.parseHTML('<div>' + bbcodestr + '</div>');
 
@@ -1044,7 +977,6 @@ async function autoSaveUpload() {
                     jq('#browsecat').val(value['category']);
                     // jq('#browsecat').change(); // 手动触发列表更改事件 <使用两个jq后失效了 $('#browsecat').change(); 是有效的>
                     document.getElementById('browsecat').dispatchEvent(new Event('change')); // 手动触发列表更改事件
-                    console.log(value['category']);
                     jq('#autocheck_placeholder').children().eq(0).prop("checked", value['auto_pass']);
                     jq('#autocheck_placeholder').children().eq(1).prop("checked", !value['auto_pass']);
                     for (var key in value) { if (/^(anime|manga|music|other)/.test(key)) { jq('#' + key + '-input').val(value[key]); }; };
@@ -1264,7 +1196,7 @@ async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, 
 // preview 预览位置
 async function syncScroll(element, type, bbcode, preview) {
     let db = localforage.createInstance({ name: "bbcodejs" });  // 为以后统一数据库做准备
-    console.log('启用bbcodejs数据库');
+    // console.log('启用bbcodejs数据库');
     jq(element).append(`<input id="${type}_sync_scroll_on" class="codebuttons" style="font-size:11px; margin-right:3px;; display: none;" type="button" value="同步滚动已开启"></input>`
         + `<input id="${type}_sync_scroll_off" class="codebuttons" style="font-size: 11px; margin-right:3px; display: none;" type="button" value="同步滚动已关闭"></input>`
     );
