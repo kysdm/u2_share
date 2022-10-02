@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.8
+// @version      0.4.9
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -886,7 +886,15 @@ async function torrentInfoHistory() {
     for (let i = 0, len = history_data.length; i < len; i++) { // 循环插入到选择列表中
         $("#history_select").append("<option value='" + history_data[i].self + "'>"
             + history_data[i].get_time.replace('T', ' ')
-            + (() => { return history_data[i].self === 0 ? ' N' : history_data[i].offer === 1 ? ' H' : ' T' })()
+            + ((edited_type) => {
+                switch (edited_type) {
+                    case 0: return ' H';  // 添加候选
+                    case 1: return ' E'  // 普通用户编辑
+                    case 2: return ' M'  // MOD编辑
+                    case 3: return ' T'  // 允许候选
+                    default: return ' '  // 早期记录
+                };
+            })(history_data[i].edited_type)
             + (() => {
                 if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
@@ -1316,7 +1324,15 @@ async function torrentInfoHistoryReset() {
     for (let i = 0, len = history_data.length; i < len; i++) { // 循环插入到选择列表中
         $("#history_select").append("<option value='" + history_data[i].self + "'>"
             + history_data[i].get_time.replace('T', ' ')
-            + (() => { return history_data[i].self === 0 ? ' N' : history_data[i].offer === 1 ? ' H' : ' T' })()
+            + ((edited_type) => {
+                switch (edited_type) {
+                    case 0: return ' H';  // 添加候选
+                    case 1: return ' E'  // 普通用户编辑
+                    case 2: return ' M'  // MOD编辑
+                    case 3: return ' T'  // 允许候选
+                    default: return ' '  // 早期记录
+                };
+            })(history_data[i].edited_type)
             + (() => {
                 if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
