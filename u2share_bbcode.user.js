@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.7
+// @version      0.6.8
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -553,14 +553,14 @@ async function bbcode2html(bbcodestr) {
             if (!/^\w{32}$/.test(hash)) { return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${hash} 无效。</div>`; }; // attach 标签内hash不符合要求
             return await db.getItem(hash).then(async (value) => {
                 if (value !== null && value.attach_id) {
-                    console.log('数据已存在');
+                    // console.log('数据已存在');
                     if (value.attach_type === 'img') {
                         if (Number.isFinite(value.attach_thumb)) {
                             if (value.attach_thumb === 0) {
-                                console.log('没有触发缩图');
+                                // console.log('没有触发缩图');
                                 return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}" onclick="Previewurl('${value.attach_url}')">`
                             } else if (value.attach_thumb === 1) {
-                                console.log('触发缩图');
+                                // console.log('触发缩图');
                                 return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}.thumb.jpg" onclick="Previewurl('${value.attach_url}')">`
                             };
                         };
@@ -578,7 +578,7 @@ async function bbcode2html(bbcodestr) {
                         return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`;
                     };
                 } else {
-                    console.log('数据不存在');
+                    // console.log('数据不存在');
                     return await new Promise((resolve, reject) => {
                         jq.ajax({
                             type: 'post',
@@ -629,13 +629,13 @@ async function bbcode2html(bbcodestr) {
                                     // console.log('value.attach_thumb: ', value.attach_thumb);
                                     if (value && Number.isFinite(value.attach_thumb)) {
                                         if (value.attach_thumb === 0) {
-                                            console.log('没有触发缩图');
+                                            // console.log('没有触发缩图');
                                             attach.attach_thumb = 0;
                                             resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
                                             await db.setItem(hash, attach);
                                             return;
                                         } else if (value.attach_thumb === 1) {
-                                            console.log('触发缩图');
+                                            // console.log('触发缩图');
                                             attach.attach_thumb = 1;
                                             resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
                                             await db.setItem(hash, attach);
@@ -651,14 +651,14 @@ async function bbcode2html(bbcodestr) {
                                         return;
                                     } else if (thumb === false) {
                                         // 不存在缩图
-                                        console.log('url检测 不存在缩图');
+                                        // console.log('url检测 不存在缩图');
                                         attach.attach_thumb = 0;
                                         resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
                                         await db.setItem(hash, attach);
                                         return;
                                     } else if (thumb === true) {
                                         // 存在缩图
-                                        console.log('url检测 存在缩图');
+                                        // console.log('url检测 存在缩图');
                                         attach.attach_thumb = 1;
                                         resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
                                         await db.setItem(hash, attach);
@@ -2148,7 +2148,7 @@ function SmileIT2(smile, form, text) {
         let attach_hash_list = []; // 存储上传文件的hash值
         await (async () => {
             for (let i = 0, len = emfile.files.length; i < len; i++) {
-                console.log(emfile.files[i]);
+                // console.log(emfile.files[i]);
                 jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
                 let thumb = await imgThumb(emfile.files[i]).catch(e => { });
                 if (thumb !== 0 && thumb !== 1 && thumb !== '') continue;  // 如果不是有效的文件，则跳过
@@ -2156,7 +2156,7 @@ function SmileIT2(smile, form, text) {
                 if (hash) attach_hash_list.push(hash); // 存储hash值
             };
         })();
-        console.log(attach_hash_list);
+        // console.log(attach_hash_list);
         let bbcode = '';
         attach_hash_list.forEach(async (hash) => { bbcode += `[attach]${hash}[/attach]`; })
         let em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);  // 获取text_area_id
@@ -2217,7 +2217,7 @@ function SmileIT2(smile, form, text) {
                     // if (!attach_hash_obj) return;  // 没有找到id直接返回 
                     // <span class="striking">失败！不允许该文件扩展名。</span>
                     const attach_hash = attach_hash_obj.groups.hash; // 附件的hash值
-                    console.log(attach_hash)
+                    // console.log(attach_hash)
                     const db = localforage.createInstance({ name: "attachmap" });
                     const attach = { "attach_thumb": attach_thumb };
                     await db.setItem(attach_hash, attach); // 写入数据库
@@ -2242,5 +2242,44 @@ function SmileIT2(smile, form, text) {
         if (!em) return;  // 没有找到id直接返回 
         await attach2Img(em.groups.id, window.parent.document)
     });
+
+    // 拖拽上传
+    ((text_area_id) => {
+        const box = window.parent.document.getElementById(text_area_id); // 允许拖拽上传的区域
+        box.addEventListener("drop",
+            async function (e) {
+                e.preventDefault(); //取消默认浏览器拖拽效果
+
+                if (window.parent.document.getElementById(text_area_id) !== (e.target || e.toElement)) return;
+
+                let file_list = e.dataTransfer.files;   // 获取文件对象
+                if (file_list.length == 0) return false;
+
+                jq('.embedded').hide();
+                jq('[name="progress"]').show();
+                let attach_hash_list = new Array(); // 存储上传文件的hash值
+                await (async () => {
+                    for (let i = 0, len = file_list.length; i < len; i++) {
+                        console.log(file_list[i]);
+                        jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
+                        let thumb = await imgThumb(file_list[i]).catch(e => { });
+                        if (thumb !== 0 && thumb !== 1 && thumb !== '') continue;  // 如果不是有效的文件，则跳过
+                        let hash = await upload(file_list[i], thumb).catch(e => { }); // 上传文件 返回文件hash
+                        if (hash) attach_hash_list.push(hash); // 存储hash值
+                    };
+                })();
+                console.log(attach_hash_list);
+                let bbcode = '';
+                attach_hash_list.forEach(async (hash) => { bbcode += `[attach]${hash}[/attach]`; })
+                addTextBox(window.parent.document.getElementById(text_area_id), bbcode); // 添加附件bbcode
+                window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
+                jq('[name="progress"]').hide();  // 隐藏进度条
+                jq('.embedded').show();  // 显示附件菜单
+                jq('[name="file"]').val(''); // 清空输入框
+
+            },
+            false);
+
+    })(/text_area_id=(?<id>[^\?&]+)/i.exec(location.search).groups.id);
 
 })();
