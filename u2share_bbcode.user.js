@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.9
+// @version      0.7.0
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -2293,17 +2293,16 @@ function SmileIT2(smile, form, text) {
         box.addEventListener('paste', async function (e) {
             if (window.parent.document.getElementById(text_area_id) !== (e.target || e.toElement)) return;
 
-            if (!confirm('上传剪贴板中的图片?')) return;
-
             // https://developer.mozilla.org/zh-CN/docs/Web/API/ClipboardEvent/clipboardData
             // let clipboardData = (e.clipboardData || e.originalEvent.clipboardData);
             let items = e.clipboardData && e.clipboardData.items;
 
             if (items) {
-                jq('.embedded').hide();
-                jq('[name="progress"]').show();
                 for (var i = 0; i < items.length; i++) {
-                    if (items[i].type.startsWith('text/')) break;
+                    if (!items[i].type.startsWith('image/')) continue;
+                    if (!confirm('上传剪贴板中的图片?')) return;
+                    jq('.embedded').hide();
+                    jq('[name="progress"]').show();
                     // https://developer.mozilla.org/zh-CN/docs/Web/API/DataTransferItem/getAsFile
                     file = items[i].getAsFile();
                     if (file) {
