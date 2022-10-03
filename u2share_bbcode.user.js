@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.8
+// @version      0.6.9
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -10,6 +10,7 @@
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
+// @require      https://unpkg.com/image-conversion@2.1.1/build/conversion.js
 // @license      Apache-2.0
 // ==/UserScript==
 
@@ -2150,9 +2151,9 @@ function SmileIT2(smile, form, text) {
             for (let i = 0, len = emfile.files.length; i < len; i++) {
                 // console.log(emfile.files[i]);
                 jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
-                let thumb = await imgThumb(emfile.files[i]).catch(e => { });
-                if (thumb !== 0 && thumb !== 1 && thumb !== '') continue;  // 如果不是有效的文件，则跳过
-                let hash = await upload(emfile.files[i], thumb).catch(e => { }); // 上传文件 返回文件hash
+                let f = await imgCompressor(emfile.files[i]);
+                if (!f.file) continue;  // 如果不是有效的文件，则跳过
+                let hash = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
                 if (hash) attach_hash_list.push(hash); // 存储hash值
             };
         })();
@@ -2169,22 +2170,64 @@ function SmileIT2(smile, form, text) {
 
     // 判断是否会触发缩图
     const imgThumb = (file) => {
-        return new Promise((resolve, reject) => {
-            if (file.type.indexOf('image') === 0) {
-                // console.log('载入');
-                let img = new Image();              //创建个Image对象
-                img.src = url.createObjectURL(file); //将图片路径存入Image对象
-                img.onload = function () {
-                    console.log('长: ' + this.height + ' | 宽: ' + this.width)
-                    resolve((this.height > 500 || this.width > 500) ? 1 : 0);
-                };
-                img.onerror = function () {
-                    window.alert(`${file.name} 不是有效的图片文件`);
-                    reject('invalid');
-                }
-            } else {
-                resolve('');
+        return new Promise((resolve) => {
+            let img = new Image();              //创建个Image对象
+            img.src = url.createObjectURL(file); //将图片路径存入Image对象
+            img.onload = async function () {
+                console.log('长: ' + this.height + ' | 宽: ' + this.width)
+                resolve((this.height > 500 || this.width > 500) ? 1 : 0);
             };
+            img.onerror = function () {
+                window.alert(`${file.name} 不是有效的图片文件`);
+                resolve('badimg');
+            };
+        });
+    };
+
+    const imgCompressor = (file) => {
+        return new Promise(async (resolve) => {
+
+            if (file.type.indexOf('image') === 0 && file.size > 1024 * 1024 * 4) {
+
+                if (!confirm(`${file.name} (${(file.size / 1024 / 1024).toFixed(2)}M)\n图片过大无法上传,是否压缩图片?`)) {
+                    resolve({ 'file': null, 'thumb': 'badimg' });
+                    return;
+                };
+
+                if (!(file instanceof File)) {
+                    let reader = new FileReader();
+                    reader.onload = async function (e) {
+                        imageConversion.compressAccurately(new Blob([new Uint8Array(e.target.result)], { type: file.type }), 4096)
+                            .then(f => {
+                                let _file = new File([f], file.name, { type: file.type });
+                                imgThumb(_file).then(t => {
+                                    resolve({ 'file': _file, 'thumb': t });
+                                });
+                            })
+                            .catch(e => { resolve({ 'file': null, 'thumb': 'badimg' }); });
+                    };
+                    reader.onerror = function () {
+                        window.alert(`${file.name} 读取失败`);
+                        // reject('invalid file');
+                        resolve({ 'file': null, 'thumb': 'badimg' });
+                    }
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    imageConversion.compressAccurately(file, 4096)
+                        .then(f => {
+                            let _file = new File([f], file.name, { type: file.type });
+                            console.log(_file);
+                            imgThumb(_file).then(t => {
+                                resolve({ 'file': _file, 'thumb': t });
+                            });
+                        })
+                        .catch(e => { resolve({ 'file': null, 'thumb': 'badimg' }); });
+                };
+
+            } else {
+                resolve({ 'file': file, 'thumb': 'other' })
+            };
+
         });
     };
 
@@ -2194,7 +2237,7 @@ function SmileIT2(smile, form, text) {
             let formData = new FormData();  // 创建一个form类型的数据
             formData.append('file', file);  // 获取上传文件的数据
             if (!/\.(jpg|jpeg|png|gif|torrent|zip|rar|7z|gzip|gz)$/i.test(file.name)) { window.alert(`${file.name} 文件类型不支持`); reject(); return; }
-            if (file.size > 1024 * 1024 * 4) { window.alert(`${file.name} 文件过大`); reject(); return; }
+            if (file.size > 1024 * 1024 * 4) { window.alert(`${file.name} 文件过大`); reject(); return; };
             jq.ajax({
                 url: "attachment.php", // 接口
                 type: 'post',
@@ -2243,41 +2286,75 @@ function SmileIT2(smile, form, text) {
         await attach2Img(em.groups.id, window.parent.document)
     });
 
-    // 拖拽上传
+    // 拖拽&剪贴板上传
     ((text_area_id) => {
         const box = window.parent.document.getElementById(text_area_id); // 允许拖拽上传的区域
-        box.addEventListener("drop",
-            async function (e) {
-                e.preventDefault(); //取消默认浏览器拖拽效果
 
-                if (window.parent.document.getElementById(text_area_id) !== (e.target || e.toElement)) return;
+        box.addEventListener('paste', async function (e) {
+            if (window.parent.document.getElementById(text_area_id) !== (e.target || e.toElement)) return;
 
-                let file_list = e.dataTransfer.files;   // 获取文件对象
-                if (file_list.length == 0) return false;
+            if (!confirm('上传剪贴板中的图片?')) return;
 
+            // https://developer.mozilla.org/zh-CN/docs/Web/API/ClipboardEvent/clipboardData
+            // let clipboardData = (e.clipboardData || e.originalEvent.clipboardData);
+            let items = e.clipboardData && e.clipboardData.items;
+
+            if (items) {
                 jq('.embedded').hide();
                 jq('[name="progress"]').show();
-                let attach_hash_list = new Array(); // 存储上传文件的hash值
-                await (async () => {
-                    for (let i = 0, len = file_list.length; i < len; i++) {
-                        console.log(file_list[i]);
-                        jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
-                        let thumb = await imgThumb(file_list[i]).catch(e => { });
-                        if (thumb !== 0 && thumb !== 1 && thumb !== '') continue;  // 如果不是有效的文件，则跳过
-                        let hash = await upload(file_list[i], thumb).catch(e => { }); // 上传文件 返回文件hash
-                        if (hash) attach_hash_list.push(hash); // 存储hash值
+                for (var i = 0; i < items.length; i++) {
+                    if (items[i].type.startsWith('text/')) break;
+                    // https://developer.mozilla.org/zh-CN/docs/Web/API/DataTransferItem/getAsFile
+                    file = items[i].getAsFile();
+                    if (file) {
+                        jq('[name="progress-total"]').text(`1 / 1`); // 显示当前上传文件的序号
+                        let f = await imgCompressor(file);
+                        if (!f.file) continue;  // 如果不是有效的文件，则跳过
+                        let hash = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
+                        addTextBox(window.parent.document.getElementById(text_area_id), `[attach]${hash}[/attach]`); // 添加附件bbcode
+                        window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
                     };
-                })();
-                console.log(attach_hash_list);
-                let bbcode = '';
-                attach_hash_list.forEach(async (hash) => { bbcode += `[attach]${hash}[/attach]`; })
-                addTextBox(window.parent.document.getElementById(text_area_id), bbcode); // 添加附件bbcode
-                window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
+                    // console.log(file);
+                };
                 jq('[name="progress"]').hide();  // 隐藏进度条
                 jq('.embedded').show();  // 显示附件菜单
-                jq('[name="file"]').val(''); // 清空输入框
+                // jq('[name="file"]').val(''); // 清空输入框
+                // console.log(clipboardData)
+            };
+        });
 
-            },
+
+        box.addEventListener("drop", async function (e) {
+            e.preventDefault(); //取消默认浏览器拖拽效果
+
+            if (window.parent.document.getElementById(text_area_id) !== (e.target || e.toElement)) return;
+
+            let file_list = e.dataTransfer.files;   // 获取文件对象
+            if (file_list.length == 0) return false;
+
+            jq('.embedded').hide();
+            jq('[name="progress"]').show();
+            let attach_hash_list = new Array(); // 存储上传文件的hash值
+            await (async () => {
+                for (let i = 0, len = file_list.length; i < len; i++) {
+                    // console.log(file_list[i]);
+                    jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
+                    let f = await imgCompressor(file_list[i]);
+                    if (!f.file) continue;  // 如果不是有效的文件，则跳过
+                    let hash = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
+                    if (hash) attach_hash_list.push(hash); // 存储hash值
+                };
+            })();
+            console.log(attach_hash_list);
+            let bbcode = '';
+            attach_hash_list.forEach(async (hash) => { bbcode += `[attach]${hash}[/attach]`; })
+            addTextBox(window.parent.document.getElementById(text_area_id), bbcode); // 添加附件bbcode
+            window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
+            jq('[name="progress"]').hide();  // 隐藏进度条
+            jq('.embedded').show();  // 显示附件菜单
+            // jq('[name="file"]').val(''); // 清空输入框
+
+        },
             false);
 
     })(/text_area_id=(?<id>[^\?&]+)/i.exec(location.search).groups.id);
