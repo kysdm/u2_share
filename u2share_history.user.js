@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.0
+// @version      0.5.1
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -889,11 +889,12 @@ async function torrentInfoHistory() {
             + ((edited_type) => {
                 switch (edited_type) {
                     case 0: return ' H';  // 添加候选
-                    case 1: return ' E'  // 普通用户编辑
-                    case 2: return ' M'  // MOD编辑
-                    case 3: return ' T'  // 允许候选
-                    case 4: return ' U'  // 上传种子
-                    default: return ' '  // 早期记录
+                    case 1: return ' E';  // 普通用户编辑
+                    case 2: return ' M';  // MOD编辑
+                    case 3: return ' T';  // 允许候选
+                    case 4: return ' U';  // 上传种子
+                    case 5: return ' R';  // 还原被删除的种子
+                    default: return ' ';  // 早期记录
                 };
             })(history_data[i].edited_type)
             + (() => {
@@ -1332,6 +1333,7 @@ async function torrentInfoHistoryReset() {
                     case 2: return ' M'  // MOD编辑
                     case 3: return ' T'  // 允许候选
                     case 4: return ' U'  // 上传种子
+                    case 5: return ' R';  // 还原被删除的种子
                     default: return ' '  // 早期记录
                 };
             })(history_data[i].edited_type)
