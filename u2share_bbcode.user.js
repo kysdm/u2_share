@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.0
+// @version      0.7.1
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -2107,6 +2107,8 @@ function SmileIT2(smile, form, text) {
 // 附件
 (async () => {
     if (location.pathname !== '/attachment.php') return;
+    let _t = jq('td').html().match(/(?<val>(\d+?))\sMiB/);
+    const max_size = _t ? _t.groups.val : 4;  // 附件大小限制
     const url = window.URL || window.webkitURL;
     jq('input[type="file"]').attr('multiple', 'multiple'); // 允许多文件上传
     jq('input[type="file"]').attr('accept', '.jpg,.jpeg,.png,.gif,.torrent,.zip,.rar,.7z,.gzip,.gz'); // 限制上传文件类型
@@ -2187,7 +2189,7 @@ function SmileIT2(smile, form, text) {
     const imgCompressor = (file) => {
         return new Promise(async (resolve) => {
 
-            if (file.type.indexOf('image') === 0 && file.size > 1024 * 1024 * 4) {
+            if (file.type.indexOf('image') === 0 && file.size > 1024 * 1024 * max_size) {
 
                 if (!confirm(`${file.name} (${(file.size / 1024 / 1024).toFixed(2)}M)\n图片过大无法上传,是否压缩图片?`)) {
                     resolve({ 'file': null, 'thumb': 'badimg' });
@@ -2237,7 +2239,7 @@ function SmileIT2(smile, form, text) {
             let formData = new FormData();  // 创建一个form类型的数据
             formData.append('file', file);  // 获取上传文件的数据
             if (!/\.(jpg|jpeg|png|gif|torrent|zip|rar|7z|gzip|gz)$/i.test(file.name)) { window.alert(`${file.name} 文件类型不支持`); reject(); return; }
-            if (file.size > 1024 * 1024 * 4) { window.alert(`${file.name} 文件过大`); reject(); return; };
+            if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
             jq.ajax({
                 url: "attachment.php", // 接口
                 type: 'post',
