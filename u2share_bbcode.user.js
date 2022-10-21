@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.1
+// @version      0.7.2
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -10,7 +10,7 @@
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
-// @require      https://unpkg.com/image-conversion@2.1.1/build/conversion.js
+// @require      https://fastly.jsdelivr.net/gh/kysdm/u2_share@master/image-conversion/conversion.min.js
 // @license      Apache-2.0
 // ==/UserScript==
 
@@ -2107,11 +2107,12 @@ function SmileIT2(smile, form, text) {
 // 附件
 (async () => {
     if (location.pathname !== '/attachment.php') return;
+    const db = localforage.createInstance({ name: "bbcodejs" });
     let _t = jq('td').html().match(/(?<val>(\d+?))\sMiB/);
     const max_size = _t ? _t.groups.val : 4;  // 附件大小限制
     const url = window.URL || window.webkitURL;
     jq('input[type="file"]').attr('multiple', 'multiple'); // 允许多文件上传
-    jq('input[type="file"]').attr('accept', '.jpg,.jpeg,.png,.gif,.torrent,.zip,.rar,.7z,.gzip,.gz'); // 限制上传文件类型
+    jq('input[type="file"]').attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.torrent,.zip,.rar,.7z,.gzip,.gz'); // 限制上传文件类型
     jq('input[name="submit"]').attr('type', 'button'); // 更改按钮类型
     jq('input[type="file"]').css('width', '20%'); // 调整文件输入框的宽度
     jq('.embedded').after(`<td name="progress" width="25%"><div class="progress"><div></div></div></td>
@@ -2189,19 +2190,27 @@ function SmileIT2(smile, form, text) {
     const imgCompressor = (file) => {
         return new Promise(async (resolve) => {
 
+            const compress_format = (await db.getItem('default_image_compress_format') || 'webp').toLowerCase();  // 压缩格式
+            const default_compress = await db.getItem('default_image_compress'); // 全局压缩
+
             if (file.type.indexOf('image') === 0 && file.size > 1024 * 1024 * max_size) {
 
-                if (!confirm(`${file.name} (${(file.size / 1024 / 1024).toFixed(2)}M)\n图片过大无法上传,是否压缩图片?`)) {
-                    resolve({ 'file': null, 'thumb': 'badimg' });
-                    return;
+                if (!default_compress) {
+                    if (!confirm(`${file.name} (${(file.size / 1024 / 1024).toFixed(2)}M)\n图片过大无法上传,是否压缩图片?`)) {
+                        resolve({ 'file': null, 'thumb': 'badimg' });
+                        return;
+                    };
                 };
 
                 if (!(file instanceof File)) {
                     let reader = new FileReader();
                     reader.onload = async function (e) {
-                        imageConversion.compressAccurately(new Blob([new Uint8Array(e.target.result)], { type: file.type }), 4096)
-                            .then(f => {
-                                let _file = new File([f], file.name, { type: file.type });
+                        jq('[name="progress-percent"]').text('压缩中...  (文件过大)');
+                        jq('[name="progress-name"]').text(file.name);
+                        imageConversion.compressAccurately(new Blob([new Uint8Array(e.target.result)], { type: file.type }), { size: 4000, type: 'image/' + compress_format })
+                            .then((data) => {
+                                jq('[name="progress-percent"]').text('压缩中...  (文件过大)  完成.');
+                                let _file = data.scale === 'good' ? new File([data.file], file.name + '.' + compress_format, { type: 'image/' + compress_format }) : file;
                                 imgThumb(_file).then(t => {
                                     resolve({ 'file': _file, 'thumb': t });
                                 });
@@ -2215,10 +2224,12 @@ function SmileIT2(smile, form, text) {
                     }
                     reader.readAsArrayBuffer(file);
                 } else {
-                    imageConversion.compressAccurately(file, 4096)
-                        .then(f => {
-                            let _file = new File([f], file.name, { type: file.type });
-                            console.log(_file);
+                    jq('[name="progress-percent"]').text('压缩中...  (文件过大)');
+                    jq('[name="progress-name"]').text(file.name);
+                    imageConversion.compressAccurately(file, { size: 4000, type: 'image/' + compress_format })
+                        .then((data) => {
+                            jq('[name="progress-percent"]').text('压缩中...  (文件过大)  完成.');
+                            let _file = data.scale === 'good' ? new File([data.file], file.name + '.' + compress_format, { type: 'image/' + compress_format }) : file;
                             imgThumb(_file).then(t => {
                                 resolve({ 'file': _file, 'thumb': t });
                             });
@@ -2226,7 +2237,47 @@ function SmileIT2(smile, form, text) {
                         .catch(e => { resolve({ 'file': null, 'thumb': 'badimg' }); });
                 };
 
-            } else {
+            }
+            else if (file.type.indexOf('image') === 0) {
+                if (/\.(gif)$/i.test(file.name)) { resolve({ 'file': file, 'thumb': 0 }); return; };  // gif压缩后会变静态图
+                console.log(default_compress);
+                if (!default_compress) { imgThumb(file).then(t => { resolve({ 'file': file, 'thumb': t }); }); return; }; // 未开启全局压缩
+
+                if (!(file instanceof File)) {
+                    let reader = new FileReader();
+                    reader.onload = async function (e) {
+                        jq('[name="progress-percent"]').text('压缩中...  (全局)');
+                        jq('[name="progress-name"]').text(file.name);
+                        imageConversion.compress(new Blob([new Uint8Array(e.target.result)], { type: file.type }), { quality: 1, type: 'image/' + compress_format })
+                            .then((data) => {
+                                jq('[name="progress-percent"]').text('压缩中...  (全局)  完成.');
+                                let _file = data.scale === 'good' ? new File([data.file], file.name + '.' + compress_format, { type: 'image/' + compress_format }) : file;
+                                imgThumb(_file).then(t => {
+                                    resolve({ 'file': _file, 'thumb': t });
+                                });
+                            })
+                            .catch(e => { resolve({ 'file': null, 'thumb': 'badimg' }); });
+                    };
+                    reader.onerror = function () {
+                        window.alert(`${file.name} 读取失败`);
+                        resolve({ 'file': null, 'thumb': 'badimg' });
+                    }
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    jq('[name="progress-percent"]').text('压缩中...  (全局)');
+                    jq('[name="progress-name"]').text(file.name);
+                    imageConversion.compress(file, { quality: 1, type: 'image/' + compress_format })
+                        .then((data) => {
+                            jq('[name="progress-percent"]').text('压缩中...  (全局)  完成.');
+                            let _file = data.scale === 'good' ? new File([data.file], file.name + '.' + compress_format, { type: 'image/' + compress_format }) : file;
+                            imgThumb(_file).then(t => {
+                                resolve({ 'file': _file, 'thumb': t });
+                            });
+                        })
+                        .catch(e => { resolve({ 'file': null, 'thumb': 'badimg' }); });
+                };
+            }
+            else {
                 resolve({ 'file': file, 'thumb': 'other' })
             };
 
@@ -2238,7 +2289,7 @@ function SmileIT2(smile, form, text) {
         return new Promise((resolve, reject) => {
             let formData = new FormData();  // 创建一个form类型的数据
             formData.append('file', file);  // 获取上传文件的数据
-            if (!/\.(jpg|jpeg|png|gif|torrent|zip|rar|7z|gzip|gz)$/i.test(file.name)) { window.alert(`${file.name} 文件类型不支持`); reject(); return; }
+            if (!/\.(jpg|jpeg|png|gif|webp|torrent|zip|rar|7z|gzip|gz)$/i.test(file.name)) { window.alert(`${file.name} 文件类型不支持`); reject(); return; }
             if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
             jq.ajax({
                 url: "attachment.php", // 接口
@@ -2280,8 +2331,31 @@ function SmileIT2(smile, form, text) {
         });
     };
 
+    // 图片压缩格式
+    jq('input[name="submit"]').after(`<input id="default_image_compress_format" title="设置压缩后的图片格式" style="font-size:11px;margin-right:3px" type="button" value="${((format) => { return format ? format : 'WEBP'; })(await db.getItem('default_image_compress_format'))}">`);
+    jq(`#default_image_compress_format`).click(async function () {
+        await db.getItem('default_image_compress_format').then(async format => {
+            if (format === 'JPEG') {
+                await db.setItem('default_image_compress_format', 'WEBP');
+                jq('#default_image_compress_format').val('WEBP');
+            } else {
+                await db.setItem('default_image_compress_format', 'JPEG');
+                jq('#default_image_compress_format').val('JPEG');
+            };
+        });
+    });
+
+    // 全局图片压缩
+    jq('input[name="submit"]').after(`<input id="default_image_compress" title="全局 - 尝试压缩所有图片\n局部 - 仅尝试压缩超过大小限制的图片" style="font-size:11px;margin-right:3px" type="button" value="${((bool) => { return bool ? '全局' : '局部'; })(await db.getItem('default_image_compress'))}">`);
+    jq(`#default_image_compress`).click(async function () {
+        await db.getItem('default_image_compress').then(async bool => {
+            bool ? await db.setItem('default_image_compress', false) : await db.setItem('default_image_compress', true);
+            bool ? jq('#default_image_compress').val('局部') : jq('#default_image_compress').val('全局');
+        });
+    });
+
     // 将 attach 标签内的图片转为 img 标签 <attach的图片太糊了，要大图还要点一下，好麻烦xd>
-    jq('input[name="submit"]').after(`<input id="bigimg" type="button" value="转IMG">`);
+    jq('input[name="submit"]').after(`<input id="bigimg" title="将attach标签的图片转为img标签" style="font-size:11px;margin-right:3px;margin-left:3px" type="button" value="转IMG">`);
     jq(`#bigimg`).click(async function () {
         let em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);
         if (!em) return;  // 没有找到id直接返回 
