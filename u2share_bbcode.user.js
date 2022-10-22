@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.2
+// @version      0.7.3
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -2207,7 +2207,7 @@ function SmileIT2(smile, form, text) {
                     reader.onload = async function (e) {
                         jq('[name="progress-percent"]').text('压缩中...  (文件过大)');
                         jq('[name="progress-name"]').text(file.name);
-                        imageConversion.compressAccurately(new Blob([new Uint8Array(e.target.result)], { type: file.type }), { size: 4000, type: 'image/' + compress_format })
+                        imageConversion.compressAccurately(new Blob([new Uint8Array(e.target.result)], { type: file.type }), { size: max_size * 1000, type: 'image/' + compress_format })
                             .then((data) => {
                                 jq('[name="progress-percent"]').text('压缩中...  (文件过大)  完成.');
                                 let _file = data.scale === 'good' ? new File([data.file], file.name + '.' + compress_format, { type: 'image/' + compress_format }) : file;
@@ -2226,7 +2226,7 @@ function SmileIT2(smile, form, text) {
                 } else {
                     jq('[name="progress-percent"]').text('压缩中...  (文件过大)');
                     jq('[name="progress-name"]').text(file.name);
-                    imageConversion.compressAccurately(file, { size: 4000, type: 'image/' + compress_format })
+                    imageConversion.compressAccurately(file, { size: max_size * 1000, type: 'image/' + compress_format })
                         .then((data) => {
                             jq('[name="progress-percent"]').text('压缩中...  (文件过大)  完成.');
                             let _file = data.scale === 'good' ? new File([data.file], file.name + '.' + compress_format, { type: 'image/' + compress_format }) : file;
