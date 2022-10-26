@@ -338,6 +338,11 @@ function imagetoCanvas(image, config = {}) {
             cvs.height = height;
             cvs.width = width;
         }
+        // 为防止png出现难看的黑色底，先画一层白底
+        if (config.fill) {
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, width, height);
+        }
         // 设置方向
         switch (myConfig.orientation) {
             case 3:
@@ -473,6 +478,7 @@ function compress(file, config = {}) {
             mime = config.type;
             originalMime = config.type;
         }
+        config.fill = mime === EImageType.JPEG || mime === EImageType.WEBP;
         const image = yield dataURLtoImage(dataURL);
         const canvas = yield imagetoCanvas(image, Object.assign({}, config));
         const compressDataURL = yield canvastoDataURL(canvas, config.quality, mime);
@@ -544,6 +550,7 @@ function compressAccurately(file, config = {}) {
             mime = config.type;
             originalMime = config.type;
         }
+        config.fill = mime === EImageType.JPEG || mime === EImageType.WEBP;
         const image = yield dataURLtoImage(dataURL);
         const canvas = yield imagetoCanvas(image, Object.assign({}, config));
         /**
