@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.5
+// @version      0.7.6
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -2197,6 +2197,8 @@ function SmileIT2(smile, form, text) {
             const default_compress = await db.getItem('default_image_compress'); // 全局压缩
 
             if (file.type.indexOf('image') === 0 && file.size > 1024 * 1024 * max_size) {
+                
+                if (/\.(gif)$/i.test(file.name)) { resolve({ 'file': file, 'thumb': 0 }); return; };  // gif压缩后会变静态图
 
                 if (!default_compress) {
                     if (!confirm(`${file.name} (${(file.size / 1024 / 1024).toFixed(2)}M)\n图片过大无法上传,是否压缩图片?`)) {
@@ -2243,7 +2245,7 @@ function SmileIT2(smile, form, text) {
             }
             else if (file.type.indexOf('image') === 0) {
                 if (/\.(gif)$/i.test(file.name)) { resolve({ 'file': file, 'thumb': 0 }); return; };  // gif压缩后会变静态图
-                console.log(default_compress);
+               // console.log(default_compress);
                 if (!default_compress) { imgThumb(file).then(t => { resolve({ 'file': file, 'thumb': t }); }); return; }; // 未开启全局压缩
 
                 if (!(file instanceof File)) {
