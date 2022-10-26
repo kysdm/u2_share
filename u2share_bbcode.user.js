@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.4
+// @version      0.7.5
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -2339,11 +2339,11 @@ function SmileIT2(smile, form, text) {
     jq(`#default_image_compress_format`).click(async function () {
         await db.getItem('default_image_compress_format').then(async format => {
             if (format === 'JPEG') {
-                await db.setItem('default_image_compress_format', 'JPEG');
-                jq('#default_image_compress_format').val('JPEG');
-            } else {
                 await db.setItem('default_image_compress_format', 'WEBP');
                 jq('#default_image_compress_format').val('WEBP');
+            } else {
+                await db.setItem('default_image_compress_format', 'JPEG');
+                jq('#default_image_compress_format').val('JPEG');
             };
         });
     });
