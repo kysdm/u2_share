@@ -278,7 +278,7 @@ function auth() {
     });
 };
 
-async function forumCommentHistoryReset() {
+function forumCommentHistoryReset() {
     const errorstr = $('#outer').find('td.text').text();
     // 正在努力加载中...
     $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>' + lang['history_text_loading'] + '</i>');
@@ -367,16 +367,16 @@ async function forumCommentHistoryReset() {
                     <td class="rowfollow" valign="top"><br>
                         <div class="post-body" id="pid${x.pid}body">
                             <span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">
-                            ${(async () => {
+                            ${(() => {
                             if (x.action === 'edit') {
-                                return `${await bbcode2html(x.bbcode)}</bdo></span>
+                                return `${bbcode2html(x.bbcode)}</bdo></span>
                                                 ${(() => {
                                         if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
                                         else if ($('#locale_selection').val() === 'ru_RU') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
                                         else return `<p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </p><br><br>`;
                                     })()}`;
                             } else {
-                                return `${await bbcode2html(x.bbcode)}<br><br></bdo></span>`;
+                                return `${bbcode2html(x.bbcode)}<br><br></bdo></span>`;
                             };
                         })()}
                         </div>
@@ -404,21 +404,21 @@ async function forumCommentHistoryReset() {
                     };
                 });
 
-                $("[id^=history_comment]").change(async function () { // 监听菜单选择
+                $("[id^=history_comment]").change(function () { // 监听菜单选择
                     let self = $(this).val();
                     for (let i = 0, len = __comment.length; i < len; i++) {
                         if (self != __comment[i].self) continue;
                         let html;
                         let x = __comment[i];
                         if (x.action === 'edit') {
-                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${await bbcode2html(x.bbcode)}</bdo></span>
+                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
                                     ${(() => {
                                     if ($('#locale_selection').val() === 'en_US') return `<p><font class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</font></p>`;
                                     else if ($('#locale_selection').val() === 'ru_RU') return `<p><font class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</font></p>`;
                                     else return `<br><p><font class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </font></p>`;
                                 })()}`;
                         } else {
-                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${await bbcode2html(x.bbcode)}</bdo></span>`;
+                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
                         };
                         $(this).parents('[id^=pid]').parent().next().find('.post-body').html(html);
                         return;
@@ -553,16 +553,16 @@ async function forumCommentHistory() {
                                         <td class="rowfollow" valign="top"><br>
                                             <div class="post-body" id="pid${x.pid}body">
                                                 <span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">
-                                                ${(async () => {
+                                                ${(() => {
                                         if (x.action === 'edit') {
-                                            return `${await bbcode2html(x.bbcode)}</bdo></span>
+                                            return `${bbcode2html(x.bbcode)}</bdo></span>
                                                                     ${(() => {
                                                     if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
                                                     else if ($('#locale_selection').val() === 'ru_RU') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
                                                     else return `<p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </p><br><br>`;
                                                 })()}`;
                                         } else {
-                                            return `${await bbcode2html(x.bbcode)}<br><br></bdo></span>`;
+                                            return `${bbcode2html(x.bbcode)}<br><br></bdo></span>`;
                                         };
                                     })()}
                                             </div>
@@ -588,21 +588,21 @@ async function forumCommentHistory() {
                     };
                 });
 
-                $("[id^=history_comment]").change(async function () { // 监听菜单选择
+                $("[id^=history_comment]").change(function () { // 监听菜单选择
                     let self = $(this).val();
                     for (let i = 0, len = __comment.length; i < len; i++) {
                         if (self != __comment[i].self) continue;
                         let html;
                         let x = __comment[i];
                         if (x.action === 'edit') {
-                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${await bbcode2html(x.bbcode)}</bdo></span>
+                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
                                     ${(() => {
                                     if ($('#locale_selection').val() === 'en_US') return `<p><font class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</font></p>`;
                                     else if ($('#locale_selection').val() === 'ru_RU') return `<p><font class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</font></p>`;
                                     else return `<br><p><font class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </font></p>`;
                                 })()}`;
                         } else {
-                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${await bbcode2html(x.bbcode)}</bdo></span>`;
+                            html = `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>`;
                         };
                         $(this).parents('[id^=pid]').parent().next().find('.post-body').html(html);
                         return;
@@ -618,7 +618,7 @@ async function forumCommentHistory() {
     });
 };
 
-async function torrentCommentHistory() {
+function torrentCommentHistory() {
     $.ajax({
         type: 'post',
         url: 'https://u2.kysdm.com/api/v1/comment',
@@ -759,16 +759,16 @@ async function torrentCommentHistory() {
                                         <td class="rowfollow" width="150" valign="top" style="padding: 0">
                                             <img src="//u2.dmhy.org/pic/default_avatar.png" alt="avatar" width="150px"></td>
                                         <td class="rowfollow" valign="top"><br>
-                                        ${(async () => {
+                                        ${(() => {
                                         if (x.action === 'edit') {
-                                            return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${await bbcode2html(x.bbcode)}</bdo></span>
+                                            return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
                                                         ${(() => {
                                                     if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
                                                     else if ($('#locale_selection').val() === 'ru_RU') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
                                                     else return `<p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </p><br><br>`;
                                                 })()}`;
                                         } else {
-                                            return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${await bbcode2html(x.bbcode)}<br><br></bdo></span>`;
+                                            return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}<br><br></bdo></span>`;
                                         };
                                     })()}
                                         </td>
@@ -800,7 +800,7 @@ async function torrentCommentHistory() {
 
                 });
 
-                $("[id^=history_comment]").change(async function () { // 监听菜单选择
+                $("[id^=history_comment]").change(function () { // 监听菜单选择
                     let self = $(this).val();
 
                     for (let i = 0, len = __comment.length; i < len; i++) {
@@ -810,7 +810,7 @@ async function torrentCommentHistory() {
                         if (x.action === 'edit') {
                             html = `<br>
                             <span style="word-break: break-all; word-wrap: break-word;">
-                                <bdo dir="ltr">${await bbcode2html(x.bbcode)}</bdo>
+                                <bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo>
                             </span>
                                     ${(() => {
                                     if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p>`;
@@ -821,7 +821,7 @@ async function torrentCommentHistory() {
                         } else {
                             html = `<br>
                             <span style="word-break: break-all; word-wrap: break-word;">
-                                <bdo dir="ltr">${await bbcode2html(x.bbcode)}</bdo>
+                                <bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo>
                             </span>`;
                         };
                         $(this).parents('[id^=cid]').parent().next().find('[class="rowfollow"]:last').html(html);
@@ -940,7 +940,7 @@ async function torrentInfoHistory() {
     };
 
     // 草 为什么会这样呢 明明原来很整齐的
-    $("#history_select").change(async function () { // 监听菜单选择
+    $("#history_select").change(function () { // 监听菜单选择
         let self = Number($(this).val());
         for (let i = 0, len = history_data.length; i < len; i++) {
             if (self !== history_data[i].self) continue;
@@ -953,7 +953,7 @@ async function torrentInfoHistory() {
                 $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").parent().remove();
             };
             $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().text(history_data[i].subtitle); // 副标题
-            $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").last().next().html('<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + await bbcode2html(history_data[i].description_info) + '</bdo></span>'); // 描述
+            $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").last().next().html('<div id="kdescr"><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + bbcode2html(history_data[i].description_info) + '</bdo></span></div>'); // 描述
             $('#ctdescr').val(history_data[i].description_info);  // 描述代码
             if ($('h3').length === 1) { // 已经通过候选的种子
                 $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(((p) => {
@@ -982,7 +982,7 @@ async function torrentInfoHistory() {
     });
 };
 
-async function torrentCommentHistoryReset() {
+function torrentCommentHistoryReset() {
 
     const callback = (mutations, observer) => {
         mutations.forEach(function (mutation) {
@@ -1063,16 +1063,16 @@ async function torrentCommentHistoryReset() {
                                     <td class="rowfollow" width="150" valign="top" style="padding: 0">
                                         <img src="//u2.dmhy.org/pic/default_avatar.png" alt="avatar" width="150px"></td>
                                     <td class="rowfollow" valign="top"><br>
-                                    ${(async () => {
+                                    ${(() => {
                                     if (x.action === 'edit') {
-                                        return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${await bbcode2html(x.bbcode)}</bdo></span>
+                                        return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo></span>
                                                     ${(() => {
                                                 if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
                                                 else if ($('#locale_selection').val() === 'ru_RU') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> в <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
                                                 else return `<p class="small">[<time>${x.edit_time.replace('T', ' ')}</time>] <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> ${lang['last_edited']} </p><br><br>`;
                                             })()}`;
                                     } else {
-                                        return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${await bbcode2html(x.bbcode)}<br><br></bdo></span>`;
+                                        return `<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">${bbcode2html(x.bbcode)}<br><br></bdo></span>`;
                                     };
                                 })()}
                                     </td>
@@ -1102,7 +1102,7 @@ async function torrentCommentHistoryReset() {
                             };
                         });
 
-                        $("[id^=history_comment]").change(async function () { // 监听菜单选择
+                        $("[id^=history_comment]").change(function () { // 监听菜单选择
                             let self = $(this).val();
                             for (let i = 0, len = __comment.length; i < len; i++) {
                                 if (self != __comment[i].self) continue;
@@ -1111,7 +1111,7 @@ async function torrentCommentHistoryReset() {
                                 if (x.action === 'edit') {
                                     html = `<br>
                                     <span style="word-break: break-all; word-wrap: break-word;">
-                                    <bdo dir="ltr">${await bbcode2html(x.bbcode)}</bdo>
+                                    <bdo dir="ltr">${bbcode2html(x.bbcode)}</bdo>
                                     </span>
                                             ${(() => {
                                             if ($('#locale_selection').val() === 'en_US') return `<p class="small">${lang['last_edited']} <span class="nowrap"><a href="userdetails.php?id=${x.user_id}"><b><bdo dir="ltr">${x.username}</bdo></b></a></span> at <time>${x.edit_time.replace('T', ' ')}</time>.</p><br><br>`;
@@ -1121,7 +1121,7 @@ async function torrentCommentHistoryReset() {
                                 } else {
                                     html = `<br>
                                     <span style="word-break: break-all; word-wrap: break-word;">
-                                    <bdo dir="ltr">${await bbcode2html(x.bbcode)}<br><br></bdo>
+                                    <bdo dir="ltr">${bbcode2html(x.bbcode)}<br><br></bdo>
                                     </span>`;
                                 };
                                 $(this).parents('[id^=cid]').parent().next().find('[class="rowfollow"]:last').html(html);
@@ -1206,7 +1206,7 @@ async function torrentInfoHistoryReset() {
         + '<img class="minus" src="pic/trans.gif" alt="Show/Hide" id="picdescr" title="' + lang['show_or_hide'] + '"> ' + lang['description'] + '</span></a></td>'
         + '<td class="rowfollow" valign="top" align="left">'
         + '<div id="kdescr"><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">'
-        + await bbcode2html(history_data[0].description_info) + '</bdo></span></div></td></tr><tr>'
+        + bbcode2html(history_data[0].description_info) + '</bdo></span></div></td></tr><tr>'
         + '<td class="rowhead nowrap" valign="top" align="right">' + lang['torrent_info'] + '</td>'
         + `<td id="file_tree" class="rowfollow" valign="top" align="left"></td></tr></tbody></table></td></tr></tbody></table><br><br></br>`
     );
@@ -1380,7 +1380,7 @@ async function torrentInfoHistoryReset() {
             + "</option>");
     };
 
-    $("#history_select").change(async function () { // 监听菜单选择
+    $("#history_select").change(function () { // 监听菜单选择
         let self = Number($(this).val());
         for (let i = 0, len = history_data.length; i < len; i++) {
             if (self !== history_data[i].self) continue;
@@ -1393,7 +1393,7 @@ async function torrentInfoHistoryReset() {
                 $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").parent().remove();
             };
             $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().text(history_data[i].subtitle); // 副标题
-            $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").last().next().html('<span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + await bbcode2html(history_data[i].description_info) + '</bdo></span>'); // 描述
+            $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").last().next().html('<div id="kdescr"><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + bbcode2html(history_data[i].description_info) + '</bdo></span></div>'); // 描述
             $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html('<b>' + lang['submitted_by'] + '</b>:&nbsp;'
                 + ((p) => {
                     if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>' + lang['anonymous'] + '</i>'; // 匿名发布
@@ -1411,7 +1411,7 @@ async function torrentInfoHistoryReset() {
 
 
 
-async function bbcode2html(bbcodestr) {
+function bbcode2html(bbcodestr) {
     var tempCode = new Array();
     var tempCodeCount = 0;
     let lost_tags = new Array();
@@ -1741,165 +1741,11 @@ async function bbcode2html(bbcodestr) {
         };
     };
 
-    // 附件
-    const attach = async (val, textarea) => {
-        const lost = checkLostTags(textarea, /\[(?<tag>attach)\]/i, /\[\/(?<tag>attach)\]/i);
-        if (lost.state) { return textarea.replace(/\[attach\]/i, function (s) { return addTempCode(s); }); };
-        let db = localforage.createInstance({ name: "attachmap" });
-        return await replaceAsync(textarea, /\[attach(?<tag>=[^\]]*?)?\](?<hash>.*?)\[\/attach\]/i, async (...args) => {
-            const { tag, hash } = args.slice(-1)[0];
-            if (tag) { return '[' + addTempCode(`attach`) + tag + `]${hash}[/attach]`; };
-            if (/<br>/.test(hash)) { return addTempCode(`[attach]`) + hash + addTempCode('[/attach]'); };
-            if (!hash) { console.log('内部为空'); return addTempCode(args[0]); }; // attach 标签内为空时
-            if (!/^\w{32}$/.test(hash)) { return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${hash} 无效。</div>`; }; // attach 标签内hash不符合要求
-            return await db.getItem(hash).then(async (value) => {
-                if (value !== null && value.attach_id) {
-                    // console.log('数据已存在');
-                    if (value.attach_type === 'img') {
-                        if (Number.isFinite(value.attach_thumb)) {
-                            if (value.attach_thumb === 0) {
-                                // console.log('没有触发缩图');
-                                return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}" onclick="Previewurl('${value.attach_url}')">`
-                            } else if (value.attach_thumb === 1) {
-                                // console.log('触发缩图');
-                                return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}.thumb.jpg" onclick="Previewurl('${value.attach_url}')">`
-                            };
-                        };
-                        // 正常情况是不会到这一步的，就不判断缩图状态了
-                        return `<img id="attach${value.attach_id}" alt="${value.attach_name}" src="${value.attach_url}" onclick="Previewurl('${value.attach_url}')">`
-                    } else if (value.attach_type === 'other') {
-                        return '<div class="attach">'
-                            + `<img alt="other" src="pic/attachicons/common.gif">&nbsp;&nbsp;`
-                            + `<a href="${value.attach_url}" target="_blank" id="attach${value.attach_id}">${value.attach_name}</a>`
-                            + '&nbsp;&nbsp;'
-                            + `<span class="size">(${value.attach_size})</span>`
-                            + '</div>'
-                    } else if (value.attach_type === 'invalid') {
-                        // 会不会发生碰撞呢 xd
-                        return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`;
-                    };
-                } else {
-                    // console.log('数据不存在');
-                    return await new Promise((resolve, reject) => {
-                        $.ajax({
-                            type: 'post',
-                            url: 'https://u2.dmhy.org/preview.php',
-                            contentType: "application/x-www-form-urlencoded",
-                            data: ({ "body": `[attach]${hash}[/attach]` }),
-                            success: async function (d) {
-                                // console.log('成功');
-                                let htmlobj = $.parseHTML(d);
-                                let span = $(htmlobj).find('span');
-                                let attach_normal = $(span).children('bdo').children('div.attach'); // 普通附件
-                                let attach_image = $(span).children('bdo').children('img'); // 图片附件
-                                if (attach_normal.length !== 0 && attach_image.length === 0) {
-                                    // console.log('普通附件');
-                                    // console.log(attach_normal);
-                                    let attach_info_obj = /(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec($(attach_normal).children('a').attr('onmouseover'));
-                                    const attach = {
-                                        "attach_id": $(attach_normal).children('a').attr('id').replace('attach', ''),
-                                        "attach_type": 'other',
-                                        "attach_url": $(attach_normal).children('a').attr('href'),
-                                        "attach_name": $(attach_normal).children('a').text(),
-                                        "attach_size": $(attach_normal).children('span.size').text().slice(1, -1),
-                                        "attach_time": attach_info_obj ? attach_info_obj.groups.time : ''
-                                    };
-                                    // 写入数据库
-                                    await db.setItem(hash, attach);
-                                    resolve('<div class="attach">'
-                                        + `<img alt="other" src="pic/attachicons/common.gif">&nbsp;&nbsp;`
-                                        + `<a href="${attach.attach_url}" target="_blank" id="attach${attach.attach_id}">${attach.attach_name}</a>`
-                                        + '&nbsp;&nbsp;'
-                                        + `<span class="size">(${attach.attach_size})</span>`
-                                        + '</div>');
-                                }
-                                else if (attach_normal.length === 0 && attach_image.length !== 0) {
-                                    // console.log('图片附件');
-                                    // 附件唯一标识符
-                                    let attach_url_obj = /^Previewurl\(['"](?<url>[^'"]+)['"]\)/i.exec($(attach_image).attr('onclick'));
-                                    let attach_info_obj = /(?<size>\d{1,4}\.\d{1,3}\s?[TGMK]iB).*(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec($(attach_image).attr('onmouseover'));
-                                    let attach = {
-                                        "attach_id": $(attach_image).attr('id').replace('attach', ''),
-                                        "attach_type": 'img',
-                                        "attach_url": attach_url_obj ? attach_url_obj.groups.url : '',
-                                        "attach_name": $(attach_image).attr('alt'),
-                                        "attach_size": attach_info_obj ? attach_info_obj.groups.size : '',
-                                        "attach_time": attach_info_obj ? attach_info_obj.groups.time : '',
-                                        "attach_thumb": ''
-                                    };
-                                    // console.log('value.attach_thumb: ', value.attach_thumb);
-                                    if (value && Number.isFinite(value.attach_thumb)) {
-                                        if (value.attach_thumb === 0) {
-                                            // console.log('没有触发缩图');
-                                            attach.attach_thumb = 0;
-                                            resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
-                                            await db.setItem(hash, attach);
-                                            return;
-                                        } else if (value.attach_thumb === 1) {
-                                            // console.log('触发缩图');
-                                            attach.attach_thumb = 1;
-                                            resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
-                                            await db.setItem(hash, attach);
-                                            return;
-                                        };
-                                    };
-                                    // 没有通过标准方法上传的图片，没有记录attach_thumb值
-                                    // console.log(`${attach.attach_url}.thumb.jpg`);
-                                    let thumb = await urlCheck(`${attach.attach_url}.thumb.jpg`).catch(e => { });  // 检查缩图是否存在
-                                    if (typeof (thumb) === "undefined") {
-                                        // 发生了错误 不写数据库
-                                        resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
-                                        return;
-                                    } else if (thumb === false) {
-                                        // 不存在缩图
-                                        // console.log('url检测 不存在缩图');
-                                        attach.attach_thumb = 0;
-                                        resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
-                                        await db.setItem(hash, attach);
-                                        return;
-                                    } else if (thumb === true) {
-                                        // 存在缩图
-                                        // console.log('url检测 存在缩图');
-                                        attach.attach_thumb = 1;
-                                        resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
-                                        await db.setItem(hash, attach);
-                                        return;
-                                    };
-                                }
-                                else {
-                                    // Attachment for key 82505eca8a43a36bc9c60a7d9609a5df not found.
-                                    // 附件 82505eca8a43a36bc9c60a7d9609a5df 无效。
-                                    if (d.includes(hash)) {
-                                        console.log('附件无效')
-                                        const attach = {
-                                            "attach_id": '',
-                                            "attach_type": 'invalid',
-                                            "attach_url": '',
-                                            "attach_name": '',
-                                            "attach_size": '',
-                                            "attach_time": getDateString()
-                                        };
-                                        await db.setItem(hash, attach);
-                                    } else { console.log('附件未知错误: ' + d); };
-                                    resolve(`<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`);
-                                };
-                            },
-                            error: function (d) {
-                                console.log('附件获取失败');
-                                reject(d.status);
-                            },
-                        });
-                    }).catch(() => { return args[0]; });
-                };
-            });
-        });
-    }
-
-    const localConvert = async (textarea) => {
+    const localConvert = (textarea) => {
         let convert_count = 0;
         let index = 0;
         let _textarea = textarea;
-        while (bbcode_tag = /\[(?<tag>b|i|u|s|color|size|font|rt|mediainfo|info|code|url|img|imglnk|quote|pre|spoiler|attach)(?<val>=[^\[]*?)?\]/gi.exec(_textarea)) {
+        while (bbcode_tag = /\[(?<tag>b|i|u|s|color|size|font|rt|mediainfo|info|code|url|img|imglnk|quote|pre|spoiler)(?<val>=[^\[]*?)?\]/gi.exec(_textarea)) {
             let t;
             let tag = bbcode_tag.groups.tag;
             let val = bbcode_tag.groups.val;
@@ -1941,8 +1787,6 @@ async function bbcode2html(bbcodestr) {
                     t = pre(val, _textarea); break;
                 case 'spoiler':
                     t = spoiler(val, _textarea); break;
-                case 'attach':
-                    t = await attach(val, _textarea); break;
                 default:
                     break;;
             };
@@ -1955,7 +1799,7 @@ async function bbcode2html(bbcodestr) {
         return textarea;
     };
 
-    bbcodestr = await localConvert(bbcodestr);
+    bbcodestr = localConvert(bbcodestr);
 
     // 没有bbcode包裹的超链接
     bbcodestr = bbcodestr.replace(/((?:https?|ftp|gopher|news|telnet|mms|rtsp):\/\/((?!&lt;|&gt;|\s|"|>|'|<|\(|\)|\[|\]).)+)/gi, function (s, x) {
