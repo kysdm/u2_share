@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.2
+// @version      0.5.3
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -1211,6 +1211,35 @@ async function torrentInfoHistoryReset() {
         + `<td id="file_tree" class="rowfollow" valign="top" align="left"></td></tr></tbody></table></td></tr></tbody></table><br><br></br>`
     );
 
+    $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").closest('tr').after(`<tr>
+            <td class="rowhead nowrap" valign="top" align="right">
+                <a href="javascript:void(0)"><span class="nowrap">
+                <img class="plus" src="pic/trans.gif" alt="Show/Hide" id="codedescr" title="显示&nbsp;/&nbsp;隐藏"> 代码</span></a></td>
+            <td class="rowfollow" valign="top" align="left"><a href="javascript:void(0)" id="codedescrcopy"><b>点击复制到剪贴板</b></a>
+            <span id="codedescrcopy_text_success" style="color:#4169E1; display: none;">&nbsp;&nbsp;成功</span>
+            <span id="codedescrcopy_text_failure" style="color:#FF0000; display: none;">&nbsp;&nbsp;失败 - 可能是你的浏览器太古老了</span>
+                <div id="cdescr" style="display: none;">
+                <br>
+                <textarea class="bbcode" cols="100" style="width: 99%" id="ctdescr" rows="20"></textarea>
+                </div>
+            </td></tr>`
+    );
+    $('#ctdescr').val(history_data[0].description_info);
+    $('#codedescr').closest('a').click(function () {
+        $('#cdescr').toggle();
+        $('#codedescr').attr('class', $('#codedescr').attr('class') === 'plus' ? 'minus' : 'plus');
+    });
+    $('#codedescrcopy').click(function () {
+        const _val = $('#ctdescr').val();
+        navigator.clipboard.writeText(_val).then(() => {
+            $('#codedescrcopy_text_success').fadeIn(500);
+            $('#codedescrcopy_text_success').fadeOut(1000);
+        }).catch(() => {
+            $('#codedescrcopy_text_failure').fadeIn(500);
+            $('#codedescrcopy_text_failure').fadeOut(1000);
+        });
+    });
+
     const putFileTree = (__json) => {
         // 插入ID
         let counter = 0;
@@ -1394,6 +1423,7 @@ async function torrentInfoHistoryReset() {
             };
             $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().text(history_data[i].subtitle); // 副标题
             $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").last().next().html('<div id="kdescr"><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + bbcode2html(history_data[i].description_info) + '</bdo></span></div>'); // 描述
+            $('#ctdescr').val(history_data[i].description_info);  // 描述代码
             $("td[class='rowhead nowrap']:contains(" + lang['basic_info'] + ")").next().html('<b>' + lang['submitted_by'] + '</b>:&nbsp;'
                 + ((p) => {
                     if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>' + lang['anonymous'] + '</i>'; // 匿名发布
