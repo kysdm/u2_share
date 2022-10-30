@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.6
+// @version      0.7.7
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -700,50 +700,57 @@ async function bbcode2html(bbcodestr) {
 
     const localConvert = async (textarea) => {
         let convert_count = 0;
-        while (bbcode_tag = /\[(?<tag>b|i|u|s|color|size|font|rt|mediainfo|info|code|url|img|imglnk|quote|pre|spoiler|attach)(?<val>=[^\[]*?)?\]/gi.exec(textarea)) {
+        let index = 0;
+        let _textarea = textarea;
+        while (bbcode_tag = /\[(?<tag>b|i|u|s|color|size|font|rt|mediainfo|info|code|url|img|imglnk|quote|pre|spoiler|attach)(?<val>=[^\[]*?)?\]/gi.exec(_textarea)) {
+            let t;
             let tag = bbcode_tag.groups.tag;
             let val = bbcode_tag.groups.val;
-            // console.log(`当前标签：` + tag);
+            index = bbcode_tag.index;
+            _textarea = _textarea.slice(index);
+            // console.log(`当前标签：` + tag + ' | ' + val);
             switch (tag) {
                 case 'b':
-                    textarea = b(val, textarea); break;
+                    t = b(val, _textarea); break;
                 case 'i':
-                    textarea = i(val, textarea); break;
+                    t = i(val, _textarea); break;
                 case 'u':
-                    textarea = u(val, textarea); break;
+                    t = u(val, _textarea); break;
                 case 's':
-                    textarea = s(val, textarea); break;
+                    t = s(val, _textarea); break;
                 case 'color':
-                    textarea = color(val, textarea); break;
+                    t = color(val, _textarea); break;
                 case 'size':
-                    textarea = size(val, textarea); break;
+                    t = size(val, _textarea); break;
                 case 'font':
-                    textarea = font(val, textarea); break;
+                    t = font(val, _textarea); break;
                 case 'rt':
-                    textarea = rt(val, textarea); break;
+                    t = rt(val, _textarea); break;
                 case 'mediainfo':
-                    textarea = mediainfo(val, textarea); break;
+                    t = mediainfo(val, _textarea); break;
                 case 'info':
-                    textarea = info(val, textarea); break;
+                    t = info(val, _textarea); break;
                 case 'code':
-                    textarea = code(val, textarea); break;
+                    t = code(val, _textarea); break;
                 case 'url':
-                    textarea = url(val, textarea); break;
+                    t = url(val, _textarea); break;
                 case 'img':
-                    textarea = img(val, textarea); break;
+                    t = img(val, _textarea); break;
                 case 'imglnk':
-                    textarea = imglnk(val, textarea); break;
+                    t = imglnk(val, _textarea); break;
                 case 'quote':
-                    textarea = quote(val, textarea); break;
+                    t = quote(val, _textarea); break;
                 case 'pre':
-                    textarea = pre(val, textarea); break;
+                    t = pre(val, _textarea); break;
                 case 'spoiler':
-                    textarea = spoiler(val, textarea); break;
+                    t = spoiler(val, _textarea); break;
                 case 'attach':
-                    textarea = await attach(val, textarea); break;
+                    t = await attach(val, _textarea); break;
                 default:
                     break;;
             };
+            textarea = textarea.replace(_textarea, t);
+            _textarea = t;
             if (++convert_count > 5000) break;
             // console.log('发生次数: ' + convert_count);
             // console.log(textarea);
