@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.7
+// @version      0.7.8
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -42,11 +42,22 @@ GreasyFork 地址
 
 'use strict';
 
-// 图片压缩JS <Greasy Fork @require 存在白名单 https://greasyfork.org/zh-CN/help/cdns>
-// https://github.com/kysdm/u2_share/tree/main/image-conversion
-!function (t, e) { "object" == typeof exports && "object" == typeof module ? module.exports = e() : "function" == typeof define && define.amd ? define([], e) : "object" == typeof exports ? exports.imageConversion = e() : t.imageConversion = e() }(this, (function () { return function (t) { var e = {}; function n(r) { if (e[r]) return e[r].exports; var i = e[r] = { i: r, l: !1, exports: {} }; return t[r].call(i.exports, i, i.exports, n), i.l = !0, i.exports } return n.m = t, n.c = e, n.d = function (t, e, r) { n.o(t, e) || Object.defineProperty(t, e, { enumerable: !0, get: r }) }, n.r = function (t) { "undefined" != typeof Symbol && Symbol.toStringTag && Object.defineProperty(t, Symbol.toStringTag, { value: "Module" }), Object.defineProperty(t, "__esModule", { value: !0 }) }, n.t = function (t, e) { if (1 & e && (t = n(t)), 8 & e) return t; if (4 & e && "object" == typeof t && t && t.__esModule) return t; var r = Object.create(null); if (n.r(r), Object.defineProperty(r, "default", { enumerable: !0, value: t }), 2 & e && "string" != typeof t) for (var i in t) n.d(r, i, function (e) { return t[e] }.bind(null, i)); return r }, n.n = function (t) { var e = t && t.__esModule ? function () { return t.default } : function () { return t }; return n.d(e, "a", e), e }, n.o = function (t, e) { return Object.prototype.hasOwnProperty.call(t, e) }, n.p = "", n(n.s = 0) }([function (t, e, n) { "use strict"; var r; function i(t) { return ["image/png", "image/jpeg", "image/gif", "image/webp"].some(e => e === t) } n.r(e), n.d(e, "canvastoDataURL", (function () { return a })), n.d(e, "canvastoFile", (function () { return c })), n.d(e, "dataURLtoFile", (function () { return l })), n.d(e, "dataURLtoImage", (function () { return s })), n.d(e, "downloadFile", (function () { return f })), n.d(e, "filetoDataURL", (function () { return d })), n.d(e, "imagetoCanvas", (function () { return g })), n.d(e, "urltoBlob", (function () { return w })), n.d(e, "urltoImage", (function () { return m })), n.d(e, "compress", (function () { return b })), n.d(e, "compressAccurately", (function () { return p })), n.d(e, "EImageType", (function () { return r })), function (t) { t.PNG = "image/png", t.JPEG = "image/jpeg", t.GIF = "image/gif", t.WEBP = "image/webp" }(r || (r = {})); var o = function (t, e, n, r) { return new (n || (n = Promise))((function (i, o) { function a(t) { try { u(r.next(t)) } catch (t) { o(t) } } function c(t) { try { u(r.throw(t)) } catch (t) { o(t) } } function u(t) { var e; t.done ? i(t.value) : (e = t.value, e instanceof n ? e : new n((function (t) { t(e) }))).then(a, c) } u((r = r.apply(t, e || [])).next()) })) }; function a(t, e = .92, n = r.JPEG) { return o(this, void 0, void 0, (function* () { return i(n) || (n = r.JPEG), t.toDataURL(n, e) })) } function c(t, e = .92, n = r.JPEG) { return new Promise(r => t.toBlob(t => r(t), n, e)) } var u = function (t, e, n, r) { return new (n || (n = Promise))((function (i, o) { function a(t) { try { u(r.next(t)) } catch (t) { o(t) } } function c(t) { try { u(r.throw(t)) } catch (t) { o(t) } } function u(t) { var e; t.done ? i(t.value) : (e = t.value, e instanceof n ? e : new n((function (t) { t(e) }))).then(a, c) } u((r = r.apply(t, e || [])).next()) })) }; function l(t, e) { return u(this, void 0, void 0, (function* () { const n = t.split(","); let r = n[0].match(/:(.*?);/)[1]; const o = atob(n[1]); let a = o.length; const c = new Uint8Array(a); for (; a--;)c[a] = o.charCodeAt(a); return i(e) && (r = e), new Blob([c], { type: r }) })) } function s(t) { return new Promise((e, n) => { const r = new Image; r.onload = () => e(r), r.onerror = () => n(new Error("dataURLtoImage(): dataURL is illegal")), r.src = t }) } function f(t, e) { const n = document.createElement("a"); n.href = window.URL.createObjectURL(t), n.download = e || Date.now().toString(36), document.body.appendChild(n); const r = document.createEvent("MouseEvents"); r.initEvent("click", !1, !1), n.dispatchEvent(r), document.body.removeChild(n) } function d(t) { return new Promise(e => { const n = new FileReader; n.onloadend = t => e(t.target.result), n.readAsDataURL(t) }) } var h = function (t, e, n, r) { return new (n || (n = Promise))((function (i, o) { function a(t) { try { u(r.next(t)) } catch (t) { o(t) } } function c(t) { try { u(r.throw(t)) } catch (t) { o(t) } } function u(t) { var e; t.done ? i(t.value) : (e = t.value, e instanceof n ? e : new n((function (t) { t(e) }))).then(a, c) } u((r = r.apply(t, e || [])).next()) })) }; function g(t, e = {}) { return h(this, void 0, void 0, (function* () { const n = Object.assign({}, e), r = document.createElement("canvas"), i = r.getContext("2d"); let o, a; for (const t in n) Object.prototype.hasOwnProperty.call(n, t) && (n[t] = Number(n[t])); if (n.scale) { const e = n.scale > 0 && n.scale < 10 ? n.scale : 1; a = t.width * e, o = t.height * e } else a = n.width || n.height * t.width / t.height || t.width, o = n.height || n.width * t.height / t.width || t.height; switch ([5, 6, 7, 8].some(t => t === n.orientation) ? (r.height = a, r.width = o) : (r.height = o, r.width = a), e.fill && (i.fillStyle = "#fff", i.fillRect(0, 0, a, o)), n.orientation) { case 3: i.rotate(180 * Math.PI / 180), i.drawImage(t, -r.width, -r.height, r.width, r.height); break; case 6: i.rotate(90 * Math.PI / 180), i.drawImage(t, 0, -r.width, r.height, r.width); break; case 8: i.rotate(270 * Math.PI / 180), i.drawImage(t, -r.height, 0, r.height, r.width); break; case 2: i.translate(r.width, 0), i.scale(-1, 1), i.drawImage(t, 0, 0, r.width, r.height); break; case 4: i.translate(r.width, 0), i.scale(-1, 1), i.rotate(180 * Math.PI / 180), i.drawImage(t, -r.width, -r.height, r.width, r.height); break; case 5: i.translate(r.width, 0), i.scale(-1, 1), i.rotate(90 * Math.PI / 180), i.drawImage(t, 0, -r.width, r.height, r.width); break; case 7: i.translate(r.width, 0), i.scale(-1, 1), i.rotate(270 * Math.PI / 180), i.drawImage(t, -r.height, 0, r.height, r.width); break; default: i.drawImage(t, 0, 0, r.width, r.height) }return r })) } function w(t) { return fetch(t).then(t => t.blob()) } function m(t) { return new Promise((e, n) => { const r = new Image; r.onload = () => e(r), r.onerror = () => n(new Error("urltoImage(): Image failed to load, please check the image URL")), r.src = t }) } var y = function (t, e, n, r) { return new (n || (n = Promise))((function (i, o) { function a(t) { try { u(r.next(t)) } catch (t) { o(t) } } function c(t) { try { u(r.throw(t)) } catch (t) { o(t) } } function u(t) { var e; t.done ? i(t.value) : (e = t.value, e instanceof n ? e : new n((function (t) { t(e) }))).then(a, c) } u((r = r.apply(t, e || [])).next()) })) }; function b(t, e = {}) { return y(this, void 0, void 0, (function* () { if (!(t instanceof Blob)) throw new Error("compress(): First arg must be a Blob object or a File object."); if ("object" != typeof e && (e = Object.assign({ quality: e })), e.quality = Number(e.quality), Number.isNaN(e.quality)) return t; const n = yield d(t); let o = n.split(",")[0].match(/:(.*?);/)[1], c = r.JPEG; i(e.type) && (c = e.type, o = e.type), e.fill = c === r.JPEG || c === r.WEBP; const u = yield s(n), f = yield g(u, Object.assign({}, e)), h = yield a(f, e.quality, c), w = yield l(h, o); return w.size > t.size ? { file: t, scale: "bad" } : { file: w, scale: "good" } })) } function p(t, e = {}) { return y(this, void 0, void 0, (function* () { if (!(t instanceof Blob)) throw new Error("compressAccurately(): First arg must be a Blob object or a File object."); if ("object" != typeof e && (e = Object.assign({ size: e })), e.size = Number(e.size), Number.isNaN(e.size)) return t; if (1024 * e.size > t.size) return t; e.accuracy = Number(e.accuracy), (!e.accuracy || e.accuracy < .8 || e.accuracy > .99) && (e.accuracy = .95); const n = e.size * (2 - e.accuracy) * 1024, o = 1024 * e.size, c = e.size * e.accuracy * 1024, u = yield d(t); let f = u.split(",")[0].match(/:(.*?);/)[1], h = r.JPEG; i(e.type) && (h = e.type, f = e.type), e.fill = h === r.JPEG || h === r.WEBP; const w = yield s(u), m = yield g(w, Object.assign({}, e)); let y, b = .5; const p = [null, null]; for (let t = 1; t <= 7; t++) { y = yield a(m, b, h); const e = .75 * y.length; if (7 === t) { (n < e || c > e) && (y = [y, ...p].filter(t => t).sort((t, e) => Math.abs(.75 * t.length - o) - Math.abs(.75 * e.length - o))[0]); break } if (n < e) p[1] = y, b -= Math.pow(.5, t + 1); else { if (!(c > e)) break; p[0] = y, b += Math.pow(.5, t + 1) } } const v = yield l(y, f); return v.size > t.size ? { file: t, scale: "bad" } : { file: v, scale: "good" } })) } }]) }));
-
 // 声明全局变量
+// 动态加载js
+const loadScript = (url) => {
+    return new Promise((resolve, reject) => {
+        var script = document.createElement("script");
+        script.type = "text/javascript";
+        script.src = url;
+        document.body.appendChild(script);
+        script.onload = function () {
+            resolve('ok')
+        };
+        script.onerror = function () {
+            reject('err');
+        };
+    });
+};
 // https://api.jquery.com/jQuery.noConflict/
 const jq = jQuery.noConflict();
 // 网站语言
@@ -173,6 +184,276 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
         jq('#other_title').after('<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['main_title'] + '</td>'
             + '<td id="checktitle" class="rowfollow" valign="top" align="left" valign="middle">' + main_title + '</td></tr>'
         );
+
+        // 种子文件
+        (async () => {
+            jq('#torrent').parent().html(`
+<table style="width: 100%; table-layout:fixed; border: none; cellspacing: none; cellpadding: none;">
+    <tbody>
+        <tr>
+            <td style="width: 430px; border: none;">
+                <input type="file" accept=".torrent" class="file" style="display: none" id="torrent" name="file">
+                <input type="file" class="file" style="display: none" id="filechooser">
+                <input type="file" class="file" style="display: none" id="folderchooser" webkitdirectory>
+                <input class="codebuttons" id="upload_torrent" style="font-size:11px; margin-right:3px" type="button" value="上传种子" onclick="document.getElementById('torrent').click()" disabled>
+                <input class="codebuttons" id="upload_file" style="font-size:11px; margin-right:3px" type="button" value="单文件制种" onclick="document.getElementById('filechooser').click()" disabled>
+                <input class="codebuttons" id="upload_folder" style="font-size:11px; margin-right:3px" type="button" value="多文件制种" onclick="document.getElementById('folderchooser').click()" disabled>
+                <input class="codebuttons" id="torrent_create" style="font-size:11px; margin-right:3px" type="button" value="开始制种" disabled>
+                <input class="codebuttons" id="torrent_download" style="font-size:11px; margin-right:3px" type="button" value="下载种子" disabled>
+                <input class="codebuttons" id="torrent_clean" style="font-size:11px; margin-right:3px" type="button" value="清除" disabled>
+            </<td>
+            <td style="border: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                <a id="download_link" style="display: none"></a>
+                <span id="upload_chooser" style="text-align: left; font-style: italic;"></span>
+            </<td>
+        </tr>
+    </tbody>
+</table>
+<table style="width: 100%; table-layout:fixed; border: none; cellspacing: none; cellpadding: none;">
+    <tbody>
+        <tr>
+            <td name="progress" style="width: 25%; border: none;">
+                <div class="progress"><div></div></div>
+            </td>
+            <td name="progress" style="width: 23%; border: none; text-align: center; font-style: italic;">
+                <span name="progress-percent"></span>
+            </td>
+            <td name="progress" style="width: 8%; border: none; text-align: center; font-style: italic;">
+                <span name="progress-total"></span>
+            </td>
+            <td name="progress" style="border: none; font-style: italic; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">
+                <span name="progress-name"></span>
+            </td>
+        </tr>
+    </tbody>
+</table>`);
+
+            // https://github.com/kysdm/u2_share/blob/main/torrent-creator/sha1.min.js
+            // jsdelivr刷新太慢了，直接CF反代了
+            await loadScript('https://userscript.kysdm.com/js/torrent-creator.js')
+                .then(() => { console.log(location.pathname + ' torrent-creator.js 加载完成') })
+                .catch(() => { window.alert(location.pathname + '\ntorrent-creator.js 加载失败.') })
+
+            jq('.progress').css({
+                'width': '99%',
+                'height': '8px',
+                'border': '1px solid #ccc',
+                'border-radius': '5px',  // 圆角
+                'margin': '8px 2px',
+                'overflow': 'hidden',
+            });
+            jq('.progress > div').css({
+                'width': '0px',
+                'height': '100%',
+                'background-color': '#8db8ff',
+                'transition': 'all 300ms ease'
+            }); // 设置进度条颜色
+            jq('[name="progress"]').hide();  // 隐藏进度条
+            // 显示上传的文件名 & 去除其余上传框内的值
+            jq('#torrent').change(function () {
+                $('#upload_chooser').text(this.files[0].name);
+                jq('#filechooser').val('');
+                jq('#folderchooser').val('');
+            });
+            jq('#filechooser').change(function () {
+                $('#upload_chooser').text(this.files[0].name);
+                jq('#torrent').val('');
+                jq('#folderchooser').val('');
+            });
+            jq('#folderchooser').change(function () {
+                $('#upload_chooser').text((this.files[0].webkitRelativePath).split("/")[0]);
+                jq('#torrent').val('');
+                jq('#filechooser').val('');
+            });
+            // 种子创建按钮
+            jq('#torrent_create').click(async function () {
+                let file = jq('#filechooser')[0].files;
+                let folder = jq('#folderchooser')[0].files;
+                if (file.length !== 0) {
+                    torrent_start();
+                    await CreateTorrentFile(file);
+                } else if (folder.length !== 0) {
+                    torrent_start();
+                    await CreateTorrentFolder(folder);
+                } else {
+                    window.alert('没有选择任何文件');
+                    return;
+                };
+                console.log(torrent_blob);
+            });
+            // 清空
+            jq('#torrent_clean').click(function () {
+                torrent_blob = null;
+                jq('#torrent').val('');
+                jq('#filechooser').val('');
+                jq('#folderchooser').val('');
+                $('#upload_chooser').text('');
+                jq('[name="progress"]').hide();  // 隐藏进度条
+                jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', false);
+                jq('#torrent_download').attr('disabled', true);  // 禁用按钮
+                jq('.progress > div').css('width', "0%");
+                jq('[name="progress-total"],[name="progress-name"],[name="progress-percent"]').text('');
+                jq('#download_link').attr('href', 'javascript:void(0)').attr('download', '');  // 删除下载按钮的URL
+            });
+
+            const torrent_start = () => {
+                jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create,#torrent_download,#torrent_clean').attr('disabled', true);
+                jq('[name="progress"]').show();
+            };
+
+            // 拖拽
+            jq('#compose > table > tbody > tr:lt(3)').on({
+                dragenter: function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                },
+                dragover: function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                },
+                drop: async function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // 递归扫描文件夹
+                    const filesList = new Array();
+                    const scanFiles = (entry) => {
+                        return new Promise(async (resolve, reject) => {
+                            if (entry.isDirectory) {
+                                const directoryReader = entry.createReader()
+                                const read = () => {
+                                    return new Promise((resolve, reject) => {
+                                        directoryReader.readEntries(
+                                            async (entries) => {
+                                                for (let i = 0; i <= entries.length - 1; i++)  await scanFiles(entries[i]);
+                                                resolve(entries);
+                                            },
+                                            (e) => {
+                                                reject(e)
+                                            }
+                                        );
+                                    });
+                                };
+                                const entries = await read();
+                                if (entries.length > 0) await read();
+                                console.log('完成读取当前文件夹');
+                                resolve();
+                            } else {
+                                entry.file(
+                                    async (file) => {
+                                        const path = entry.fullPath.substring(1)
+                                        const newFile = Object.defineProperty(file, 'webkitRelativePath', { value: path, })
+                                        filesList.push(newFile)
+                                        resolve();
+                                    },
+                                    (e) => {
+                                        reject(e)
+                                    }
+                                );
+                            };
+                        });
+                    };
+
+                    let f = e.originalEvent.dataTransfer.files;   // 获取文件对象
+                    if (f.length === 0) return false;
+                    if (f.length !== 1) { window.alert('只允许单个文件/文件夹'); return false; };
+
+                    let items = e.originalEvent.dataTransfer.items;
+                    for (let i = 0; i <= items.length - 1; i++) {
+                        // 实际这个循环只会运行一次 <不允许多文件夹上传>
+                        let item = items[i];
+                        if (item.kind === "file") {
+                            let entry = item.webkitGetAsEntry();
+                            await scanFiles(entry);
+                            console.log('完成文件/文件夹扫描');
+                        };
+                    };
+
+                    if (filesList.length === 1) {
+                        // 可能是单文件也可能是文件夹内只有一个文件
+                        if (filesList[0].webkitRelativePath === filesList[0].name) {
+                            if (filesList[0].name.toLowerCase().match(/.+\.torrent$/)) {
+                                console.log('是种子文件');
+                                $('#upload_chooser').text(filesList[0].name);
+                            } else {
+                                console.log('是普通单文件');
+                                $('#upload_chooser').text(filesList[0].name);
+                                torrent_start();
+                                await CreateTorrentFile(file);
+                            };
+                        } else {
+                            console.log('文件夹内有一个文件');
+                            $('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
+                            torrent_start();
+                            await CreateTorrentFolder(filesList);
+                        };
+                    } else {
+                        console.log('文件夹内有多个文件');
+                        $('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
+                        torrent_start();
+                        await CreateTorrentFolder(filesList);
+                    };
+
+                }
+            });
+
+            jq('#qr').click(function (e) {
+                e.preventDefault();
+
+                console.log(new File([torrent_blob], "a.torrent", { type: "application/octet-stream" }));
+
+                const p = () => {
+                    return new Promise(function (resolve, reject) {
+                        // https://developer.mozilla.org/zh-CN/docs/Web/API/FormData
+                        let formdata = new FormData(document.getElementById('compose'));
+                        if (torrent_blob) formdata.set("file", new File([torrent_blob], "a.torrent", { type: "application/octet-stream" }));
+
+                        const request = new XMLHttpRequest();
+                        request.open("POST", "takeupload.php");
+                        request.onload = function () {
+                            if (request.status >= 200 && request.status < 300) {
+                                resolve({
+                                    status: request.status,
+                                    response: request.response,
+                                    responseURL: request.responseURL
+                                });
+                            } else {
+                                reject({
+                                    status: request.status,
+                                    statusText: request.statusText
+                                });
+                            };
+                        };
+                        request.onerror = function () {
+                            reject({
+                                status: request.status,
+                                statusText: request.statusText
+                            });
+                        };
+                        request.send(formdata);
+                    });
+                };
+
+                p().then(r => {
+                    if (!r.responseURL.includes("takeupload.php")) {
+                        // 成功上传
+                        window.open(r.responseURL, '_self');
+                        return;
+                    };
+                    const h = jq.parseHTML(r.response)
+                    let warn = jq(h).find('#outer').text();
+                    warn = warn ? warn.trim() : warn;
+                    window.alert(warn)
+                    console.log(warn);
+                }).catch(e => {
+                    console.error(e);
+                    window.alert('上传发生错误\n' + e)
+                });
+
+            });
+
+        })();
+
     };
 
 
@@ -206,13 +487,6 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
         jq(`[name="${type}_bbcode_button"]`).click(function () { onEditorActionBox(this.value, `.bbcode`); });
     }
 })();
-
-
-async function sleep(interval) {
-    return new Promise(resolve => {
-        setTimeout(resolve, interval);
-    })
-};
 
 async function bbcode2html(bbcodestr) {
     var tempCode = new Array();
@@ -974,7 +1248,7 @@ async function autoSaveUpload() {
     });
 
     async function clean() {
-        clearInterval(jq(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
+        // clearInterval(jq(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
         await db.removeItem(`${type}_autoSaveMessageTime`);
         await db.removeItem(`${type}_autoSaveMessageBbcode`);
         await db.removeItem(`${type}_autoSaveMessageSmallDescr`);
@@ -2117,6 +2391,14 @@ function SmileIT2(smile, form, text) {
 // 附件
 (async () => {
     if (location.pathname !== '/attachment.php') return;
+    // mediainfo.js
+    await loadScript('https://unpkg.com/mediainfo.js@0.1.8/dist/mediainfo.min.js')
+        .then(() => { console.log(location.pathname + ' mediainfo.js 加载完成') })
+        .catch(() => { window.alert(location.pathname + '\nmediainfo.js 加载失败') })
+    await loadScript('https://fastly.jsdelivr.net/gh/kysdm/u2_share@main/image-conversion/conversion.min.js')
+        .then(() => { console.log(location.pathname + ' conversion.js 加载完成') })
+        .catch(() => { window.alert(location.pathname + '\nconversion.js 加载失败.') })
+
     const db = localforage.createInstance({ name: "bbcodejs" });
     let _t = jq('td').html().match(/(?<val>(\d+?))\sMiB/);
     const max_size = _t ? _t.groups.val : 4;  // 附件大小限制
@@ -2164,8 +2446,8 @@ function SmileIT2(smile, form, text) {
             for (let i = 0, len = emfile.files.length; i < len; i++) {
                 // console.log(emfile.files[i]);
                 jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
-                let f = await imgCompressor(emfile.files[i]);
-                if (!f.file) continue;  // 如果不是有效的文件，则跳过
+                let f = await imgCompressor(emfile.files[i]).catch(e => { window.alert(e) });
+                if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
                 let hash = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
                 if (hash) attach_hash_list.push(hash); // 存储hash值
             };
@@ -2198,7 +2480,9 @@ function SmileIT2(smile, form, text) {
     };
 
     const imgCompressor = (file) => {
-        return new Promise(async (resolve) => {
+        return new Promise(async (resolve, reject) => {
+
+            if (typeof imageConversion !== 'object') { reject('conversion.js 没有加载'); return; };
 
             const compress_format = (await db.getItem('default_image_compress_format') || 'webp').toLowerCase();  // 压缩格式
             const default_compress = await db.getItem('default_image_compress'); // 全局压缩
@@ -2381,8 +2665,43 @@ function SmileIT2(smile, form, text) {
         await attach2Img(em.groups.id, window.parent.document)
     });
 
+    // mediainfo
+    const mediainfoFn = (dom, file) => {
+        return new Promise(async (resolve, reject) => {
+            if (typeof MediaInfo !== 'function') {
+                reject('mediainfo.js 没有加载.')
+                return;
+            };
+
+            const mediainfo = await MediaInfo({ format: 'text' });
+            console.log('Mediainfo Working…');
+            const getSize = () => file.size;
+            const readChunk = (chunkSize, offset) =>
+                new Promise((resolve, reject) => {
+                    const reader = new FileReader()
+                    reader.onload = (event) => {
+                        if (event.target.error) {
+                            reject(event.target.error);
+                        };
+                        resolve(new Uint8Array(event.target.result));
+                    };
+                    reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
+                });
+            mediainfo
+                .analyzeData(getSize, readChunk)
+                .then((result) => {
+                    addTextBox(dom, `[mediainfo]${result}[/mediainfo]`);
+                    resolve();
+                })
+                .catch((error) => {
+                    reject(error.stack);
+                });
+        });
+    };
+
+
     // 拖拽&剪贴板上传
-    ((text_area_id) => {
+    (async (text_area_id) => {
         const box = window.parent.document.getElementById(text_area_id); // 允许拖拽上传的区域
 
         box.addEventListener('paste', async function (e) {
@@ -2402,8 +2721,8 @@ function SmileIT2(smile, form, text) {
                     file = items[i].getAsFile();
                     if (file) {
                         jq('[name="progress-total"]').text(`1 / 1`); // 显示当前上传文件的序号
-                        let f = await imgCompressor(file);
-                        if (!f.file) continue;  // 如果不是有效的文件，则跳过
+                        let f = await imgCompressor(file).catch(e => { window.alert(e) });
+                        if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
                         let hash = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
                         addTextBox(window.parent.document.getElementById(text_area_id), `[attach]${hash}[/attach]`); // 添加附件bbcode
                         window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
@@ -2431,17 +2750,26 @@ function SmileIT2(smile, form, text) {
             let attach_hash_list = new Array(); // 存储上传文件的hash值
             await (async () => {
                 for (let i = 0, len = file_list.length; i < len; i++) {
-                    // console.log(file_list[i]);
                     jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
-                    let f = await imgCompressor(file_list[i]);
-                    if (!f.file) continue;  // 如果不是有效的文件，则跳过
+                    console.log('文件: ' + file_list[i].name + '| 类型: ' + file_list[i].type);
+                    if (!file_list[i].type.startsWith('image/')) {
+                        jq('[name="progress-percent"]').text('解析中...');
+                        jq('[name="progress-name"]').text(file_list[i].name);
+                        await mediainfoFn(window.parent.document.getElementById(text_area_id), file_list[i])
+                            .catch(e => { window.alert(e); });
+                        // console.log('END');
+                        continue;
+                    };
+                    // console.log(file_list[i]);
+                    let f = await imgCompressor(file_list[i]).catch(e => { window.alert(e) });
+                    if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
                     let hash = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
                     if (hash) attach_hash_list.push(hash); // 存储hash值
                 };
             })();
-            console.log(attach_hash_list);
+            // console.log(attach_hash_list);
             let bbcode = '';
-            attach_hash_list.forEach(async (hash) => { bbcode += `[attach]${hash}[/attach]`; })
+            attach_hash_list.forEach(async (hash) => { bbcode += `[attach]${hash}[/attach]`; });
             addTextBox(window.parent.document.getElementById(text_area_id), bbcode); // 添加附件bbcode
             window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
             jq('[name="progress"]').hide();  // 隐藏进度条
