@@ -176,12 +176,12 @@ function Finished() {
         };
     };
     torrent_blob = blob;
-    jq('.progress > div').css('width', "100%");  // 整体进度
-    jq('[name="progress-total"]').text('100%');
-    jq('[name="progress-name"]').text('Done.');
-    jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止按钮
-    jq('#torrent_download,#torrent_clean').attr('disabled', false);  // 解除按钮禁用
-    jq('[name="progress"]').fadeOut(3000);  // 渐出进度一栏
+    $('.progress > div').css('width', "100%");  // 整体进度
+    $('[name="progress-total"]').text('100%');
+    $('[name="progress-name"]').text('Done.');
+    $('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止按钮
+    $('#torrent_download,#torrent_clean').attr('disabled', false);  // 解除按钮禁用
+    $('[name="progress"]').fadeOut(3000);  // 渐出进度一栏
     creationInProgress = false;
 };
 
@@ -227,16 +227,16 @@ function CreateFromFile(obj) {
                     byteCount = bytes.length;
                     bytesReadSoFar += byteCount;
                     // progressBarStyle.width = (bytesReadSoFar / fileSize * 100) + "%";
-                    // jq('.progress > div').css('width', (bytesReadSoFar / fileSize * 100) + "%")  // 单个进度
+                    // $('.progress > div').css('width', (bytesReadSoFar / fileSize * 100) + "%")  // 单个进度
                     sha1({ data: bytes, blockSize: chunkSize, readChunkSize: readChunkSize }).then(function (result) {
                         pieces.set(result, currentChunkIndex * blocksPerChunk * 20);
                         --currentWorkerCount;
                         bytesProcessedSoFar += byteCount;
                         let percent = bytesProcessedSoFar / fileSize * 100;
-                        jq('.progress > div').css('width', percent + "%")  // 整体进度
-                        jq('[name="progress-name"]').text(file.name);
-                        jq('[name="progress-percent"]').text(bytesProcessedSoFar + ' / ' + fileSize);
-                        jq('[name="progress-total"]').text(percent.toFixed(2) + '%');
+                        $('.progress > div').css('width', percent + "%")  // 整体进度
+                        $('[name="progress-name"]').text(file.name);
+                        $('[name="progress-percent"]').text(bytesProcessedSoFar + ' / ' + fileSize);
+                        $('[name="progress-total"]').text(percent.toFixed(2) + '%');
                         if (chunkIndex === maxChunkCount && currentWorkerCount === 0) {
                             // everything finished
                             infoObject["pieces"] = Array.from(pieces);
@@ -252,7 +252,7 @@ function CreateFromFile(obj) {
                         reader();
                     else {
                         // console.log('Done.');
-                        jq('[name="progress-name"]').text('Done.');
+                        $('[name="progress-name"]').text('Done.');
                     }
                     return [2 /*return*/];
                 });
@@ -312,7 +312,7 @@ function CreateFromFolder(obj) {
         function MaybeFinished() {
             if (processedBlockCount >= totalBlockCount) {
                 infoObject["pieces"] = Array.from(pieces);
-                jq('[name="progress-percent"]').text(allFiles.length + ' / ' + allFiles.length);
+                $('[name="progress-percent"]').text(allFiles.length + ' / ' + allFiles.length);
                 Finished();
                 resolve(1);
             };
@@ -345,9 +345,9 @@ function CreateFromFolder(obj) {
                             if (!creationFinished) {
                                 bytesProcessedSoFar += readChunkSize;
                                 let percent = bytesProcessedSoFar / totalSize * 100;
-                                jq('.progress > div').css('width', percent + "%")  // 整体进度
-                                // jq('[name="progress-percent"]').text(bytesProcessedSoFar + ' / ' + totalSize);
-                                jq('[name="progress-total"]').text(percent.toFixed(2) + '%');
+                                $('.progress > div').css('width', percent + "%")  // 整体进度
+                                // $('[name="progress-percent"]').text(bytesProcessedSoFar + ' / ' + totalSize);
+                                $('[name="progress-total"]').text(percent.toFixed(2) + '%');
                             }
                             MaybeFinished();
                         });
@@ -383,8 +383,8 @@ function CreateFromFolder(obj) {
                             currentFile = files[fileIndex];
                             fileSize = currentFile.size;
                             readStartIndex = 0;
-                            jq('[name="progress-name"]').text(currentFile.name);
-                            jq('[name="progress-percent"]').text((fileIndex + 1) + ' / ' + allFiles.length);
+                            $('[name="progress-name"]').text(currentFile.name);
+                            $('[name="progress-percent"]').text((fileIndex + 1) + ' / ' + allFiles.length);
                             reader();
                         };
                     };
@@ -395,10 +395,10 @@ function CreateFromFolder(obj) {
         fr.onerror = function () {
             Failed(currentFile.name, fr.error);
         };
-        jq('[name="progress-name"]').text(currentFile.name);
-        // jq('[name="progress-percent"]').text('132644 / ' + totalSize);
-        jq('[name="progress-percent"]').text('1 / ' + allFiles.length);
-        jq('[name="progress-total"]').text('0%');
+        $('[name="progress-name"]').text(currentFile.name);
+        // $('[name="progress-percent"]').text('132644 / ' + totalSize);
+        $('[name="progress-percent"]').text('1 / ' + allFiles.length);
+        $('[name="progress-total"]').text('0%');
         reader();
     });
 };
@@ -689,7 +689,7 @@ function SetupSha1WithoutWorkers() {
         };
     };
     console.log('sha1加载完成');
-    jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create,#torrent_clean').attr('disabled', false);  // 当sha1函数完成加载，解除按钮禁用
+    $('#upload_torrent,#upload_file,#upload_folder,#torrent_create,#torrent_clean').attr('disabled', false);  // 当sha1函数完成加载，解除按钮禁用
     sha1 = function (data) {
         return new Promise(function (resolve) { return EnqueueWorkerTask(data, resolve); });
     };
