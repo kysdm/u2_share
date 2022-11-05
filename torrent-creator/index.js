@@ -113,14 +113,13 @@ function SetTorrentData(f_name) {
     return true;
 };
 
-function CreateTorrentFile(emfile) {
+async function CreateTorrentFile(emfile) {
     let f_name = FileSelected(emfile);
     if (!SetTorrentData(f_name) || !torrentObject) return;
     torrentChanged = false;
     creationInProgress = true;
     creationFinished = false;
-    CreateFromFile(torrentObject);
-    return;
+    await CreateFromFile(torrentObject);
 };
 
 async function CreateTorrentFolder(emfile) {
@@ -133,7 +132,7 @@ async function CreateTorrentFolder(emfile) {
 };
 
 var blobUrl;
-var blob; // 种子文件
+var torrent_blob; // 种子文件
 function Finished() {
     creationFinished = true;
     if (!torrentObject || !torrentObject.info) return;
@@ -141,7 +140,7 @@ function Finished() {
     let pieceStr = "";
     for (let i = 0; i < pieceBytes.length; ++i) pieceStr += String.fromCharCode(pieceBytes[i]);
     torrentObject.info["pieces"] = pieceStr;
-    new Blob();
+    let blob = new Blob();
     function UpdateBlob() {
         if (torrentObject)
             blob = new Blob([new Uint8Array(Bencode.EncodeToBytes(torrentObject))], { type: "application/octet-stream" });
@@ -176,94 +175,98 @@ function Finished() {
             a_1.click();
         };
     };
+    torrent_blob = blob;
     jq('.progress > div').css('width', "100%");  // 整体进度
     jq('[name="progress-total"]').text('100%');
     jq('[name="progress-name"]').text('Done.');
     jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止按钮
-    jq('#torrent_download').attr('disabled', false);  // 解除按钮禁用
+    jq('#torrent_download,#torrent_clean').attr('disabled', false);  // 解除按钮禁用
     jq('[name="progress"]').fadeOut(3000);  // 渐出进度一栏
     creationInProgress = false;
 };
 
 
 function CreateFromFile(obj) {
-    let infoObject = obj.info;
-    let chunkSize = infoObject["piece length"];
-    let file = singleFile;
-    let fileSize = file.size;
-    let readChunkSize = 16777216;
-    let maxChunkCount = Math.ceil(fileSize / readChunkSize);
-    let blocksPerChunk = readChunkSize / blockSize;
-    let maxBlockCount = Math.ceil(fileSize / blockSize);
-    let pieces = new Uint8Array(20 * maxBlockCount);
-    infoObject["length"] = fileSize;
-    let bytesReadSoFar = 0;
-    let readStartIndex = 0;
-    let bytesProcessedSoFar = 0;
-    let fr = new FileReader();
-    let currentWorkerCount = 0;
-    function reader() {
-        if (!creationInProgress)
-            return;
-        if (currentWorkerCount === maxWorkerCount) {
-            waitingForWorkers = true;
-            return;
+    return new Promise((resolve) => {
+        let infoObject = obj.info;
+        let chunkSize = infoObject["piece length"];
+        let file = singleFile;
+        let fileSize = file.size;
+        let readChunkSize = 16777216;
+        let maxChunkCount = Math.ceil(fileSize / readChunkSize);
+        let blocksPerChunk = readChunkSize / blockSize;
+        let maxBlockCount = Math.ceil(fileSize / blockSize);
+        let pieces = new Uint8Array(20 * maxBlockCount);
+        infoObject["length"] = fileSize;
+        let bytesReadSoFar = 0;
+        let readStartIndex = 0;
+        let bytesProcessedSoFar = 0;
+        let fr = new FileReader();
+        let currentWorkerCount = 0;
+        function reader() {
+            if (!creationInProgress)
+                return;
+            if (currentWorkerCount === maxWorkerCount) {
+                waitingForWorkers = true;
+                return;
+            };
+            fr.readAsArrayBuffer(file.slice(readStartIndex, readStartIndex + readChunkSize));
+            readStartIndex += readChunkSize;
         };
-        fr.readAsArrayBuffer(file.slice(readStartIndex, readStartIndex + readChunkSize));
-        readStartIndex += readChunkSize;
-    };
-    let chunkIndex = 0;
-    let waitingForWorkers = false;
-    fr.onloadend = function (ev) {
-        return __awaiter(this, void 0, void 0, function () {
-            let currentChunkIndex, bytes, byteCount;
-            return __generator(this, function (_a) {
-                if (!ev.target || !(ev.target.result instanceof ArrayBuffer))
-                    return [2 /*return*/];
-                ++currentWorkerCount;
-                currentChunkIndex = chunkIndex++;
-                bytes = new Uint8Array(ev.target.result);
-                byteCount = bytes.length;
-                bytesReadSoFar += byteCount;
-                // progressBarStyle.width = (bytesReadSoFar / fileSize * 100) + "%";
-                // jq('.progress > div').css('width', (bytesReadSoFar / fileSize * 100) + "%")  // 单个进度
-                sha1({ data: bytes, blockSize: chunkSize, readChunkSize: readChunkSize }).then(function (result) {
-                    pieces.set(result, currentChunkIndex * blocksPerChunk * 20);
-                    --currentWorkerCount;
-                    bytesProcessedSoFar += byteCount;
-                    let percent = bytesProcessedSoFar / fileSize * 100;
-                    jq('.progress > div').css('width', percent + "%")  // 整体进度
-                    jq('[name="progress-name"]').text(file.name);
-                    jq('[name="progress-percent"]').text(bytesProcessedSoFar + ' / ' + fileSize);
-                    jq('[name="progress-total"]').text(percent.toFixed(2) + '%');
-                    if (chunkIndex === maxChunkCount && currentWorkerCount === 0) {
-                        // everything finished
-                        infoObject["pieces"] = Array.from(pieces);
-                        Finished();
-                    }
-                    else if (waitingForWorkers) {
-                        waitingForWorkers = false;
+        let chunkIndex = 0;
+        let waitingForWorkers = false;
+        fr.onloadend = function (ev) {
+            return __awaiter(this, void 0, void 0, function () {
+                let currentChunkIndex, bytes, byteCount;
+                return __generator(this, function (_a) {
+                    if (!ev.target || !(ev.target.result instanceof ArrayBuffer))
+                        return [2 /*return*/];
+                    ++currentWorkerCount;
+                    currentChunkIndex = chunkIndex++;
+                    bytes = new Uint8Array(ev.target.result);
+                    byteCount = bytes.length;
+                    bytesReadSoFar += byteCount;
+                    // progressBarStyle.width = (bytesReadSoFar / fileSize * 100) + "%";
+                    // jq('.progress > div').css('width', (bytesReadSoFar / fileSize * 100) + "%")  // 单个进度
+                    sha1({ data: bytes, blockSize: chunkSize, readChunkSize: readChunkSize }).then(function (result) {
+                        pieces.set(result, currentChunkIndex * blocksPerChunk * 20);
+                        --currentWorkerCount;
+                        bytesProcessedSoFar += byteCount;
+                        let percent = bytesProcessedSoFar / fileSize * 100;
+                        jq('.progress > div').css('width', percent + "%")  // 整体进度
+                        jq('[name="progress-name"]').text(file.name);
+                        jq('[name="progress-percent"]').text(bytesProcessedSoFar + ' / ' + fileSize);
+                        jq('[name="progress-total"]').text(percent.toFixed(2) + '%');
+                        if (chunkIndex === maxChunkCount && currentWorkerCount === 0) {
+                            // everything finished
+                            infoObject["pieces"] = Array.from(pieces);
+                            Finished();
+                            resolve(1);
+                        }
+                        else if (waitingForWorkers) {
+                            waitingForWorkers = false;
+                            reader();
+                        }
+                    });
+                    if (chunkIndex !== maxChunkCount)
                         reader();
+                    else {
+                        // console.log('Done.');
+                        jq('[name="progress-name"]').text('Done.');
                     }
+                    return [2 /*return*/];
                 });
-                if (chunkIndex !== maxChunkCount)
-                    reader();
-                else {
-                    console.log('Done.');
-                    jq('[name="progress-name"]').text('Done.');
-                }
-                return [2 /*return*/];
             });
-        });
-    };
-    fr.onerror = function () {
-        Failed(singleFile && singleFile.name, fr.error);
-    };
-    reader();
-}
+        };
+        fr.onerror = function () {
+            Failed(singleFile && singleFile.name, fr.error);
+        };
+        reader();
+    });
+};
 
 function CreateFromFolder(obj) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         if (!allFiles || !obj.info) return;
         let infoObject = obj.info;
         let chunkSize = infoObject["piece length"];
@@ -309,7 +312,7 @@ function CreateFromFolder(obj) {
         function MaybeFinished() {
             if (processedBlockCount >= totalBlockCount) {
                 infoObject["pieces"] = Array.from(pieces);
-                jq('[name="progress-percent"]').text(totalSize + ' / ' + totalSize);
+                jq('[name="progress-percent"]').text(allFiles.length + ' / ' + allFiles.length);
                 Finished();
                 resolve(1);
             };
@@ -343,7 +346,7 @@ function CreateFromFolder(obj) {
                                 bytesProcessedSoFar += readChunkSize;
                                 let percent = bytesProcessedSoFar / totalSize * 100;
                                 jq('.progress > div').css('width', percent + "%")  // 整体进度
-                                jq('[name="progress-percent"]').text(bytesProcessedSoFar + ' / ' + totalSize);
+                                // jq('[name="progress-percent"]').text(bytesProcessedSoFar + ' / ' + totalSize);
                                 jq('[name="progress-total"]').text(percent.toFixed(2) + '%');
                             }
                             MaybeFinished();
@@ -381,7 +384,7 @@ function CreateFromFolder(obj) {
                             fileSize = currentFile.size;
                             readStartIndex = 0;
                             jq('[name="progress-name"]').text(currentFile.name);
-                            // jq('[name="progress-total"]').text((fileIndex + 1) + ' / ' + allFiles.length);
+                            jq('[name="progress-percent"]').text((fileIndex + 1) + ' / ' + allFiles.length);
                             reader();
                         };
                     };
@@ -393,7 +396,8 @@ function CreateFromFolder(obj) {
             Failed(currentFile.name, fr.error);
         };
         jq('[name="progress-name"]').text(currentFile.name);
-        jq('[name="progress-percent"]').text('132644 / ' + totalSize);
+        // jq('[name="progress-percent"]').text('132644 / ' + totalSize);
+        jq('[name="progress-percent"]').text('1 / ' + allFiles.length);
         jq('[name="progress-total"]').text('0%');
         reader();
     });
@@ -615,6 +619,7 @@ function SetupSha1WithoutWorkers() {
                 })
                 .then(response => {
                     if (!response.ok) {
+                        window.alert('sha1.js 下载失败')
                         console.error('Network response was not OK');
                         reject('Network response was not OK');
                     };
@@ -625,6 +630,7 @@ function SetupSha1WithoutWorkers() {
                     resolve(URL.createObjectURL(blob));
                 })
                 .catch(error => {
+                    window.alert('sha1.js 崩溃')
                     console.error('There has been a problem with your fetch operation:', error);
                     reject(error);
                 });
@@ -650,7 +656,7 @@ function SetupSha1WithoutWorkers() {
     }
     if (!workersAvailable) {
         // fall back to single threaded version
-        console.log('fall back to single threaded version');
+        console.warn('fall back to single threaded version');
         SetupSha1WithoutWorkers();
         return;
     }
@@ -682,7 +688,8 @@ function SetupSha1WithoutWorkers() {
             callback(ev.data);
         };
     };
-
+    console.log('sha1加载完成');
+    jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create,#torrent_clean').attr('disabled', false);  // 当sha1函数完成加载，解除按钮禁用
     sha1 = function (data) {
         return new Promise(function (resolve) { return EnqueueWorkerTask(data, resolve); });
     };
