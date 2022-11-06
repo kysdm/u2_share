@@ -1,4 +1,5 @@
 "use strict";
+// uglifyjs index.js -c -m -o index.min.js
 var __extends = (this && this.__extends) || (function () {
     let extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -103,7 +104,7 @@ function SetTorrentData(f_name) {
     let infoObject = (torrentObject && torrentObject["info"]) || { name: "", pieces: "", "piece length": 0 };
     torrentObject = { "info": infoObject };
     torrentObject["announce"] = 'https://daydream.dmhy.best/announce';
-    torrentObject["announce-list"] = [];
+    // torrentObject["announce-list"] = [];
     torrentObject["creation date"] = (Date.now() / 1000) | 0;  // 种子创建时间
     torrentObject["created by"] = "kimbatt.github.io/torrent-creator";  // 创建客户端
     infoObject["private"] = 1;  // 私有种子
