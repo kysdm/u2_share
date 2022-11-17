@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.9
+// @version      0.8.0
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -251,17 +251,17 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
             jq('[name="progress"]').hide();  // 隐藏进度条
             // 显示上传的文件名 & 去除其余上传框内的值
             jq('#torrent').change(function () {
-                $('#upload_chooser').text(this.files[0].name);
+                jq('#upload_chooser').text(this.files[0].name);
                 jq('#filechooser').val('');
                 jq('#folderchooser').val('');
             });
             jq('#filechooser').change(function () {
-                $('#upload_chooser').text(this.files[0].name);
+                jq('#upload_chooser').text(this.files[0].name);
                 jq('#torrent').val('');
                 jq('#folderchooser').val('');
             });
             jq('#folderchooser').change(function () {
-                $('#upload_chooser').text((this.files[0].webkitRelativePath).split("/")[0]);
+                jq('#upload_chooser').text((this.files[0].webkitRelativePath).split("/")[0]);
                 jq('#torrent').val('');
                 jq('#filechooser').val('');
             });
@@ -287,7 +287,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                 jq('#torrent').val('');
                 jq('#filechooser').val('');
                 jq('#folderchooser').val('');
-                $('#upload_chooser').text('');
+                jq('#upload_chooser').text('');
                 jq('[name="progress"]').hide();  // 隐藏进度条
                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', false);
                 jq('#torrent_download').attr('disabled', true);  // 禁用按钮
@@ -374,22 +374,22 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                         if (filesList[0].webkitRelativePath === filesList[0].name) {
                             if (filesList[0].name.toLowerCase().match(/.+\.torrent$/)) {
                                 console.log('是种子文件');
-                                $('#upload_chooser').text(filesList[0].name);
+                                jq('#upload_chooser').text(filesList[0].name);
                             } else {
                                 console.log('是普通单文件');
-                                $('#upload_chooser').text(filesList[0].name);
+                                jq('#upload_chooser').text(filesList[0].name);
                                 torrent_start();
                                 await CreateTorrentFile(file);
                             };
                         } else {
                             console.log('文件夹内有一个文件');
-                            $('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
+                            jq('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
                             torrent_start();
                             await CreateTorrentFolder(filesList);
                         };
                     } else {
                         console.log('文件夹内有多个文件');
-                        $('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
+                        jq('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
                         torrent_start();
                         await CreateTorrentFolder(filesList);
                     };
@@ -2358,13 +2358,13 @@ function SmileIT2(smile, form, text) {
 
     // 关闭窗口
     jq(`#${type}_close_box`).click(function () {
-        jq('#outer').children('table:last').show();
+        jq('#outer').find('table:last').show();
         $outer.hide();
     });
     // 发送
     jq(`#${type}_post_box`).click(function () {
         jq(`[name="${action}"]`).val(jq(`#${type}_box_bbcode`).val());
-        jq('#outer').children('table:last').show();
+        jq('#outer').find('table:last').show();
         $outer.hide();
     });
     // 点击弹出窗口
@@ -2376,7 +2376,7 @@ function SmileIT2(smile, form, text) {
         // 显示悬浮窗口
         $outer.show();
         // 隐藏窗口
-        jq('#outer').children('table:last').hide();
+        jq('#outer').find('table:last').hide();
         // 设置悬浮窗口中预览窗口的最大高度
         jq(`#${type}_bbcode2_box`).css("max-height", (jq(`#${type}_box_bbcode`).height() + 30) + "px");
         const margin = jq(`#${type}_compose_custom .codebuttons`).parents('tbody').eq(0).width() - jq(`#${type}_bbcodejs_select_box`).width() - 2.6;
