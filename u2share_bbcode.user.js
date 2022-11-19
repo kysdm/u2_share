@@ -678,6 +678,7 @@ async function bbcode2html(bbcodestr) {
         else if (val) {
             return textarea.replace(/\[img=(.*?)\]/i, function (all, url) {
                 // [img=http://u2.dmhy.org/pic/logo.png]
+                url = url.replace('&amp;','&');
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
@@ -690,6 +691,7 @@ async function bbcode2html(bbcodestr) {
             const lost = checkLostTags(textarea, /\[(?<tag>img)\]/i, /\[\/(?<tag>img)\]/i);
             if (lost.state) { return textarea.replace(/\[img\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[img\](.*?)\[\/img\]/i, function (all, url) {
+                url = url.replace('&amp;','&');
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
@@ -709,6 +711,7 @@ async function bbcode2html(bbcodestr) {
             const lost = checkLostTags(textarea, /\[(?<tag>imglnk)\]/i, /\[\/(?<tag>imglnk)\]/i);
             if (lost.state) { return textarea.replace(/\[imglnk\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[imglnk\](.*?)\[\/imglnk\]/i, function (all, url) {
+                url = url.replace('&amp;','&');
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode(`<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="${url}" style="height: auto; width: auto; max-width: 100%;"></a>`);
