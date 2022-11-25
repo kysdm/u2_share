@@ -106,7 +106,7 @@ function SetTorrentData(f_name) {
     torrentObject["announce"] = 'https://daydream.dmhy.best/announce';
     // torrentObject["announce-list"] = [];
     torrentObject["creation date"] = (Date.now() / 1000) | 0;  // 种子创建时间
-    torrentObject["created by"] = "kimbatt.github.io/torrent-creator";  // 创建客户端
+    torrentObject["created by"] = "https://u2.dmhy.org/forums.php?action=viewtopic&topicid=13384";  // 创建客户端
     infoObject["private"] = 1;  // 私有种子
     infoObject["name"] = torrentName;  // 种子名称
     infoObject["piece length"] = blockSize;  // 区块大小 默认16M
