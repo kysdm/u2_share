@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.1
+// @version      0.8.2
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -379,7 +379,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                                 console.log('是普通单文件');
                                 jq('#upload_chooser').text(filesList[0].name);
                                 torrent_start();
-                                await CreateTorrentFile(file);
+                                await CreateTorrentFile(filesList);
                             };
                         } else {
                             console.log('文件夹内有一个文件');
