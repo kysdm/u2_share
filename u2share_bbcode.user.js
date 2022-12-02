@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.3
+// @version      0.8.4
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -2693,6 +2693,8 @@ function SmileIT2(smile, form, text) {
             mediainfo
                 .analyzeData(getSize, readChunk)
                 .then((result) => {
+                    if(result) result = result.replace(/(\n)*$/,'');
+                    console.log(result);
                     addTextBox(dom, `[mediainfo]${result}[/mediainfo]`);
                     resolve();
                 })
