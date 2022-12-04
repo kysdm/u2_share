@@ -2694,7 +2694,7 @@ function SmileIT2(smile, form, text) {
                 .analyzeData(getSize, readChunk)
                 .then((result) => {
                     if(result) result = result.replace(/(\n)*$/,'');
-                    console.log(result);
+                    // console.log(result); 
                     addTextBox(dom, `[mediainfo]${result}[/mediainfo]`);
                     resolve();
                 })
