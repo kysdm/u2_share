@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.6
+// @version      0.5.7
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -100,7 +100,8 @@ function auth() {
                 url: 'https://u2.dmhy.org/usercp.php?action=personal',
                 cache: false,
                 success: async r => {
-                    const usercp = $.parseHTML(r)
+                    const usercp = document.createElement('div');
+                    usercp.innerHTML = r;
                     // const profile = $(usercp).find('[name="info"]').text(); // 获取用户信息
                     const profile = {
                         "action": "personal",
@@ -1478,6 +1479,7 @@ function bbcode2html(bbcodestr) {
     bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
 
     let br_end = '';  // 对结尾的换行符进行计数
+    let br;
     if (br = bbcodestr.match(/(?:<br>)+$/)) {
         br_end = br[0];
         const regex = new RegExp(`${br_end}$`, "");
@@ -1633,7 +1635,7 @@ function bbcode2html(bbcodestr) {
         else if (val) {
             return textarea.replace(/\[img=(.*?)\]/i, function (all, url) {
                 // [img=http://u2.dmhy.org/pic/logo.png]
-                url = url.replace('&amp;','&');
+                url = url.replace('&amp;', '&');
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
@@ -1646,7 +1648,7 @@ function bbcode2html(bbcodestr) {
             const lost = checkLostTags(textarea, /\[(?<tag>img)\]/i, /\[\/(?<tag>img)\]/i);
             if (lost.state) { return textarea.replace(/\[img\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[img\](.*?)\[\/img\]/i, function (all, url) {
-                url = url.replace('&amp;','&');
+                url = url.replace('&amp;', '&');
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
@@ -1666,7 +1668,7 @@ function bbcode2html(bbcodestr) {
             const lost = checkLostTags(textarea, /\[(?<tag>imglnk)\]/i, /\[\/(?<tag>imglnk)\]/i);
             if (lost.state) { return textarea.replace(/\[imglnk\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[imglnk\](.*?)\[\/imglnk\]/i, function (all, url) {
-                url = url.replace('&amp;','&');
+                url = url.replace('&amp;', '&');
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode(`<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="${url}" style="height: auto; width: auto; max-width: 100%;"></a>`);
@@ -1780,6 +1782,7 @@ function bbcode2html(bbcodestr) {
         let convert_count = 0;
         let index = 0;
         let _textarea = textarea;
+        let bbcode_tag;
         while (bbcode_tag = /\[(?<tag>b|i|u|s|color|size|font|rt|mediainfo|info|code|url|img|imglnk|quote|pre|spoiler)(?<val>=[^\[]*?)?\]/gi.exec(_textarea)) {
             let t;
             let tag = bbcode_tag.groups.tag;
@@ -1884,8 +1887,8 @@ function bbcode2html(bbcodestr) {
     //     $('#preview_bbcode').attr('title', '')
     // };
 
-
-    let htmlobj = $.parseHTML('<div>' + bbcodestr + '</div>');
+    let htmlobj = document.createElement('div');
+    htmlobj.innerHTML = bbcodestr;
 
     $(htmlobj).children('fieldset').children('fieldset').children('fieldset').children('fieldset').each(function () {
         $(this).html($(this).html().replace(/(^<legend>[^<]*?<\/legend>)(.*)/i, function (s, x, y) {
