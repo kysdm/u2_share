@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.4
+// @version      0.8.5
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -440,7 +440,8 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                         window.open(r.responseURL, '_self');
                         return;
                     };
-                    const h = jq.parseHTML(r.response)
+                    const h = document.createElement('div');
+                    h.innerHTML = r.response;
                     let warn = jq(h).find('#outer').text();
                     warn = warn ? warn.trim() : warn;
                     window.alert(warn)
@@ -523,6 +524,7 @@ async function bbcode2html(bbcodestr) {
     bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
 
     let br_end = '';  // 对结尾的换行符进行计数
+    let br;
     if (br = bbcodestr.match(/(?:<br>)+$/)) {
         br_end = br[0];
         const regex = new RegExp(`${br_end}$`, "");
@@ -678,7 +680,7 @@ async function bbcode2html(bbcodestr) {
         else if (val) {
             return textarea.replace(/\[img=(.*?)\]/i, function (all, url) {
                 // [img=http://u2.dmhy.org/pic/logo.png]
-                url = url.replace('&amp;','&');
+                url = url.replace('&amp;', '&');
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
@@ -691,7 +693,7 @@ async function bbcode2html(bbcodestr) {
             const lost = checkLostTags(textarea, /\[(?<tag>img)\]/i, /\[\/(?<tag>img)\]/i);
             if (lost.state) { return textarea.replace(/\[img\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[img\](.*?)\[\/img\]/i, function (all, url) {
-                url = url.replace('&amp;','&');
+                url = url.replace('&amp;', '&');
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
@@ -711,7 +713,7 @@ async function bbcode2html(bbcodestr) {
             const lost = checkLostTags(textarea, /\[(?<tag>imglnk)\]/i, /\[\/(?<tag>imglnk)\]/i);
             if (lost.state) { return textarea.replace(/\[imglnk\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[imglnk\](.*?)\[\/imglnk\]/i, function (all, url) {
-                url = url.replace('&amp;','&');
+                url = url.replace('&amp;', '&');
                 if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode(`<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="${url}" style="height: auto; width: auto; max-width: 100%;"></a>`);
@@ -868,7 +870,8 @@ async function bbcode2html(bbcodestr) {
                             data: ({ "body": `[attach]${hash}[/attach]` }),
                             success: async function (d) {
                                 // console.log('成功');
-                                let htmlobj = jq.parseHTML(d);
+                                let htmlobj = document.createElement('div');
+                                htmlobj.innerHTML = d;
                                 let span = jq(htmlobj).find('span');
                                 let attach_normal = jq(span).children('bdo').children('div.attach'); // 普通附件
                                 let attach_image = jq(span).children('bdo').children('img'); // 图片附件
@@ -979,6 +982,7 @@ async function bbcode2html(bbcodestr) {
         let convert_count = 0;
         let index = 0;
         let _textarea = textarea;
+        let bbcode_tag;
         while (bbcode_tag = /\[(?<tag>b|i|u|s|color|size|font|rt|mediainfo|info|code|url|img|imglnk|quote|pre|spoiler|attach)(?<val>=[^\[]*?)?\]/gi.exec(_textarea)) {
             let t;
             let tag = bbcode_tag.groups.tag;
@@ -1085,10 +1089,8 @@ async function bbcode2html(bbcodestr) {
         jq('#preview_bbcode').attr('title', '')
     };
 
-    // console.log('BBCODE2HTML END');
-    // console.log(bbcodestr);
-
-    let htmlobj = jq.parseHTML('<div>' + bbcodestr + '</div>');
+    let htmlobj = document.createElement('div');
+    htmlobj.innerHTML = bbcodestr;
 
     jq(htmlobj).children('fieldset').children('fieldset').children('fieldset').children('fieldset').each(function () {
         jq(this).html(jq(this).html().replace(/(^<legend>[^<]*?<\/legend>)(.*)/i, function (s, x, y) {
@@ -2006,7 +2008,10 @@ async function basicFrame(title, type) {
         </table>
     </td>
 </tr>`
-    parse_html = jq.parseHTML('<table>' + basic_html + '</table>');  // 转为对象
+
+    const parse_html = document.createElement('table');
+    parse_html.innerHTML = basic_html;
+
     const bbcode_button = [
         { "style": "font-weight: bold;font-size:11px; margin-right:3px", "value": "B" },
         { "style": "font-style: italic;font-size:11px;margin-right:3px", "value": "I" },
@@ -2693,7 +2698,7 @@ function SmileIT2(smile, form, text) {
             mediainfo
                 .analyzeData(getSize, readChunk)
                 .then((result) => {
-                    if(result) result = result.replace(/(\n)*$/,'');
+                    if (result) result = result.replace(/(\n)*$/, '');
                     // console.log(result); 
                     addTextBox(dom, `[mediainfo]${result}[/mediainfo]`);
                     resolve();
