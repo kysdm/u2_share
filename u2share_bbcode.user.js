@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.5
+// @version      0.8.6
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -2762,7 +2762,7 @@ function SmileIT2(smile, form, text) {
                 for (let i = 0, len = file_list.length; i < len; i++) {
                     jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
                     console.log('文件: ' + file_list[i].name + '| 类型: ' + file_list[i].type);
-                    if (/\.(flv|mkv|mp4|ts|avi|mov|wmv|mpg|mpeg|rm|ram|swf|f4v|h261|h264|h263|m2ts)/i.test(file_list[i].name)) {  // 常见的视频后缀名
+                    if (/\.(flv|mkv|mp4|ts|avi|mov|wmv|mpg|mpeg|rm|ram|swf|f4v|h261|h264|h263|m2ts)$/i.test(file_list[i].name)) {  // 常见的视频后缀名
                         jq('[name="progress-percent"]').text('解析中...');
                         jq('[name="progress-name"]').text(file_list[i].name);
                         await mediainfoFn(window.parent.document.getElementById(text_area_id), file_list[i])
