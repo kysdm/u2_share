@@ -341,8 +341,8 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                             } else {
                                 entry.file(
                                     async (file) => {
-                                        const path = entry.fullPath.substring(1)
-                                        const newFile = Object.defineProperty(file, 'webkitRelativePath', { value: path, })
+                                        const path = entry.fullPath.substring(1);
+                                        const newFile = Object.defineProperty(file, 'webkitRelativePath', { value: path, });
                                         filesList.push(newFile)
                                         resolve();
                                     },

@@ -62,6 +62,8 @@ function FolderSelected(files) {
     allFiles = [];
     totalSize = 0;
     for (let i = 0; i < files.length; ++i) {
+        if (files[i].name === 'Thumbs.db') continue; // 强制排除缩略图缓存文件
+        console.log(files[i]);
         allFiles.push(files[i]);
         totalSize += files[i].size;
     };
