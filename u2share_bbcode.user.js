@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.6
+// @version      0.8.7
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -522,6 +522,7 @@ async function bbcode2html(bbcodestr) {
     bbcodestr = bbcodestr.replace(/\r\n/g, () => { return '<br>' });
     bbcodestr = bbcodestr.replace(/\n/g, () => { return '<br>' });
     bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
+    bbcodestr = bbcodestr.replace(/  /g, ' &nbsp;');
 
     let br_end = '';  // 对结尾的换行符进行计数
     let br;

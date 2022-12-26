@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.7
+// @version      0.5.8
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -1477,6 +1477,7 @@ function bbcode2html(bbcodestr) {
     bbcodestr = bbcodestr.replace(/\r\n/g, () => { return '<br>' });
     bbcodestr = bbcodestr.replace(/\n/g, () => { return '<br>' });
     bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
+    bbcodestr = bbcodestr.replace(/  /g, ' &nbsp;');
 
     let br_end = '';  // 对结尾的换行符进行计数
     let br;
@@ -1789,6 +1790,7 @@ function bbcode2html(bbcodestr) {
             let val = bbcode_tag.groups.val;
             index = bbcode_tag.index;
             _textarea = _textarea.slice(index);
+            console.log(_textarea);
             // console.log(`当前标签：` + tag + ' | ' + val);
             switch (tag) {
                 case 'b':
