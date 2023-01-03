@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.8
+// @version      0.8.9
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -399,6 +399,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
 
             jq('#qr').click(function (e) {
                 e.preventDefault();
+                this.disabled = true; // 禁止按钮重复点击
 
                 console.log(new File([torrent_blob], "a.torrent", { type: "application/octet-stream" }));
 
@@ -450,6 +451,8 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                     console.error(e);
                     window.alert('上传发生错误\n' + e)
                 });
+
+                this.disabled = false;  // 解除按钮禁止点击
 
             });
 
