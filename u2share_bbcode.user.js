@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.7
+// @version      0.8.8
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -2118,7 +2118,7 @@ const attach2Img = async (emid, dom) => {
     cbbcode = await replaceAsync(cbbcode, /\[attach\](?<hash>\w{32})\[\/attach\]/gi, async (...args) => {
         const { hash } = args.slice(-1)[0];
         return await db.getItem(hash).then(async (value) => {
-            if (value !== null) if (value.attach_type === 'img') return `[img]${value.attach_url}[/img]`;
+            if (value !== null) if (value.attach_type === 'img') return `[img]${value.attach_url.startsWith('https://u2.dmhy.org/') ? value.attach_url : 'https://u2.dmhy.org/' + value.attach_url}[/img]`;
             // 没有匹配到数据时，直接返回原标签
             return args[0];
         });
