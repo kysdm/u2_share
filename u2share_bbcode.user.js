@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.9.0
+// @version      0.9.1
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -265,6 +265,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                 jq('#torrent').val('');
                 jq('#filechooser').val('');
             });
+            jq('#qr').attr('disabled', true);  // 未上传种子前，禁止上传按钮
             // 种子创建按钮
             jq('#torrent_create').click(async function () {
                 let file = jq('#filechooser')[0].files;
@@ -375,23 +376,27 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                             if (filesList[0].name.toLowerCase().match(/.+\.torrent$/)) {
                                 console.log('是种子文件');
                                 jq('#upload_chooser').text(filesList[0].name);
+                                jq('#qr').attr('disabled', false);
                             } else {
                                 console.log('是普通单文件');
                                 jq('#upload_chooser').text(filesList[0].name);
                                 torrent_start();
                                 await CreateTorrentFile(filesList);
+                                jq('#qr').attr('disabled', false);
                             };
                         } else {
                             console.log('文件夹内有一个文件');
                             jq('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
                             torrent_start();
                             await CreateTorrentFolder(filesList);
+                            jq('#qr').attr('disabled', false);
                         };
                     } else {
                         console.log('文件夹内有多个文件');
                         jq('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
                         torrent_start();
                         await CreateTorrentFolder(filesList);
+                        jq('#qr').attr('disabled', false);
                     };
 
                 }

@@ -1,10 +1,10 @@
 "use strict";
 // uglifyjs index.js -c -m -o index.min.js
 var __extends = (this && this.__extends) || (function () {
-    let extendStatics = function (d, b) {
+    var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
             ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (let p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
         return extendStatics(d, b);
     };
     return function (d, b) {
@@ -25,7 +25,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 var __generator = (this && this.__generator) || function (thisArg, body) {
-    let _ = { label: 0, sent: function () { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    var _ = { label: 0, sent: function () { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
     return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function () { return this; }), g;
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
@@ -63,7 +63,7 @@ function FolderSelected(files) {
     totalSize = 0;
     for (let i = 0; i < files.length; ++i) {
         if (files[i].name === 'Thumbs.db') continue; // 强制排除缩略图缓存文件
-        console.log(files[i]);
+        // console.log(files[i]);
         allFiles.push(files[i]);
         totalSize += files[i].size;
     };
@@ -189,13 +189,13 @@ function Finished() {
 };
 
 
-function CreateFromFile(obj) {
+const CreateFromFile = async (obj) => {
     return new Promise((resolve) => {
         let infoObject = obj.info;
         let chunkSize = infoObject["piece length"];
         let file = singleFile;
         let fileSize = file.size;
-        let readChunkSize = 16777216;
+        let readChunkSize = 64 * 1024 * 1024;
         let maxChunkCount = Math.ceil(fileSize / readChunkSize);
         let blocksPerChunk = readChunkSize / blockSize;
         let maxBlockCount = Math.ceil(fileSize / blockSize);
@@ -251,12 +251,10 @@ function CreateFromFile(obj) {
                             reader();
                         }
                     });
-                    if (chunkIndex !== maxChunkCount)
-                        reader();
+                    if (chunkIndex !== maxChunkCount) { reader(); }
                     else {
-                        // console.log('Done.');
                         $('[name="progress-name"]').text('Done.');
-                    }
+                    };
                     return [2 /*return*/];
                 });
             });
@@ -268,14 +266,14 @@ function CreateFromFile(obj) {
     });
 };
 
-function CreateFromFolder(obj) {
+const CreateFromFolder = async (obj) => {
     return new Promise((resolve) => {
         if (!allFiles || !obj.info) return;
         let infoObject = obj.info;
         let chunkSize = infoObject["piece length"];
         let bytesReadSoFar = 0;
         let bytesProcessedSoFar = 0;
-        let readChunkSize = 16777216;
+        let readChunkSize = 64 * 1024 * 1024;  // 文件读到内存的体积 <不合适的数值容易爆内存...>
         let currentChunk = new Uint8Array(readChunkSize);
         let currentChunkDataIndex = 0;
         let chunkIndex = 0;
@@ -303,8 +301,7 @@ function CreateFromFolder(obj) {
         let fr = new FileReader();
         let currentWorkerCount = 0;
         function reader() {
-            if (!creationInProgress)
-                return;
+            if (!creationInProgress) return;
             if (currentWorkerCount === maxWorkerCount) {
                 waitingForWorkers = true;
                 return;
@@ -344,14 +341,14 @@ function CreateFromFolder(obj) {
                             if (waitingForWorkers) {
                                 waitingForWorkers = false;
                                 reader();
-                            }
-                            if (!creationFinished) {
-                                bytesProcessedSoFar += readChunkSize;
-                                let percent = bytesProcessedSoFar / totalSize * 100;
-                                $('.progress > div').css('width', percent + "%")  // 整体进度
-                                // $('[name="progress-percent"]').text(bytesProcessedSoFar + ' / ' + totalSize);
-                                $('[name="progress-total"]').text(percent.toFixed(2) + '%');
-                            }
+                            };
+                            // if (!creationFinished) {
+                            bytesProcessedSoFar += readChunkSize;
+                            let percent = bytesProcessedSoFar / totalSize * 100;
+                            $('.progress > div').css('width', percent + "%")  // 整体进度
+                            // $('[name="progress-percent"]').text(bytesProcessedSoFar + ' / ' + totalSize);
+                            $('[name="progress-total"]').text(percent.toFixed(2) + '%');
+                            // }
                             MaybeFinished();
                         });
                         // set the remaining data
@@ -405,6 +402,16 @@ function CreateFromFolder(obj) {
         reader();
     });
 };
+
+function Failed(fileName, err) {
+    var errorText = fileName ? ("Failed to read file: " + fileName) : "Error reading file";
+    if (err) {
+        errorText += "\nReason: " + err.message + " (" + err.name + ")";
+        console.error(errorText);
+        window.alert(errorText);
+    };
+};
+
 
 // bencode
 function toUTF8Array(str) {
