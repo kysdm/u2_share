@@ -2412,7 +2412,7 @@ function SmileIT2(smile, form, text) {
     await loadScript('https://unpkg.com/mediainfo.js@0.1.8/dist/mediainfo.min.js')
         .then(() => { console.log(location.pathname + ' mediainfo.js 加载完成') })
         .catch(() => { window.alert(location.pathname + '\nmediainfo.js 加载失败') })
-    await loadScript('https://fastly.jsdelivr.net/gh/kysdm/u2_share@main/image-conversion/conversion.min.js')
+    await loadScript('https://userscript.kysdm.com/js/conversion.js')
         .then(() => { console.log(location.pathname + ' conversion.js 加载完成') })
         .catch(() => { window.alert(location.pathname + '\nconversion.js 加载失败.') })
 
