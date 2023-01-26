@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.9.1
+// @version      0.9.2
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -739,7 +739,7 @@ async function bbcode2html(bbcodestr) {
         const lost = checkLostTags(textarea, /\[(?<tag>code)\]/i, /\[\/(?<tag>code)\]/i);
         if (lost.state) { return textarea.replace(/\[code\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[code\](.*?)\[\/code\]/i, function (all, text) {
-            return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${text}</div><br />`);
+            return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${text.replace(/ &nbsp;/g, '  ')}</div><br />`);
         });
     };
 
@@ -749,7 +749,7 @@ async function bbcode2html(bbcodestr) {
         const lost = checkLostTags(textarea, /\[(?<tag>info)\]/i, /\[\/(?<tag>info)\]/i);
         if (lost.state) { return textarea.replace(/\[info\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[info\](.*?)\[\/info\]/i, function (all, text) {
-            return addTempCode(`<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: blue">${lang['info']}</span></b></legend>${text}</fieldset>`);
+            return addTempCode(`<fieldset class="pre"><legend><b><span style="color: blue">${lang['info']}</span></b></legend>${text.replace(/ &nbsp;/g, '  ')}</fieldset>`);
         });
     };
 
@@ -759,7 +759,7 @@ async function bbcode2html(bbcodestr) {
         const lost = checkLostTags(textarea, /\[(?<tag>mediainfo)\]/i, /\[\/(?<tag>mediainfo)\]/i);
         if (lost.state) { return textarea.replace(/\[mediainfo\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[mediainfo\](.*?)\[\/mediainfo\]/i, function (all, text) {
-            return addTempCode(`<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">${lang['mediainfo']}</span></b></legend>${text}</fieldset>`);
+            return addTempCode(`<fieldset class="pre"><legend><b><span style="color: red">${lang['mediainfo']}</span></b></legend>${text.replace(/ &nbsp;/g, '  ')}</fieldset>`);
         });
     };
 

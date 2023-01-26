@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.8
+// @version      0.5.9
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -1686,7 +1686,7 @@ function bbcode2html(bbcodestr) {
         const lost = checkLostTags(textarea, /\[(?<tag>code)\]/i, /\[\/(?<tag>code)\]/i);
         if (lost.state) { return textarea.replace(/\[code\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[code\](.*?)\[\/code\]/i, function (all, text) {
-            return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${text}</div><br />`);
+            return addTempCode(`<br><div class="codetop">${lang['code']}</div><div class="codemain">${text.replace(/ &nbsp;/g, '  ')}</div><br />`);
         });
     };
 
@@ -1696,7 +1696,7 @@ function bbcode2html(bbcodestr) {
         const lost = checkLostTags(textarea, /\[(?<tag>info)\]/i, /\[\/(?<tag>info)\]/i);
         if (lost.state) { return textarea.replace(/\[info\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[info\](.*?)\[\/info\]/i, function (all, text) {
-            return addTempCode(`<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: blue">${lang['info']}</span></b></legend>${text}</fieldset>`);
+            return addTempCode(`<fieldset class="pre"><legend><b><span style="color: blue">${lang['info']}</span></b></legend>${text.replace(/ &nbsp;/g, '  ')}</fieldset>`);
         });
     };
 
@@ -1706,7 +1706,7 @@ function bbcode2html(bbcodestr) {
         const lost = checkLostTags(textarea, /\[(?<tag>mediainfo)\]/i, /\[\/(?<tag>mediainfo)\]/i);
         if (lost.state) { return textarea.replace(/\[mediainfo\]/i, function (s) { return addTempCode(s); }); };
         return textarea.replace(/\[mediainfo\](.*?)\[\/mediainfo\]/i, function (all, text) {
-            return addTempCode(`<fieldset class="codemain" style="background-color: transparent; word-break: break-all"><legend><b><span style="color: red">${lang['mediainfo']}</span></b></legend>${text}</fieldset>`);
+            return addTempCode(`<fieldset class="pre"><legend><b><span style="color: red">${lang['mediainfo']}</span></b></legend>${text.replace(/ &nbsp;/g, '  ')}</fieldset>`);
         });
     };
 
@@ -1790,7 +1790,7 @@ function bbcode2html(bbcodestr) {
             let val = bbcode_tag.groups.val;
             index = bbcode_tag.index;
             _textarea = _textarea.slice(index);
-            console.log(_textarea);
+            // console.log(_textarea);
             // console.log(`当前标签：` + tag + ' | ' + val);
             switch (tag) {
                 case 'b':
