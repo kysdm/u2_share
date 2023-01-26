@@ -2409,7 +2409,7 @@ function SmileIT2(smile, form, text) {
 (async () => {
     if (location.pathname !== '/attachment.php') return;
     // mediainfo.js
-    await loadScript('https://unpkg.com/mediainfo.js@0.1.8/dist/mediainfo.min.js')
+    await loadScript('https://userscript.kysdm.com/js/mediainfo.js')
         .then(() => { console.log(location.pathname + ' mediainfo.js 加载完成') })
         .catch(() => { window.alert(location.pathname + '\nmediainfo.js 加载失败') })
     await loadScript('https://userscript.kysdm.com/js/conversion.js')
@@ -2704,10 +2704,18 @@ function SmileIT2(smile, form, text) {
                     };
                     reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
                 });
+
+            // mediainfo.Option('File_FileName', file.name);
             mediainfo
                 .analyzeData(getSize, readChunk)
                 .then((result) => {
-                    if (result) result = result.replace(/(\n)*$/, '');
+                    if (result) {
+                        result = result.replace(/(\n)*$/, '');
+                        let r = result.split('\n');
+                        let index = r[1].startsWith('Format  ') ? 1 : 2;
+                        r.splice(index, 0, `Complete name                            : ${file.name}`);
+                        result = r.join('\n');
+                    };
                     // console.log(result); 
                     addTextBox(dom, `[mediainfo]${result}[/mediainfo]`);
                     resolve();
