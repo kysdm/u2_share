@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.9.2
+// @version      0.9.3
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -254,6 +254,8 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                 jq('#upload_chooser').text(this.files[0].name);
                 jq('#filechooser').val('');
                 jq('#folderchooser').val('');
+                jq('#qr').attr('disabled', false);  // 解除上传按钮限制
+                jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
             });
             jq('#filechooser').change(function () {
                 jq('#upload_chooser').text(this.files[0].name);
@@ -292,6 +294,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                 jq('[name="progress"]').hide();  // 隐藏进度条
                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', false);
                 jq('#torrent_download').attr('disabled', true);  // 禁用按钮
+                jq('#qr').attr('disabled', true);  // 未上传种子前，禁止上传按钮
                 jq('.progress > div').css('width', "0%");
                 jq('[name="progress-total"],[name="progress-name"],[name="progress-percent"]').text('');
                 jq('#download_link').attr('href', 'javascript:void(0)').attr('download', '');  // 删除下载按钮的URL
@@ -376,7 +379,8 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                             if (filesList[0].name.toLowerCase().match(/.+\.torrent$/)) {
                                 console.log('是种子文件');
                                 jq('#upload_chooser').text(filesList[0].name);
-                                jq('#qr').attr('disabled', false);
+                                jq('#qr').attr('disabled', false);  // 解除上传按钮锁定
+                                jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
                             } else {
                                 console.log('是普通单文件');
                                 jq('#upload_chooser').text(filesList[0].name);
