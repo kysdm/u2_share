@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.5.9
+// @version      0.6.0
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -17,7 +17,7 @@
 /*
 本脚本基于 Bamboo Green 界面风格进行修改
 /*
-
+ 
 /*
 GreasyFork 地址
     https://greasyfork.org/zh-CN/scripts/428545
@@ -73,6 +73,7 @@ function auth() {
                 <td align="center">
                     <button id="auth_token" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button">开始鉴权</button>
                     <button id="auth_token_d" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button">已有TOKEN</button>
+                    <button id="auth_token_reload" class="codebuttons" style="font-size:11px;margin-right:3px;display:none;" type="button">刷新网页</button>
                 </td>
             </tr>
         </tbody>
@@ -90,7 +91,14 @@ function auth() {
             await db.setItem('token', __token);
             await outPutLog(`Token: ${__token}`);
             await outPutLog('鉴权结束');
+            $("#auth_token").hide();
+            $("#auth_token_d").hide();
+            $("#auth_token_reload").show();
         };
+    });
+
+    $("#auth_token_reload").click(function () {
+        window.location.reload();
     });
 
     function getProfile() {
@@ -124,26 +132,27 @@ function auth() {
                     };
                     let profileAuth = { ...profile }; // 复制
                     profileAuth.info = `-----BEGIN API KEY-----\n${key}\n-----END API KEY-----\n\n${profile.info}`; // 在个人说明加入鉴权信息
-                    const p = profileAuth.info.replace(/\r\n/g, () => { return '<br>' }).replace(/\n/g, () => { return '<br>' }).replace(/\r/g, () => { return '<br>' });
-                    await outPutLog(`请检查准备写入个人说明的BBCODE是否正确<br><br><table class="spoiler" width="100%">
-                   <tbody>
-                       <tr>
-                           <td class="colhead">个人说明&nbsp;&nbsp;<button class="spoiler-button-show" style="">检查一下</button>
-                                <button id="auth_profile_check" class="spoiler-button-hide" style="display: none;">检查完成</button></td>
-                       </tr>
-                       <tr>
-                           <td><span class="spoiler-content" style="display: none;">${p}</span></td>
-                       </tr>
-                   </tbody>
-               </table>`);
+                    //         const p = profileAuth.info.replace(/\r\n/g, () => { return '<br>' }).replace(/\n/g, () => { return '<br>' }).replace(/\r/g, () => { return '<br>' });
+                    //         await outPutLog(`请检查准备写入个人说明的BBCODE是否正确<br><br><table class="spoiler" width="100%">
+                    //        <tbody>
+                    //            <tr>
+                    //                <td class="colhead">个人说明&nbsp;&nbsp;<button class="spoiler-button-show" style="">检查一下</button>
+                    //                     <button id="auth_profile_check" class="spoiler-button-hide" style="display: none;">检查完成</button></td>
+                    //            </tr>
+                    //            <tr>
+                    //                <td><span class="spoiler-content" style="display: none;">${p}</span></td>
+                    //            </tr>
+                    //        </tbody>
+                    //    </table>`);
                     await db.setItem('profile', profile); // 存储用户信息
-                    $("#auth_profile_check").click(async function (ev) {
-                        $(this).hide();
-                        $(this).siblings(".spoiler-button-show").show();
-                        $(this).parentsUntil(".spoiler").find("span.spoiler-content:first").hide();
-                        ev.preventDefault();
-                        return resolve(profileAuth);
-                    });
+                    //         $("#auth_profile_check").click(async function (ev) {
+                    //             $(this).hide();
+                    //             $(this).siblings(".spoiler-button-show").show();
+                    //             $(this).parentsUntil(".spoiler").find("span.spoiler-content:first").hide();
+                    //             ev.preventDefault();
+                    //             return resolve(profileAuth);
+                    //         });
+                    return resolve(profileAuth);
                 },
                 error: async d => {
                     await outPutLog('获取个人说明BBCODE失败');
@@ -251,6 +260,8 @@ function auth() {
     };
 
     $("#auth_token").click(async function () {
+        $("#auth_token").attr('disabled', "true");
+        $("#auth_token_d").attr('disabled', "true");
         await outPutLog('鉴权开始');
         await outPutLog('获取鉴权所需的Key');
         getAuthKey()
@@ -275,6 +286,9 @@ function auth() {
             })
             .finally(async () => {
                 await outPutLog('鉴权结束');
+                $("#auth_token").hide();
+                $("#auth_token_d").hide();
+                $("#auth_token_reload").show();
             });
     });
 };
