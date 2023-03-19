@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.9.3
+// @version      0.9.4
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        none
@@ -252,6 +252,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
             // 显示上传的文件名 & 去除其余上传框内的值
             jq('#torrent').change(function () {
                 jq('#upload_chooser').text(this.files[0].name);
+                jq('#upload_chooser').prop('title', this.files[0].name);
                 jq('#filechooser').val('');
                 jq('#folderchooser').val('');
                 jq('#qr').attr('disabled', false);  // 解除上传按钮限制
@@ -259,11 +260,13 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
             });
             jq('#filechooser').change(function () {
                 jq('#upload_chooser').text(this.files[0].name);
+                jq('#upload_chooser').prop('title', this.files[0].name);
                 jq('#torrent').val('');
                 jq('#folderchooser').val('');
             });
             jq('#folderchooser').change(function () {
                 jq('#upload_chooser').text((this.files[0].webkitRelativePath).split("/")[0]);
+                jq('#upload_chooser').prop('title', (this.files[0].webkitRelativePath).split("/")[0]);
                 jq('#torrent').val('');
                 jq('#filechooser').val('');
             });
@@ -291,6 +294,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                 jq('#filechooser').val('');
                 jq('#folderchooser').val('');
                 jq('#upload_chooser').text('');
+                jq('#upload_chooser').prop('title', '');
                 jq('[name="progress"]').hide();  // 隐藏进度条
                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', false);
                 jq('#torrent_download').attr('disabled', true);  // 禁用按钮
@@ -379,11 +383,13 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                             if (filesList[0].name.toLowerCase().match(/.+\.torrent$/)) {
                                 console.log('是种子文件');
                                 jq('#upload_chooser').text(filesList[0].name);
+                                jq('#upload_chooser').prop('title', filesList[0].name);
                                 jq('#qr').attr('disabled', false);  // 解除上传按钮锁定
                                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
                             } else {
                                 console.log('是普通单文件');
                                 jq('#upload_chooser').text(filesList[0].name);
+                                jq('#upload_chooser').prop('title', filesList[0].name);
                                 torrent_start();
                                 await CreateTorrentFile(filesList);
                                 jq('#qr').attr('disabled', false);
@@ -391,6 +397,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                         } else {
                             console.log('文件夹内有一个文件');
                             jq('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
+                            jq('#upload_chooser').prop('title', (filesList[0].webkitRelativePath).split("/")[0]);
                             torrent_start();
                             await CreateTorrentFolder(filesList);
                             jq('#qr').attr('disabled', false);
@@ -398,6 +405,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                     } else {
                         console.log('文件夹内有多个文件');
                         jq('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
+                        jq('#upload_chooser').prop('title', (filesList[0].webkitRelativePath).split("/")[0]);
                         torrent_start();
                         await CreateTorrentFolder(filesList);
                         jq('#qr').attr('disabled', false);
