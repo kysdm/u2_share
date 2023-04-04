@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.0
+// @version      0.6.1
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -1651,7 +1651,7 @@ function bbcode2html(bbcodestr) {
             return textarea.replace(/\[img=(.*?)\]/i, function (all, url) {
                 // [img=http://u2.dmhy.org/pic/logo.png]
                 url = url.replace('&amp;', '&');
-                if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
+                if (/^((?!"|'|>|<|;|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
                 } else {
@@ -1664,7 +1664,7 @@ function bbcode2html(bbcodestr) {
             if (lost.state) { return textarea.replace(/\[img\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[img\](.*?)\[\/img\]/i, function (all, url) {
                 url = url.replace('&amp;', '&');
-                if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
+                if (/^((?!"|'|>|<|;|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
                 } else {
@@ -1684,7 +1684,7 @@ function bbcode2html(bbcodestr) {
             if (lost.state) { return textarea.replace(/\[imglnk\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[imglnk\](.*?)\[\/imglnk\]/i, function (all, url) {
                 url = url.replace('&amp;', '&');
-                if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
+                if (/^((?!"|'|>|<|;|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode(`<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="${url}" style="height: auto; width: auto; max-width: 100%;"></a>`);
                 } else {
