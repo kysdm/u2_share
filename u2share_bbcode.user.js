@@ -1,10 +1,13 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.9.4
+// @version      0.9.5
 // @description  实时预览BBCODE
 // @author       kysdm
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @connect      p.sda1.dev
+// @connect      sm.ms
+// @connect      smms.app
 // @match        *://u2.dmhy.org/*
 // @exclude      *://u2.dmhy.org/shoutbox.php*
 // @icon         https://u2.dmhy.org/favicon.ico
@@ -702,7 +705,7 @@ async function bbcode2html(bbcodestr) {
             return textarea.replace(/\[img=(.*?)\]/i, function (all, url) {
                 // [img=http://u2.dmhy.org/pic/logo.png]
                 url = url.replace('&amp;', '&');
-                if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
+                if (/^((?!"|'|>|<|;|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
                 } else {
@@ -715,7 +718,7 @@ async function bbcode2html(bbcodestr) {
             if (lost.state) { return textarea.replace(/\[img\]/i, function (s) { return addTempCode(s); }); };
             return textarea.replace(/\[img\](.*?)\[\/img\]/i, function (all, url) {
                 url = url.replace('&amp;', '&');
-                if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
+                if (/^((?!"|'|>|<|;|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                     // url 以 .png 之类结尾
                     return addTempCode('<img alt="image" src="' + url + '" style="height: auto; width: auto; max-width: 100%;">');
                 } else {
@@ -2429,11 +2432,16 @@ function SmileIT2(smile, form, text) {
         .catch(() => { window.alert(location.pathname + '\nconversion.js 加载失败.') })
 
     const db = localforage.createInstance({ name: "bbcodejs" });
-    let _t = jq('td').html().match(/(?<val>(\d+?))\sMiB/);
-    const max_size = _t ? _t.groups.val : 4;  // 附件大小限制
     const url = window.URL || window.webkitURL;
+    let upload_size_limit = jq('td').text().match(/(?<val>(\d+?))\sMi[BБ]/);
+    upload_size_limit = upload_size_limit ? upload_size_limit.groups.val : 1;
+    let upload_qty_limit = jq('td').text().match(/(?<val>\d+(?:\/| из | of )\d+)/);
+    upload_qty_limit = upload_qty_limit ? upload_qty_limit.groups.val.replace(' из ', '/').replace(' of ', '/') : null;
+    let upload_extensions_limit = jq('span').attr('title').slice(0, -1).replace(/\//g, ',');
+
     jq('input[type="file"]').attr('multiple', 'multiple'); // 允许多文件上传
-    jq('input[type="file"]').attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.torrent,.zip,.rar,.7z,.gzip,.gz'); // 限制上传文件类型
+    jq('input[type="file"]').attr("id", "files");
+    jq('input[type="file"]').hide();
     jq('input[name="submit"]').attr('type', 'button'); // 更改按钮类型
     jq('input[type="file"]').css('width', '20%'); // 调整文件输入框的宽度
     jq('.embedded').after(`<td name="progress" width="25%"><div class="progress"><div></div></div></td>
@@ -2460,6 +2468,64 @@ function SmileIT2(smile, form, text) {
         'transition': 'all 300ms ease'
     }); // 设置进度条颜色
     jq('[name="progress"]').hide();  // 隐藏进度条
+    jq('[name="altsize"]').hide();  // 隐藏小缩略图选项
+    jq('input[name="submit"]').prop("disabled", true);  // 未选择文件时，禁止点击上传按钮
+
+    const image_host = {
+        "u2.dmhy.org": {
+            "size": upload_size_limit,
+            "extensions": upload_extensions_limit
+        }, "p.sda1.dev": {
+            "size": 5,
+            "extensions": "jpeg,jpg,png,gif,bmp,webp"
+        }, "sm.ms": {
+            "size": 5,
+            "extensions": "jpeg,jpg,png,gif,bmp,webp",
+            "auth": true
+        }
+    };
+
+    jq('[name="submit"]').val('开始上传')
+    jq('td:first').html(jq('td:first').html().replace(/>(.+?)</g, '><'));
+    jq('td:first b').remove();
+    jq('td:first span').remove();
+    jq('td:first').css({ 'display': 'inline-block', 'padding': 0, 'border': 'none' })
+    jq('input[type="file"]').after(`<input class="codebuttons" id="upload_files" style="font-size:11px; margin-right:3px" type="button" value="选择文件" onclick="document.getElementById('files').click()">`);
+    jq('.embedded').append(`<input class="codebuttons" id="upload_auth" style="font-size:11px; margin-right:3px" type="button" value="图床鉴权">`);
+    jq('.embedded').append(`<select class="med codebuttons" style="width: auto; min-width: 160px; margin-left: 10px; margin-right: 10px;"></select>`);
+    jq('select').append(`<option title="${upload_extensions_limit}" value="u2.dmhy.org">U2 [${upload_size_limit}MB] (配额 ${upload_qty_limit})</option>`);
+    jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="p.sda1.dev">流浪图床 [5MB]</option>`)
+    jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="sm.ms">SM.MS [5MB]</option>`)
+
+    jq('#files').change(function () {
+        const emfile = jq('#files')[0];
+        jq('input[name="submit"]').prop("disabled", false);
+        let files_title = new Array();
+        for (let i = 0, len = emfile.files.length; i < len; i++) files_title.push(emfile.files[i].name);
+        jq('#upload_files').val(files_title.length === 0 ? "选择文件" : `已选择${files_title.length}个文件`);
+        jq('#upload_files').attr("title", files_title.join('\n'));
+    });
+
+    jq('select').change(async function () {
+        let website = jq(this).val();
+        let _extensions = '.' + image_host[website].extensions.replace(/,/g, ',.');
+        // console.log(_extensions);
+        jq('input[type="file"]').attr('accept', _extensions); // 限制上传文件类型
+        jq('#upload_auth').prop("disabled", image_host[website].auth === true ? false : true);  // 需要鉴权就解除按钮锁定
+        jq('#upload_auth').attr('title', await db.getItem('image_host_website_auth_' + website));
+        await db.setItem('image_host_website', website);
+        await db.setItem('image_host_website_extensionss_limit', image_host[website].extensions);
+    });
+
+    jq('#upload_auth').click(async function () {
+        // 填入图床需要的鉴权信息
+        const website = jq('select').val();
+        const auth = window.prompt(`注意: 脚本不会为输入值进行校验！\n\n请输入 [${website}] 图床需要的鉴权信息:`);
+        if (auth === null || auth.length === 0) return;
+        await db.setItem('image_host_website_auth_' + website, auth);
+    });
+
+    jq('select').val(await db.getItem('image_host_website') || 'u2.dmhy.org').trigger('change');  // 网页加载后还原上次使用的图床
 
     jq('input[name="submit"]').click(async function () {
         const emfile = jq('input[type="file"]')[0];
@@ -2470,26 +2536,32 @@ function SmileIT2(smile, form, text) {
         };
         jq('.embedded').hide();
         jq('[name="progress"]').show();
-        let attach_hash_list = []; // 存储上传文件的hash值
+        let _list = []; // 存储上传文件的hash值
         await (async () => {
             for (let i = 0, len = emfile.files.length; i < len; i++) {
                 // console.log(emfile.files[i]);
                 jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
                 let f = await imgCompressor(emfile.files[i]).catch(e => { window.alert(e) });
                 if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
-                let hash = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
-                if (hash) attach_hash_list.push(hash); // 存储hash值
+                const val = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
+                console.log(val);
+                if (val) _list.push(val); // 存储hash值
             };
         })();
         // console.log(attach_hash_list);
         let bbcode = '';
-        attach_hash_list.forEach(async (hash) => { bbcode += `[attach]${hash}[/attach]`; })
+        _list.forEach(async (val) => {
+            if (/^[a-zA-Z0-9]{32}$/.test(val)) { bbcode += `[attach]${val}[/attach]`; }
+            else if (/^https?:\/\/.+/.test(val)) { bbcode += `[img]${val}[/img]`; }
+            else { console.error("无效数据 -> " + val); };
+        });
         let em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);  // 获取text_area_id
         addTextBox(window.parent.document.getElementById(em.groups.id), bbcode); // 添加附件bbcode
         window.parent.document.getElementById(em.groups.id).dispatchEvent(new Event('input'));  // 触发input事件
         jq('[name="progress"]').hide();  // 隐藏进度条
         jq('.embedded').show();  // 显示附件菜单
         jq('[name="file"]').val(''); // 清空输入框
+        jq('#upload_files').val("选择文件");
     });
 
     // 判断是否会触发缩图
@@ -2515,6 +2587,8 @@ function SmileIT2(smile, form, text) {
 
             const compress_format = (await db.getItem('default_image_compress_format') || 'webp').toLowerCase();  // 压缩格式
             const default_compress = await db.getItem('default_image_compress'); // 全局压缩
+            const website = await db.getItem('image_host_website');
+            const max_size = image_host[website].size;
 
             if (file.type.indexOf('image') === 0 && file.size > 1024 * 1024 * max_size) {
 
@@ -2610,12 +2684,46 @@ function SmileIT2(smile, form, text) {
     };
 
     // 上传文件
-    const upload = (file, attach_thumb) => {
-        return new Promise((resolve, reject) => {
+    const upload = async (file, attach_thumb) => {
+        // attach_thumb 是判断是否会触发U2返回缩略图的参数 <u2在图片超过一定大小后，会进行一次压缩>
+        const website = await db.getItem('image_host_website');
+        const website_size = image_host[website].size;
+        const website_extensions = image_host[website].extensions.split(',');
+        const auth = await db.getItem('image_host_website_auth_' + website);
+
+        switch (website) {
+            case 'u2.dmhy.org':
+                return await upload1(file, attach_thumb, website_size, website_extensions);
+            case 'p.sda1.dev':
+                return await upload3(file, website_size, website_extensions);
+            case 'sm.ms':
+                return await upload4(file, website_size, website_extensions, auth);
+            default:
+                break;
+        };
+
+    };
+
+    const uploadErrorHandling = (message) => {
+        window.alert(`上传发生错误\n${message}`);
+        console.error(`上传发生错误\n${message}`);
+        jq('[name="progress"]').hide();  // 隐藏进度条
+        jq('[name="file"]').val(''); // 清空输入框
+        jq('#upload_files').val("选择文件");
+        jq('.embedded').show();  // 显示附件菜单
+    };
+
+    // 上传文件
+    const upload1 = (file, attach_thumb, max_size, extensions) => {
+        // u2.dmhy.org
+        return new Promise(async (resolve, reject) => {
+
+            if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
+            if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
+
             let formData = new FormData();  // 创建一个form类型的数据
             formData.append('file', file);  // 获取上传文件的数据
-            if (!/\.(jpg|jpeg|png|gif|webp|torrent|zip|rar|7z|gzip|gz)$/i.test(file.name)) { window.alert(`${file.name} 文件类型不支持`); reject(); return; }
-            if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
+
             jq.ajax({
                 url: "attachment.php", // 接口
                 type: 'post',
@@ -2643,24 +2751,181 @@ function SmileIT2(smile, form, text) {
                         const attach = { "attach_thumb": attach_thumb };
                         await db.setItem(attach_hash, attach); // 写入数据库
                         // 不知道怎么计算的，怎么传都用不完配额
-                        let n = jq(d).find('font[color="red"]').text();  // 剩余上传附件数量
-                        jq('font[color="red"]').text(n); // 更新剩余上传附件数量
+                        let limit = jq(d).find('td').text().match(/(?<val>\d+(?:\/| из | of )\d+)/);
+                        limit = limit ? limit.groups.val.replace(' из ', '/').replace(' of ', '/') : null;
+                        jq('select option[value="u2.dmhy.org"]').text(`U2 [${upload_size_limit}MB] (配额 ${limit})`);
                         jq('.progress > div').css('width', '0%');  // 重置进度条宽度
                         resolve(attach_hash);
                     } catch (e) {
-                        window.alert(e);
-                        console.log(e);
-                        jq('[name="progress"]').hide();  // 隐藏进度条
-                        jq('.embedded').show();  // 显示附件菜单
-                        jq('[name="file"]').val(''); // 清空输入框
+                        uploadErrorHandling(e);
+                        reject(e);
                     };
                 },
                 error: function (e) {
-                    console.log(e)
+                    uploadErrorHandling(e);
                     reject(e);
                 }
             });
         });
+    };
+
+    const upload2 = (file, max_size, extensions) => {
+        // p.sda1.dev formData 此接口某些图片无法上传
+        return new Promise((resolve, reject) => {
+
+            if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
+            if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // https://violentmonkey.github.io/api/gm/
+            GM_xmlhttpRequest({
+                method: "POST",
+                data: formData,
+                // anonymous: true,  // 使用此参数禁止发送cookie会导致无法触发onprogress
+                headers: { "Cookie": "" },// 禁止发送 cookie
+                url: 'https://p.sda1.dev/api/v1/upload_external',
+                upload: {
+                    // 在 violentmonkey 下无法触发此事件
+                    onprogress: function (e) {
+                        if (e.lengthComputable) {
+                            let progressRate = ((e.loaded / e.total) * 100).toFixed(2) + '%';  // 计算上传进度
+                            jq('.progress > div').css('width', progressRate);  // 设置进度条宽度
+                            jq('[name="progress-percent"]').text(`${e.loaded} / ${e.total} | ${progressRate}`);
+                            jq('[name="progress-name"]').text(file.name);
+                        };
+                    }
+                },
+                onload: function (r) {
+                    let j = JSON.parse(r.responseText);
+                    if (j.success) {
+                        let url = j.data.url;
+                        console.log(url);
+                        resolve(url);
+                    } else {
+                        uploadErrorHandling(j.message);
+                        reject(j.message);
+                    };
+                    jq('.progress > div').css('width', '0%');  // 重置进度条宽度
+                },
+                onerror: function (e) {
+                    uploadErrorHandling(e);
+                    reject(e);
+                }
+            });
+
+        });
+
+    };
+
+    const upload3 = (file, max_size, extensions) => {
+        // p.sda1.dev binary
+        return new Promise(async (resolve, reject) => {
+
+            if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
+            if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
+
+            async function fileToBlob(file) {
+                // 为兼容Violentmonkey加的转换，Tampermonkey 打开binary后可直传file
+                const reader = new FileReader();
+                reader.readAsArrayBuffer(file);
+                await new Promise(resolve => reader.onload = resolve);
+                return new Blob([reader.result], { type: file.type });
+            };
+
+            GM_xmlhttpRequest({
+                method: "POST",
+                data: await fileToBlob(file),
+                // binary: true,
+                // anonymous: true,  // 使用此参数禁止发送cookie会导致无法触发onprogress
+                headers: { "Cookie": "" },// 禁止发送 cookie
+                url: `https://p.sda1.dev/api/v1/upload_external_noform?filename=${file.name}`,
+                upload: {
+                    onprogress: function (e) {
+                        if (e.lengthComputable) {
+                            let progressRate = ((e.loaded / e.total) * 100).toFixed(2) + '%';  // 计算上传进度
+                            jq('.progress > div').css('width', progressRate);  // 设置进度条宽度
+                            jq('[name="progress-percent"]').text(`${e.loaded} / ${e.total} | ${progressRate}`);
+                            jq('[name="progress-name"]').text(file.name);
+                        };
+                    }
+                },
+                onload: function (r) {
+                    let j = JSON.parse(r.responseText);
+                    console.log(j);
+                    if (j.success) {
+                        let url = j.data.url;
+                        console.log(url);
+                        resolve(url);
+                    } else {
+                        uploadErrorHandling(j.message);
+                        reject(j.message);
+                    };
+                    jq('.progress > div').css('width', '0%');  // 重置进度条宽度
+                },
+                onerror: function (e) {
+                    uploadErrorHandling(e);
+                    reject(e);
+                }
+            });
+
+        });
+
+    };
+
+    const upload4 = (file, max_size, extensions, auth) => {
+        // sm.ms
+        return new Promise((resolve, reject) => {
+
+            if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
+            if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
+
+            const formData = new FormData();
+            formData.append('smfile', file);
+
+            GM_xmlhttpRequest({
+                method: "POST",
+                data: formData,
+                url: 'https://smms.app/api/v2/upload',
+                // anonymous: true,  // 使用此参数禁止发送cookie会导致无法触发onprogress
+                headers: { 'Authorization': auth, "Cookie": "" },
+                upload: {
+                    onprogress: function (e) {
+                        if (e.lengthComputable) {
+                            let progressRate = ((e.loaded / e.total) * 100).toFixed(2) + '%';  // 计算上传进度
+                            jq('.progress > div').css('width', progressRate);  // 设置进度条宽度
+                            jq('[name="progress-percent"]').text(`${e.loaded} / ${e.total} | ${progressRate}`);
+                            jq('[name="progress-name"]').text(file.name);
+                        };
+                    }
+                },
+                onload: function (r) {
+                    let j = JSON.parse(r.responseText);
+                    console.log(j);
+                    if (j.success) {
+                        let url = j.data.url;
+                        console.log(url);
+                        resolve(url);
+                    } else if (!j.success && j.code === 'image_repeated') {
+                        console.warn('图像重复上传 - ' + file.name)
+                        let url = j.images;
+                        console.log(url);
+                        resolve(url);
+                    } else {
+                        uploadErrorHandling(j.message);
+                        reject(j.message);
+                    };
+                    jq('.progress > div').css('width', '0%');  // 重置进度条宽度
+                },
+                onerror: function (e) {
+                    uploadErrorHandling(e);
+                    reject(e);
+                }
+            });
+
+        });
+
     };
 
     // 图片压缩格式
@@ -2687,7 +2952,7 @@ function SmileIT2(smile, form, text) {
     });
 
     // 将 attach 标签内的图片转为 img 标签 <attach的图片太糊了，要大图还要点一下，好麻烦xd>
-    jq('input[name="submit"]').after(`<input id="bigimg" title="将attach标签的图片转为img标签" style="font-size:11px;margin-right:3px;margin-left:3px" type="button" value="转IMG">`);
+    jq('input[name="submit"]').after(`<input id="bigimg" title="将attach标签的图片转为img标签" style="font-size:11px;margin-right:3px;margin-left:3px" type="button" value="ATTACH转IMG">`);
     jq(`#bigimg`).click(async function () {
         let em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);
         if (!em) return;  // 没有找到id直接返回 
@@ -2786,7 +3051,7 @@ function SmileIT2(smile, form, text) {
 
             jq('.embedded').hide();
             jq('[name="progress"]').show();
-            let attach_hash_list = new Array(); // 存储上传文件的hash值
+            let _list = new Array(); // 存储上传文件的hash值
             await (async () => {
                 for (let i = 0, len = file_list.length; i < len; i++) {
                     jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
@@ -2802,13 +3067,17 @@ function SmileIT2(smile, form, text) {
                     // console.log(file_list[i]);
                     let f = await imgCompressor(file_list[i]).catch(e => { window.alert(e) });
                     if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
-                    let hash = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
-                    if (hash) attach_hash_list.push(hash); // 存储hash值
+                    const val = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
+                    if (val) _list.push(val); // 存储hash值
                 };
             })();
             // console.log(attach_hash_list);
             let bbcode = '';
-            attach_hash_list.forEach(async (hash) => { bbcode += `[attach]${hash}[/attach]`; });
+            _list.forEach(async (val) => {
+                if (/^[a-zA-Z0-9]{32}$/.test(val)) { bbcode += `[attach]${val}[/attach]`; }
+                else if (/^https?:\/\/.+/.test(val)) { bbcode += `[img]${val}[/img]`; }
+                else { console.error("无效数据 -> " + val); };
+            });
             addTextBox(window.parent.document.getElementById(text_area_id), bbcode); // 添加附件bbcode
             window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
             jq('[name="progress"]').hide();  // 隐藏进度条
