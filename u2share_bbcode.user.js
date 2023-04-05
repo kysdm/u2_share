@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.9.5
+// @version      0.9.6
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -3027,8 +3027,12 @@ function SmileIT2(smile, form, text) {
                         jq('[name="progress-total"]').text(`1 / 1`); // 显示当前上传文件的序号
                         let f = await imgCompressor(file).catch(e => { window.alert(e) });
                         if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
-                        let hash = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
-                        addTextBox(window.parent.document.getElementById(text_area_id), `[attach]${hash}[/attach]`); // 添加附件bbcode
+                        const val = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
+                        let bbcode = '';
+                        if (/^[a-zA-Z0-9]{32}$/.test(val)) { bbcode += `[attach]${val}[/attach]`; }
+                        else if (/^https?:\/\/.+/.test(val)) { bbcode += `[img]${val}[/img]`; }
+                        else { console.error("无效数据 -> " + val); continue; };
+                        addTextBox(window.parent.document.getElementById(text_area_id), bbcode); // 添加附件bbcode
                         window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
                     };
                     // console.log(file);
