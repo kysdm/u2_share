@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.9.7
+// @version      0.9.8
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -2843,7 +2843,7 @@ function SmileIT2(smile, form, text) {
                 // binary: true,
                 // anonymous: true,  // 使用此参数禁止发送cookie会导致无法触发onprogress
                 headers: { "Cookie": "" },// 禁止发送 cookie
-                url: `https://p.sda1.dev/api/v1/upload_external_noform?filename=${file.name}`,
+                url: `https://p.sda1.dev/api/v1/upload_external_noform?filename=${encodeURIComponent(file.name.replace(/#/g, '_'))}`,
                 upload: {
                     onprogress: function (e) {
                         if (e.lengthComputable) {
