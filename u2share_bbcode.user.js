@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.9.6
+// @version      0.9.7
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -2423,6 +2423,9 @@ function SmileIT2(smile, form, text) {
 // 附件
 (async () => {
     if (location.pathname !== '/attachment.php') return;
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js')
+        .then(() => { console.log(location.pathname + ' localforage.js 加载完成') })
+        .catch(() => { window.alert(location.pathname + '\localforage.js 加载失败') })
     // mediainfo.js
     await loadScript('https://userscript.kysdm.com/js/mediainfo.js')
         .then(() => { console.log(location.pathname + ' mediainfo.js 加载完成') })
