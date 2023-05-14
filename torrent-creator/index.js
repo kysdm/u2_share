@@ -326,12 +326,12 @@ const CreateFromFolder = async (obj) => {
             readStartIndex += readChunkSize;
 
             let waitingForWorkers = false;
-            let bytes, byteCount, byteIndex, localChunk, currentChunkIndex_1;
+            let bytes, byteIndex, localChunk, currentChunkIndex_1;
 
             reader.onloadend = function (ev) {
                 return new Promise((resolve) => {
                     bytes = new Uint8Array(ev.target.result);
-                    byteCount = bytes.length;
+                    // byteCount = bytes.length;
                     if (currentChunkDataIndex + bytes.length >= readChunkSize) {  // readChunkSize 单次读取的块大小  || currentChunkDataIndex 初始是0
                         byteIndex = readChunkSize - currentChunkDataIndex;  //  16 * 1024 * 1024 - 0   byteIndex 字节索引
                         currentChunk.set(bytes.subarray(0, byteIndex), currentChunkDataIndex);  // Uint8Array对象 大小 16 * 1024 * 1024   创建一个新的chunk，防止位于文件结尾和开头
@@ -716,7 +716,7 @@ function SetupSha1WithoutWorkers() {
         };
     };
     // console.log('sha1加载完成');
-    $('#upload_torrent,#upload_file,#upload_folder,#torrent_create,#torrent_clean').attr('disabled', false);  // 当sha1函数完成加载，解除按钮禁用
+    $('#upload_file,#upload_folder,#torrent_create').attr('disabled', false);  // 当sha1函数完成加载，解除按钮禁用
     sha1 = function (data) {
         return new Promise(function (resolve) { return EnqueueWorkerTask(data, resolve); });
     };

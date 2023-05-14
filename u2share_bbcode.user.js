@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.9.8
+// @version      0.9.9
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -198,12 +198,12 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                 <input type="file" accept=".torrent" class="file" style="display: none" id="torrent" name="file">
                 <input type="file" class="file" style="display: none" id="filechooser">
                 <input type="file" class="file" style="display: none" id="folderchooser" webkitdirectory>
-                <input class="codebuttons" id="upload_torrent" style="font-size:11px; margin-right:3px" type="button" value="上传种子" onclick="document.getElementById('torrent').click()" disabled>
+                <input class="codebuttons" id="upload_torrent" style="font-size:11px; margin-right:3px" type="button" value="上传种子" onclick="document.getElementById('torrent').click()">
                 <input class="codebuttons" id="upload_file" style="font-size:11px; margin-right:3px" type="button" value="单文件制种" onclick="document.getElementById('filechooser').click()" disabled>
                 <input class="codebuttons" id="upload_folder" style="font-size:11px; margin-right:3px" type="button" value="多文件制种" onclick="document.getElementById('folderchooser').click()" disabled>
                 <input class="codebuttons" id="torrent_create" style="font-size:11px; margin-right:3px" type="button" value="开始制种" disabled>
                 <input class="codebuttons" id="torrent_download" style="font-size:11px; margin-right:3px" type="button" value="下载种子" disabled>
-                <input class="codebuttons" id="torrent_clean" style="font-size:11px; margin-right:3px" type="button" value="清除" disabled>
+                <input class="codebuttons" id="torrent_clean" style="font-size:11px; margin-right:3px" type="button" value="清除">
             </<td>
             <td style="border: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 <a id="download_link" style="display: none"></a>
