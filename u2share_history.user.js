@@ -2137,7 +2137,7 @@ function lang_init(lang) {
             "GiB": " GiB",
             "TiB": " TiB",
             "current_time": " CurrentTime",
-            "anonymous_user": " system",
+            "anonymous_user": " AnonymousUser",
             "system": " 系統",
             "banned": "Banned",
             "google_backup": "Google Backup",
