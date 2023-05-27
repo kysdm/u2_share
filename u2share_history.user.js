@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.1
+// @version      0.6.2
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -948,7 +948,7 @@ async function torrentInfoHistory() {
                 if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
                 else if (history_data[i].edited_id === null && history_data[i].edited_name === '匿名') return lang['anonymous_user']
-                else if (history_data[i].edited_id === null && history_data[i].edited_name === '系统') return '系统'
+                else if (history_data[i].edited_id === null && history_data[i].edited_name === '系统') return lang['system']
                 else if (history_data[i].edited_name !== null && history_data[i].edited_id !== null) return ' ' + history_data[i].edited_name + '(' + history_data[i].edited_id + ')'
                 else return ' @BUG@'
             })()
@@ -1419,7 +1419,7 @@ async function torrentInfoHistoryReset() {
                 if (history_data[i].self === 0) return lang['current_time']
                 else if (history_data[i].edited_name === null && history_data[i].edited_id === null) return ''
                 else if (history_data[i].edited_id === null && history_data[i].edited_name === '匿名') return lang['anonymous_user']
-                else if (history_data[i].edited_id === null && history_data[i].edited_name === '系统') return '系统'
+                else if (history_data[i].edited_id === null && history_data[i].edited_name === '系统') return lang['system']
                 else if (history_data[i].edited_name !== null && history_data[i].edited_id !== null) return ' ' + history_data[i].edited_name + '(' + history_data[i].edited_id + ')'
                 else return ' @BUG@'
             })()
@@ -1985,6 +1985,7 @@ function lang_init(lang) {
             "TiB": " TiB",
             "current_time": " 当前时间",
             "anonymous_user": " 匿名用户",
+            "system": " 系统",
             "banned": "已屏蔽",
             "google_backup": "谷歌备份",
             "google_send": "发送请求",
@@ -2035,6 +2036,7 @@ function lang_init(lang) {
             "TiB": " TiB",
             "current_time": " 當前時間",
             "anonymous_user": " 匿名用戶",
+            "system": " 系統",
             "banned": "已屏蔽",
             "google_backup": "Google備份",
             "google_send": "發送請求",
@@ -2085,6 +2087,7 @@ function lang_init(lang) {
             "TiB": " TiB",
             "current_time": " 當前時間",
             "anonymous_user": " 匿名用戶",
+            "system": " 系統",
             "banned": "已屏蔽",
             "google_backup": "Google備份",
             "google_send": "發送請求",
@@ -2134,7 +2137,8 @@ function lang_init(lang) {
             "GiB": " GiB",
             "TiB": " TiB",
             "current_time": " CurrentTime",
-            "anonymous_user": " AnonymousUser",
+            "anonymous_user": " system",
+            "system": " 系統",
             "banned": "Banned",
             "google_backup": "Google Backup",
             "google_send": "Send request",
@@ -2185,6 +2189,7 @@ function lang_init(lang) {
             "TiB": " TiБ",
             "current_time": " Текущее время",
             "anonymous_user": " Анонимный пользователь",
+            "system": " система",
             "banned": "Забанен",
             "google_backup": "Резервное копирование Google",
             "google_send": "послать запрос",
