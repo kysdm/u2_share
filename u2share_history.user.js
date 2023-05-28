@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.2
+// @version      0.6.3
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -315,6 +315,8 @@ function forumCommentHistoryReset() {
                     return;
                 };
 
+                const locked = __comment.some(x => x.locked === 1);  // 检查帖子是否被锁定
+
                 // 计算pid出现次数
                 let pidList = __comment.map(x => x.pid);
                 let counts = new Object();
@@ -351,7 +353,7 @@ function forumCommentHistoryReset() {
                 );
 
                 // 还原标题
-                $('span[id="top"]').html(__comment[0]['topics']);
+                $('span[id="top"]').html(`${__comment[0]['topics']}${locked ? '&nbsp;&nbsp;<b>[<font class="striking">锁定</font>]</b></span>': ''}`);
 
                 __comment.forEach(x => {
                     const bbcode_html = `<div style="margin-top: 8pt; margin-bottom: 8pt;">
