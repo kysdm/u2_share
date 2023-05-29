@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.3
+// @version      0.6.4
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -353,7 +353,7 @@ function forumCommentHistoryReset() {
                 );
 
                 // 还原标题
-                $('span[id="top"]').html(`${__comment[0]['topics']}${locked ? '&nbsp;&nbsp;<b>[<font class="striking">锁定</font>]</b></span>': ''}`);
+                $('span[id="top"]').html(`${__comment[0]['topics']}${locked ? '&nbsp;&nbsp;<b>[<font class="striking">锁定</font>]</b></span>' : ''}`);
 
                 __comment.forEach(x => {
                     const bbcode_html = `<div style="margin-top: 8pt; margin-bottom: 8pt;">
@@ -916,6 +916,11 @@ async function torrentInfoHistory() {
                     </div>
                 </td></tr>`
             );
+            $(`td[class='rowhead nowrap']:contains('${lang['torrent_info']}')`).next('td').find('.no_border_wide:last')
+                .before(`<td id="torrent_ver" class="no_border_wide"></td>`)
+                .before(`<td id="torrent_piece_length" class="no_border_wide"></td>`);
+            $('#torrent_ver').html(`<b>${lang['torrent_ver']}:</b>&nbsp;${history_data[i].torrent_ver}`);
+            $('#torrent_piece_length').html(`<b>${lang['torrent_piece_length']}:</b>&nbsp;${convertBytesToAutoUnit(history_data[i].torrent_piece_length)}`);
             $('#ctdescr').val(history_data[i].description_info);
             $('#codedescr').closest('a').click(function () {
                 $('#cdescr').toggle();
@@ -970,9 +975,13 @@ async function torrentInfoHistory() {
             else if ($("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").length === 1 && history_data[i].subtitle === null) {
                 $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").parent().remove();
             };
+
             $("td[class='rowhead nowrap']:contains(" + lang['subtitle'] + ")").next().text(history_data[i].subtitle); // 副标题
             $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").last().next().html('<div id="kdescr"><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + bbcode2html(history_data[i].description_info) + '</bdo></span></div>'); // 描述
             $('#ctdescr').val(history_data[i].description_info);  // 描述代码
+            $('#torrent_ver').html(`<b>${lang['torrent_ver']}:</b>&nbsp;${history_data[i].torrent_ver}`);  // 版本
+            $('#torrent_piece_length').html(`<b>${lang['torrent_piece_length']}:</b>&nbsp;${convertBytesToAutoUnit(history_data[i].torrent_piece_length)}`); // 区块
+
             if ($('h3').length === 1) { // 已经通过候选的种子
                 $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(((p) => {
                     if (p.uploader_id === null && p.uploader_name === '匿名') return '<i>' + lang['anonymous'] + '</i>'; // 匿名发布
@@ -1258,7 +1267,7 @@ async function torrentInfoHistoryReset() {
         });
     });
 
-    const putFileTree = (__json) => {
+    const putFileTree = (index) => {
         // 插入ID
         let counter = 0;
         const InsertSeq = (data) => {
@@ -1326,8 +1335,8 @@ async function torrentInfoHistoryReset() {
             };
         };
 
-        // let __json = history_data[0].torrent_tree;
-        if (__json === null) {
+        let torrent_tree = history_data[index].torrent_tree;
+        if (torrent_tree === null) {
             // console.log('tree 为空');
             $('#file_tree').html(
                 `<table>
@@ -1335,13 +1344,15 @@ async function torrentInfoHistoryReset() {
                         <tr>
                             <td class="no_border_wide"><b>${lang['files']}</b>: ${history_data[0].torrent_files_qty}<br></td>
                             <td class="no_border_wide"><b>${lang['info_hash']}:</b>&nbsp;${history_data[0].torrent_hash}</td>
+                            <td id="torrent_ver" class="no_border_wide"><b>${lang['torrent_ver']}:</b>&nbsp;${history_data[0].torrent_ver}</td>
+                            <td id="torrent_piece_length" class="no_border_wide"><b>${lang['torrent_piece_length']}:</b>&nbsp;${convertBytesToAutoUnit(history_data[0].torrent_piece_length)}</td>
                         </tr>
                     </tbody>
                 </table>`
             );
             return;
         };
-        __json = stringify(__json, function (a, b) {
+        torrent_tree = stringify(torrent_tree, function (a, b) {
             // 对keys排序
             if (typeof (a.value) !== 'object' || typeof (b.value) !== 'object') return 0;
             if (a.value.type === 'directory' && b.value.type === 'file') {
@@ -1352,19 +1363,19 @@ async function torrentInfoHistoryReset() {
                 return a.key.toLowerCase() < b.key.toLowerCase() ? -1 : 1;
             };
         });
-        __json = JSON.parse(__json);
-        __json = InsertSeq(__json);
+        torrent_tree = JSON.parse(torrent_tree);
+        torrent_tree = InsertSeq(torrent_tree);
         // console.log(__json);
         let f_id = 0;  // 元素id
         let f_html = '';  // 文件列表
         const space = '&nbsp;&nbsp;&nbsp;&nbsp;';  // 缩进
-        tree(__json, 0);
+        tree(torrent_tree, 0);
         // $('#filelist').find('tr').after(f_html);
         $('#file_tree').html(
             `<table>
                 <tbody>
                     <tr>
-                        <td class="no_border_wide"><b>${lang['files']}</b>: ${history_data[0].torrent_files_qty}<br>
+                        <td class="no_border_wide"><b>${lang['files']}</b>: ${history_data[index].torrent_files_qty}<br>
                         <span id="showfl" style="display: inline;">
                             <a href="javascript: viewfilelist()">[查看列表]</a>
                         </span>
@@ -1378,7 +1389,9 @@ async function torrentInfoHistoryReset() {
                     : ''
             })()}
                         </td>
-                        <td class="no_border_wide"><b>${lang['info_hash']}:</b>&nbsp;${history_data[0].torrent_hash}</td>
+                        <td class="no_border_wide"><b>${lang['info_hash']}:</b>&nbsp;${history_data[index].torrent_hash}</td>
+                        <td id="torrent_ver" class="no_border_wide"><b>${lang['torrent_ver']}:</b>&nbsp;${history_data[index].torrent_ver}</td>
+                        <td id="torrent_piece_length" class="no_border_wide"><b>${lang['torrent_piece_length']}:</b>&nbsp;${convertBytesToAutoUnit(history_data[index].torrent_piece_length)}</td>
                     </tr>
                 </tbody>
             </table>
@@ -1401,7 +1414,7 @@ async function torrentInfoHistoryReset() {
             </span>`
         );
     };
-    putFileTree(history_data[0].torrent_tree);  // 运行一次，生成列表
+    putFileTree(0);  // 运行一次，生成列表
 
     for (let i = 0, len = history_data.length; i < len; i++) { // 循环插入到选择列表中
         $("#history_select").append("<option value='" + history_data[i].self + "'>"
@@ -1453,7 +1466,7 @@ async function torrentInfoHistoryReset() {
                 + (() => { if (history_data[i].torrent_size) { return '&nbsp;&nbsp;&nbsp;<b>' + lang['size'] + ':</b>&nbsp;' + convert(history_data[i].torrent_size) } else { return ''; } })()
                 + '&nbsp;&nbsp;&nbsp;<b>' + lang['category'] + '</b>:&nbsp;' + history_data[i].category
             );
-            putFileTree(history_data[i].torrent_tree);
+            putFileTree(i);
         };
     });
 };
@@ -1978,6 +1991,8 @@ function lang_init(lang) {
             "history_text_empty": "半条历史记录都没有 (ノДＴ) @@",
             "torrent_title": "种子标题",
             "torrent_info": "种子信息",
+            "torrent_ver": "种子版本",
+            "torrent_piece_length": "种子区块",
             "files": "文件数",
             "info_hash": "种子散列值",
             "show_or_hide": "显示&nbsp;/&nbsp;隐藏",
@@ -2029,6 +2044,8 @@ function lang_init(lang) {
             "history_text_empty": "半條歷史記錄都沒有 (ノДＴ) @@",
             "torrent_title": "種子標題",
             "torrent_info": "種子訊息",
+            "torrent_ver": "種子版本",
+            "torrent_piece_length": "種子區塊",
             "files": "文件數",
             "info_hash": "種子散列值",
             "show_or_hide": "顯示&nbsp;/&nbsp;隱藏",
@@ -2080,6 +2097,8 @@ function lang_init(lang) {
             "history_text_empty": "半條歷史記錄都沒有 (ノДＴ) @@",
             "torrent_title": "種子標題",
             "torrent_info": "種子訊息",
+            "torrent_ver": "種子版本",
+            "torrent_piece_length": "種子區塊",
             "files": "文件數",
             "info_hash": "種子散列值",
             "show_or_hide": "顯示&nbsp;/&nbsp;隱藏",
@@ -2131,6 +2150,8 @@ function lang_init(lang) {
             "history_text_empty": "Half of the history is missing (ノДＴ) @@",
             "torrent_title": "Torrent Title",
             "torrent_info": "Torrent Info",
+            "torrent_ver": "Torrent Ver",
+            "torrent_piece_length": "Torrent Piece Length",
             "files": "Files",
             "info_hash": "Info hash",
             "show_or_hide": "Show&nbsp;or&nbsp;Hide",
@@ -2181,7 +2202,9 @@ function lang_init(lang) {
             "history_text_error": "Отказ нагрузки (ノДＴ) %%",
             "history_text_empty": "Половина истории отсутствует (ノДＴ) @@",
             "torrent_title": "Имя торрента",
-            "torrent_info": "Информация о торренте	",
+            "torrent_info": "Информация о торренте",
+            "torrent_ver": "Торрент Вер",
+            "torrent_piece_length": "Длина куска торрента",
             "files": "Файлов в торренте",
             "info_hash": "Информация о ХЕШЕ",
             "show_or_hide": "Показать&nbsp;/&nbsp;Скрыть",
@@ -2313,3 +2336,16 @@ const objectKeys = Object.keys || function (obj) {
     }
     return keys;
 };
+
+function convertBytesToAutoUnit(bytes) {
+    var units = ['B', 'KB', 'MB'];
+    var unitIndex = 0;
+
+    while (bytes >= 1024 && unitIndex < units.length - 1) {
+        bytes >>= 10;
+        unitIndex++;
+    };
+
+    return bytes + units[unitIndex];
+};
+
