@@ -313,8 +313,10 @@ const CreateFromFolder = async (obj) => {
         let readStartIndex = 0;  // 切片起始位置
         let fileSize = currentFile.size;  // 当前处理的文件大小
         let currentWorkerCount = 0;
+        let waitingForWorkers = false;
 
         function run() {
+            let bytes, byteIndex, localChunk, currentChunkIndex_1;
 
             if (currentWorkerCount === maxWorkerCount) {
                 waitingForWorkers = true;
@@ -325,8 +327,7 @@ const CreateFromFolder = async (obj) => {
             reader.readAsArrayBuffer(currentFile.slice(readStartIndex, readStartIndex + readChunkSize));
             readStartIndex += readChunkSize;
 
-            let waitingForWorkers = false;
-            let bytes, byteIndex, localChunk, currentChunkIndex_1;
+            waitingForWorkers = false;
 
             reader.onloadend = function (ev) {
                 return new Promise((resolve) => {
