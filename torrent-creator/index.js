@@ -137,6 +137,7 @@ async function CreateTorrentFolder(emfile) {
 var blobUrl;
 // var torrent_blob; // 种子文件
 async function Finished() {
+    const db = localforage.createInstance({ name: "bbcodejs" });
     creationFinished = true;
     if (!torrentObject || !torrentObject.info) return;
     let pieceBytes = torrentObject.info["pieces"];

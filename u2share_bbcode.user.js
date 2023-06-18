@@ -236,8 +236,9 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
             // https://github.com/kysdm/u2_share/blob/main/torrent-creator/sha1.min.js
             // jsdelivr刷新太慢了，直接CF反代了
             await loadScript('https://userscript.kysdm.com/js/torrent-creator.js')
-                .then(() => { console.log(location.pathname + ' torrent-creator.js 加载完成') })
-                .catch(() => { window.alert(location.pathname + '\ntorrent-creator.js 加载失败.') })
+                .catch(() => { window.alert(location.pathname + '\ntorrent-creator.js 加载失败.') });
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js')
+                .catch(() => { window.alert(location.pathname + '\localforage.js 加载失败') });
 
             jq('.progress').css({
                 'width': '99%',
