@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      0.9.9
+// @version      1.0.0
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -190,6 +190,8 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
 
         // 种子文件
         (async () => {
+            const db = localforage.createInstance({ name: "bbcodejs" });
+
             jq('#torrent').parent().html(`
 <table style="width: 100%; table-layout:fixed; border: none; cellspacing: none; cellpadding: none;">
     <tbody>
@@ -385,6 +387,9 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                         if (filesList[0].webkitRelativePath === filesList[0].name) {
                             if (filesList[0].name.toLowerCase().match(/.+\.torrent$/)) {
                                 console.log('是种子文件');
+                                const response = await fetch(URL.createObjectURL(filesList[0]));
+                                const torrent_blob = await response.blob();
+                                await db.setItem(`upload_autoSaveMessageTorrentBlob`, torrent_blob)
                                 jq('#upload_chooser').text(filesList[0].name);
                                 jq('#upload_chooser').prop('title', filesList[0].name);
                                 jq('#qr').attr('disabled', false);  // 解除上传按钮锁定
@@ -417,10 +422,10 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                 }
             });
 
-            jq('#qr').click(function (e) {
+            jq('#qr').click(async function (e) {
                 e.preventDefault();
                 this.disabled = true; // 禁止按钮重复点击
-
+                const torrent_blob = await db.getItem(`upload_autoSaveMessageTorrentBlob`)
                 console.log(new File([torrent_blob], "a.torrent", { type: "application/octet-stream" }));
 
                 const p = () => {
@@ -455,9 +460,18 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                     });
                 };
 
-                p().then(r => {
+                p().then(async r => {
                     if (!r.responseURL.includes("takeupload.php")) {
                         // 成功上传
+                        console.log('成功上传');
+                        clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 关闭自动保存
+                        await db.removeItem(`upload_autoSaveMessageTime`);
+                        await db.removeItem(`upload_autoSaveMessageBbcode`);
+                        await db.removeItem(`upload_autoSaveMessageSmallDescr`);
+                        await db.removeItem(`upload_autoSaveMessagePoster`);
+                        await db.removeItem(`upload_autoSaveMessageAnidbUrl`);
+                        await db.removeItem(`upload_autoSaveMessageInfo`);
+                        console.log(`upload-已清空保存的记录`);
                         window.open(r.responseURL, '_self');
                         return;
                     };
@@ -1232,28 +1246,27 @@ async function autoSaveUpload() {
     let db = localforage.createInstance({ name: "bbcodejs" });
     let num_global = 10;
     let num = 10; // 设置自动保存时间间隔
-    let type = 'upload';
 
-    jq('#bbcodejs_tbody').append(`<span id="${type}_auto_save_on" style="margin-top:4px; display: none;">`
-        + `<input id="${type}_switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">`
-        + `<input id="${type}_clean" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="清空数据">`
-        + `<span id="${type}_auto_save_text" style="display: none;">&nbsp;&nbsp;正在保存...</span></span>`
-        + `<span id="${type}_auto_save_off" style="margin-top:4px; display: none;">`
+    jq('#bbcodejs_tbody').append(`<span id="upload_auto_save_on" style="margin-top:4px; display: none;">`
+        + `<input id="upload_switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">`
+        + `<input id="upload_clean" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="清空数据">`
+        + `<span id="upload_auto_save_text" style="display: none;">&nbsp;&nbsp;正在保存...</span></span>`
+        + `<span id="upload_auto_save_off" style="margin-top:4px; display: none;">`
         + `<input class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已关闭"></span>`
     );
 
     // 为自动保存按钮绑定事件
-    jq(`#${type}_auto_save_on`).click(async function (ev) {
+    jq(`#upload_auto_save_on`).click(async function (ev) {
         let button_id = jq(ev.target).attr('id');
         switch (button_id) {
-            case `${type}_switch`:
+            case `upload_switch`:
                 jq(this).hide(); // 隐藏按钮
-                jq(`#${type}_auto_save_off`).fadeIn(200); // 渐入按钮
-                clearInterval(jq(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
-                await db.setItem(`${type}_autoSaveMessageSwitch`, false)
-                console.log(`${type}-自动保存已关闭`);
+                jq(`#upload_auto_save_off`).fadeIn(200); // 渐入按钮
+                clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 清除setInterval函数
+                await db.setItem(`upload_autoSaveMessageSwitch`, false)
+                console.log(`upload-自动保存已关闭`);
                 break;
-            case `${type}_clean`:
+            case `upload_clean`:
                 if (window.confirm("确定清空所有数据?")) {
                     await clean();
                     window.location.reload();
@@ -1262,39 +1275,40 @@ async function autoSaveUpload() {
         };
     });
 
-    jq(`#${type}_auto_save_off`).click(async function () {
+    jq(`#upload_auto_save_off`).click(async function () {
         jq(this).hide();
-        jq(`#${type}_auto_save_on`).fadeIn(200);
-        jq(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
-        await db.setItem(`${type}_autoSaveMessageSwitch`, true)
-        console.log(`${type}-自动保存已开启`);
+        jq(`#upload_auto_save_on`).fadeIn(200);
+        jq(`#upload_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
+        await db.setItem(`upload_autoSaveMessageSwitch`, true)
+        console.log(`upload-自动保存已开启`);
     });
 
     // 提交候选后 删除所有保存的记录 (如果要还原记录，直接返回上一页即可。)
-    jq("#qr").click(async function () {
-        await clean();
-        console.log(`${type}-提交上传请求`);
+    jq('#qr').click(async function () {
+        // clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 关闭自动保存
+        // await clean();
+        console.log(`upload-提交上传请求`);
     });
 
     async function clean() {
-        // clearInterval(jq(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
-        await db.removeItem(`${type}_autoSaveMessageTime`);
-        await db.removeItem(`${type}_autoSaveMessageBbcode`);
-        await db.removeItem(`${type}_autoSaveMessageSmallDescr`);
-        await db.removeItem(`${type}_autoSaveMessagePoster`);
-        await db.removeItem(`${type}_autoSaveMessageAnidbUrl`);
-        await db.removeItem(`${type}_autoSaveMessageInfo`);
-        console.log(`${type}-已清空保存的记录`);
+        // clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 清除setInterval函数
+        await db.removeItem(`upload_autoSaveMessageTime`);
+        await db.removeItem(`upload_autoSaveMessageBbcode`);
+        await db.removeItem(`upload_autoSaveMessageSmallDescr`);
+        await db.removeItem(`upload_autoSaveMessagePoster`);
+        await db.removeItem(`upload_autoSaveMessageAnidbUrl`);
+        await db.removeItem(`upload_autoSaveMessageInfo`);
+        console.log(`upload-已清空保存的记录`);
     }
 
     // 检测上次自动保存开关设定
-    db.getItem(`${type}_autoSaveMessageSwitch`).then(async (value) => {
+    db.getItem(`upload_autoSaveMessageSwitch`).then(async (value) => {
         if (value) {
             // 启用自动保存
-            jq(`#${type}_auto_save_on`).show();
-            jq(`#${type}_auto_save_off`).hide();
-            jq(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
-            console.log(`${type}-自动保存已开启`);
+            jq(`#upload_auto_save_on`).show();
+            jq(`#upload_auto_save_off`).hide();
+            jq(`#upload_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
+            console.log(`upload-自动保存已开启`);
             // 检查输入框内是否已经存在字符串
             let _input_bool = true
             jq("#compose input[id$='-input']").add('#browsecat').add('.bbcode').each(function () {
@@ -1303,10 +1317,10 @@ async function autoSaveUpload() {
             });
             // 当输入框是空白时 还原上次备份内容
             if (_input_bool) {
-                await db.getItem(`${type}_autoSaveMessageSmallDescr`).then((value) => { jq('[name="small_descr"]').val(value); })
-                await db.getItem(`${type}_autoSaveMessagePoster`).then((value) => { jq('[name="poster"]').val(value); });
-                await db.getItem(`${type}_autoSaveMessageAnidbUrl`).then((value) => { jq('[name="anidburl"]').val(value); });
-                await db.getItem(`${type}_autoSaveMessageInfo`).then((value) => {
+                await db.getItem(`upload_autoSaveMessageSmallDescr`).then((value) => { jq('[name="small_descr"]').val(value); })
+                await db.getItem(`upload_autoSaveMessagePoster`).then((value) => { jq('[name="poster"]').val(value); });
+                await db.getItem(`upload_autoSaveMessageAnidbUrl`).then((value) => { jq('[name="anidburl"]').val(value); });
+                await db.getItem(`upload_autoSaveMessageInfo`).then((value) => {
                     if (value === null) return;
                     jq('#browsecat').val(value['category']);
                     // jq('#browsecat').change(); // 手动触发列表更改事件 <使用两个jq后失效了 $('#browsecat').change(); 是有效的>
@@ -1315,26 +1329,26 @@ async function autoSaveUpload() {
                     jq('#autocheck_placeholder').children().eq(1).prop("checked", !value['auto_pass']);
                     for (var key in value) { if (/^(anime|manga|music|other)/.test(key)) { jq('#' + key + '-input').val(value[key]); }; };
                 });
-                await db.getItem(`${type}_autoSaveMessageBbcode`).then((value) => { jq('.bbcode').val(value); }) // 还原bbcode输入框内容
+                await db.getItem(`upload_autoSaveMessageBbcode`).then((value) => { jq('.bbcode').val(value); }) // 还原bbcode输入框内容
                 jq('[class^="torrent-info-input"]').trigger("input"); // 手动触发标题更改
                 jq('.bbcode').trigger("input"); // 手动触发bbcode更改
-                console.log(`${type}-已还原备份`);
+                console.log(`upload-已还原备份`);
             };
         } else {
             // 关闭自动保存
-            jq(`#${type}_auto_save_on`).hide();
-            jq(`#${type}_auto_save_off`).show();
-            await db.setItem(`${type}_autoSaveMessageSwitch`, false)
-            console.log(`${type}-自动保存已关闭`);
+            jq(`#upload_auto_save_on`).hide();
+            jq(`#upload_auto_save_off`).show();
+            await db.setItem(`upload_autoSaveMessageSwitch`, false)
+            console.log(`upload-自动保存已关闭`);
         }
     }).catch(async function (err) {
         // 第一次运行时 <第一次运行时 数据库里什么都没有>
         // 这段其实也没什么用 数据库中如果没有这个键值 会返回 undefined
-        jq(`#${type}_auto_save_on`).hide();
-        jq(`#${type}_auto_save_off`).show();
-        await db.setItem(`${type}_autoSaveMessageSwitch`, false)
-        console.log(`${type}-第一次运行`);
-        console.log(`${type}-${err}`);
+        jq(`#upload_auto_save_on`).hide();
+        jq(`#upload_auto_save_off`).show();
+        await db.setItem(`upload_autoSaveMessageSwitch`, false)
+        console.log(`upload-第一次运行`);
+        console.log(`upload-${err}`);
     });
 
     async function autoSave() {
@@ -1342,9 +1356,9 @@ async function autoSaveUpload() {
         num--
         // console.log(num);
         if (num <= 0) {
-            jq(`#${type}_auto_save_text`).fadeIn(2000);
-            await db.setItem(`${type}_autoSaveMessageTime`, getDateString()) // 记录保存数据的时间 string
-            await db.setItem(`${type}_autoSaveMessageBbcode`, jq('.bbcode').val()) // 保存 bbcode 输入框内容
+            jq(`#upload_auto_save_text`).fadeIn(2000);
+            await db.setItem(`upload_autoSaveMessageTime`, getDateString()) // 记录保存数据的时间 string
+            await db.setItem(`upload_autoSaveMessageBbcode`, jq('.bbcode').val()) // 保存 bbcode 输入框内容
             // 倒是可以跑循环 直接拿到数据 就不用写这么大一堆了 (
             let upload_info = {
                 "category": jq('#browsecat').val(),
@@ -1375,12 +1389,12 @@ async function autoSaveUpload() {
                 "music_format": jq('#music_format-input').val(),
                 "other_title": jq('#other_title-input').val()
             };
-            await db.setItem(`${type}_autoSaveMessageInfo`, upload_info);
-            await db.setItem(`${type}_autoSaveMessageSmallDescr`, jq('[name="small_descr"]').val());
-            await db.setItem(`${type}_autoSaveMessagePoster`, jq('[name="poster"]').val());
-            await db.setItem(`${type}_autoSaveMessageAnidbUrl`, jq('[name="anidburl"]').val());
+            await db.setItem(`upload_autoSaveMessageInfo`, upload_info);
+            await db.setItem(`upload_autoSaveMessageSmallDescr`, jq('[name="small_descr"]').val());
+            await db.setItem(`upload_autoSaveMessagePoster`, jq('[name="poster"]').val());
+            await db.setItem(`upload_autoSaveMessageAnidbUrl`, jq('[name="anidburl"]').val());
             num = num_global + 4; // 重置倒计时
-            jq(`#${type}_auto_save_text`).fadeOut(2000);
+            jq(`#upload_auto_save_text`).fadeOut(2000);
         };
     }
 };

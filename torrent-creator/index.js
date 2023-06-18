@@ -135,8 +135,8 @@ async function CreateTorrentFolder(emfile) {
 };
 
 var blobUrl;
-var torrent_blob; // 种子文件
-function Finished() {
+// var torrent_blob; // 种子文件
+async function Finished() {
     creationFinished = true;
     if (!torrentObject || !torrentObject.info) return;
     let pieceBytes = torrentObject.info["pieces"];
@@ -178,7 +178,7 @@ function Finished() {
             a_1.click();
         };
     };
-    torrent_blob = blob;
+    await db.setItem(`upload_autoSaveMessageTorrentBlob`, blob)
     $('.progress > div').css('width', "100%");  // 整体进度
     $('[name="progress-total"]').text('100%');
     $('[name="progress-name"]').text('Done.');
@@ -266,9 +266,9 @@ const CreateFromFile = (obj) => {
             return tasks;
         };
 
-        limitPromisePool(run(), maxWorkerCount).then(() => {
+        limitPromisePool(run(), maxWorkerCount).then(async () => {
             infoObject["pieces"] = Array.from(pieces);
-            Finished();
+           await Finished();
             $('[name="progress-name"]').text('Done.');
             resolve();
         }).catch(error => {
@@ -330,7 +330,7 @@ const CreateFromFolder = async (obj) => {
             waitingForWorkers = false;
 
             reader.onloadend = function (ev) {
-                return new Promise((resolve) => {
+                return new Promise(async (resolve) => {
                     bytes = new Uint8Array(ev.target.result);
                     // byteCount = bytes.length;
                     if (currentChunkDataIndex + bytes.length >= readChunkSize) {  // readChunkSize 单次读取的块大小  || currentChunkDataIndex 初始是0
@@ -340,7 +340,7 @@ const CreateFromFolder = async (obj) => {
                         currentChunk = new Uint8Array(readChunkSize);
                         currentChunkIndex_1 = chunkIndex++;  // 写入pieces时的切片索引值
                         currentWorkerCount++;
-                        sha1({ data: localChunk, blockSize: chunkSize, readChunkSize: readChunkSize }).then(function (result) {
+                        sha1({ data: localChunk, blockSize: chunkSize, readChunkSize: readChunkSize }).then(async function (result) {
                             processedBlockCount += blocksPerChunk;
                             pieces.set(result, currentChunkIndex_1 * blocksPerChunk * 20);
                             currentWorkerCount--;
@@ -349,7 +349,7 @@ const CreateFromFolder = async (obj) => {
                             let percent = bytesProcessedSoFar / totalSize * 100;
                             $('.progress > div').css('width', percent + "%")  // 整体进度
                             $('[name="progress-total"]').text(percent.toFixed(2) + '%');
-                            MaybeFinished();
+                            await  MaybeFinished();
                             resolve()
                         });
                         // set the remaining data
@@ -369,14 +369,14 @@ const CreateFromFolder = async (obj) => {
                         if (++fileIndex === files.length) {
                             // all files are processed, calculate the hash of the current buffer data
                             if (currentChunkDataIndex !== 0) {
-                                sha1({ data: currentChunk, blockSize: chunkSize, readChunkSize: currentChunkDataIndex }).then(function (result) {
+                                sha1({ data: currentChunk, blockSize: chunkSize, readChunkSize: currentChunkDataIndex }).then(async function (result) {
                                     processedBlockCount += blocksPerChunk;
                                     pieces.set(result, chunkIndex * blocksPerChunk * 20);
-                                    MaybeFinished();
+                                   await MaybeFinished();
                                     resolve()
                                 });
                             } else {
-                                MaybeFinished();
+                                await MaybeFinished();
                                 resolve()
                             };
                             // console.log("All files read");
@@ -399,11 +399,11 @@ const CreateFromFolder = async (obj) => {
 
         };
 
-        function MaybeFinished() {
+        async function MaybeFinished() {
             if (processedBlockCount >= totalBlockCount) {
                 infoObject["pieces"] = Array.from(pieces);
                 $('[name="progress-percent"]').text(allFiles.length + ' / ' + allFiles.length);
-                Finished();
+                await Finished();
                 resolve(1);
             };
         };
