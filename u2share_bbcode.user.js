@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.0.0
+// @version      1.0.1
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -256,12 +256,18 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
             }); // 设置进度条颜色
             jq('[name="progress"]').hide();  // 隐藏进度条
             // 显示上传的文件名 & 去除其余上传框内的值
-            jq('#torrent').change(function () {
+            jq('#torrent').change(async function () {
+                const response = await fetch(URL.createObjectURL(this.files[0]));
+                const torrent_blob = await response.blob();
+                console.log(torrent_blob);
+                await db.setItem(`upload_autoSaveMessageTorrentBlob`, torrent_blob);
+                await db.setItem(`upload_autoSaveMessageTorrentName`, this.files[0].name);
                 jq('#upload_chooser').text(this.files[0].name);
                 jq('#upload_chooser').prop('title', this.files[0].name);
                 jq('#filechooser').val('');
                 jq('#folderchooser').val('');
                 jq('#qr').attr('disabled', false);  // 解除上传按钮限制
+                jq('#torrent_download').attr('disabled', false);  // 解除按钮禁用
                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
             });
             jq('#filechooser').change(function () {
@@ -291,11 +297,10 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                     window.alert('没有选择任何文件');
                     return;
                 };
-                console.log(torrent_blob);
+                // console.log(torrent_blob);
             });
             // 清空
-            jq('#torrent_clean').click(function () {
-                torrent_blob = null;
+            jq('#torrent_clean').click(async function () {
                 jq('#torrent').val('');
                 jq('#filechooser').val('');
                 jq('#folderchooser').val('');
@@ -303,13 +308,24 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                 jq('#upload_chooser').prop('title', '');
                 jq('[name="progress"]').hide();  // 隐藏进度条
                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', false);
-                jq('#torrent_download').attr('disabled', true);  // 禁用按钮
-                jq('#qr').attr('disabled', true);  // 未上传种子前，禁止上传按钮
+                jq('#torrent_download,#qr').attr('disabled', true);  // 禁用按钮
                 jq('.progress > div').css('width', "0%");
                 jq('[name="progress-total"],[name="progress-name"],[name="progress-percent"]').text('');
                 jq('#download_link').attr('href', 'javascript:void(0)').attr('download', '');  // 删除下载按钮的URL
+                await db.removeItem(`upload_autoSaveMessageTorrentBlob`);
+                await db.removeItem(`upload_autoSaveMessageTorrentName`);
             });
-
+            var downloadUrl;
+            jq('#torrent_download').click(async function () {
+                let a_1 = document.getElementById("download_link");
+                const blob = await db.getItem(`upload_autoSaveMessageTorrentBlob`);
+                const filename = await db.getItem(`upload_autoSaveMessageTorrentName`);
+                window.URL.revokeObjectURL(downloadUrl);
+                downloadUrl = window.URL.createObjectURL(blob);
+                a_1.href = downloadUrl;
+                a_1.download = filename;
+                a_1.click();
+            });
             const torrent_start = () => {
                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create,#torrent_download,#torrent_clean').attr('disabled', true);
                 jq('[name="progress"]').show();
@@ -390,10 +406,12 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                                 console.log('是种子文件');
                                 const response = await fetch(URL.createObjectURL(filesList[0]));
                                 const torrent_blob = await response.blob();
-                                await db.setItem(`upload_autoSaveMessageTorrentBlob`, torrent_blob)
+                                await db.setItem(`upload_autoSaveMessageTorrentBlob`, torrent_blob);
+                                await db.setItem(`upload_autoSaveMessageTorrentName`, filesList[0].name);
                                 jq('#upload_chooser').text(filesList[0].name);
                                 jq('#upload_chooser').prop('title', filesList[0].name);
                                 jq('#qr').attr('disabled', false);  // 解除上传按钮锁定
+                                jq('#torrent_download').attr('disabled', false);  // 解除按钮禁用
                                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
                             } else {
                                 console.log('是普通单文件');
@@ -401,7 +419,9 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                                 jq('#upload_chooser').prop('title', filesList[0].name);
                                 torrent_start();
                                 await CreateTorrentFile(filesList);
+                                await db.setItem(`upload_autoSaveMessageTorrentName`, filesList[0].name);
                                 jq('#qr').attr('disabled', false);
+                                jq('#torrent_download').attr('disabled', false);
                             };
                         } else {
                             console.log('文件夹内有一个文件');
@@ -409,7 +429,9 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                             jq('#upload_chooser').prop('title', (filesList[0].webkitRelativePath).split("/")[0]);
                             torrent_start();
                             await CreateTorrentFolder(filesList);
+                            await db.setItem(`upload_autoSaveMessageTorrentName`, (filesList[0].webkitRelativePath).split("/")[0]);
                             jq('#qr').attr('disabled', false);
+                            jq('#torrent_download').attr('disabled', false);
                         };
                     } else {
                         console.log('文件夹内有多个文件');
@@ -417,7 +439,9 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                         jq('#upload_chooser').prop('title', (filesList[0].webkitRelativePath).split("/")[0]);
                         torrent_start();
                         await CreateTorrentFolder(filesList);
+                        await db.setItem(`upload_autoSaveMessageTorrentName`, (filesList[0].webkitRelativePath).split("/")[0]);
                         jq('#qr').attr('disabled', false);
+                        jq('#torrent_download').attr('disabled', false);
                     };
 
                 }
@@ -465,13 +489,15 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                     if (!r.responseURL.includes("takeupload.php")) {
                         // 成功上传
                         console.log('成功上传');
-                        clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 关闭自动保存
+                        clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 停止自动保存
                         await db.removeItem(`upload_autoSaveMessageTime`);
                         await db.removeItem(`upload_autoSaveMessageBbcode`);
                         await db.removeItem(`upload_autoSaveMessageSmallDescr`);
                         await db.removeItem(`upload_autoSaveMessagePoster`);
                         await db.removeItem(`upload_autoSaveMessageAnidbUrl`);
                         await db.removeItem(`upload_autoSaveMessageInfo`);
+                        await db.removeItem(`upload_autoSaveMessageTorrentBlob`);
+                        await db.removeItem(`upload_autoSaveMessageTorrentName`);
                         console.log(`upload-已清空保存的记录`);
                         window.open(r.responseURL, '_self');
                         return;
@@ -1284,7 +1310,7 @@ async function autoSaveUpload() {
         console.log(`upload-自动保存已开启`);
     });
 
-    // 提交候选后 删除所有保存的记录 (如果要还原记录，直接返回上一页即可。)
+    // 提交候选
     jq('#qr').click(async function () {
         // clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 关闭自动保存
         // await clean();
@@ -1331,6 +1357,40 @@ async function autoSaveUpload() {
                     for (var key in value) { if (/^(anime|manga|music|other)/.test(key)) { jq('#' + key + '-input').val(value[key]); }; };
                 });
                 await db.getItem(`upload_autoSaveMessageBbcode`).then((value) => { jq('.bbcode').val(value); }) // 还原bbcode输入框内容
+                await db.getItem(`upload_autoSaveMessageTorrentBlob`).then(async (blob) => {
+                    if (!blob || blob.size <= 0) return;
+
+                    const button = document.getElementById('torrent_create');
+                    const torrent_name = await db.getItem(`upload_autoSaveMessageTorrentName`);
+
+                    if (!button.disabled) {
+                        jq('#upload_chooser').text(`${torrent_name}`);
+                        jq('#upload_chooser').prop('title', '自动保存的种子文件');
+                        jq('#qr').attr('disabled', false);  // 解除上传按钮锁定
+                        jq('#torrent_download').attr('disabled', false);
+                        jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
+                        return;
+                    };
+
+                    // 执行上述代码时，sha1.js未加载完成
+                    let observer = new MutationObserver(function (mutations) {
+                        mutations.forEach(function (mutation) {
+                            if (mutation.attributeName === 'disabled') {
+                                let disabled = mutation.target.disabled;
+                                if (!disabled) {
+                                    jq('#upload_chooser').text(`${torrent_name}`);
+                                    jq('#upload_chooser').prop('title', '自动保存的种子文件');
+                                    jq('#qr').attr('disabled', false);  // 解除上传按钮锁定
+                                    jq('#torrent_download').attr('disabled', false);
+                                    jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
+                                    observer.disconnect();
+                                }
+                            }
+                        });
+                    });
+                    const config = { attributes: true };
+                    observer.observe(button, config);
+                });
                 jq('[class^="torrent-info-input"]').trigger("input"); // 手动触发标题更改
                 jq('.bbcode').trigger("input"); // 手动触发bbcode更改
                 console.log(`upload-已还原备份`);

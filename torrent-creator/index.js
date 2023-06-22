@@ -134,7 +134,7 @@ async function CreateTorrentFolder(emfile) {
     await CreateFromFolder(torrentObject);
 };
 
-var blobUrl;
+// var blobUrl;
 // var torrent_blob; // 种子文件
 async function Finished() {
     const db = localforage.createInstance({ name: "bbcodejs" });
@@ -144,41 +144,7 @@ async function Finished() {
     let pieceStr = "";
     for (let i = 0; i < pieceBytes.length; ++i) pieceStr += String.fromCharCode(pieceBytes[i]);
     torrentObject.info["pieces"] = pieceStr;
-    let blob = new Blob();
-    function UpdateBlob() {
-        if (torrentObject)
-            blob = new Blob([new Uint8Array(Bencode.EncodeToBytes(torrentObject))], { type: "application/octet-stream" });
-    };
-    UpdateBlob();
-    let button = document.getElementById("torrent_download");
-    let msSaveOrOpenBlob = window.navigator.msSaveOrOpenBlob;
-    if (msSaveOrOpenBlob) {
-        button.onclick = function () {
-            if (torrentChanged) {
-                if (!SetTorrentData()) return;
-                UpdateBlob();
-            };
-            if (torrentObject && torrentObject.info) msSaveOrOpenBlob(blob, torrentObject.info.name + ".torrent");
-        };
-    } else {
-        let a_1 = document.getElementById("download_link");
-        a_1.download = torrentObject.info.name + ".torrent";
-        window.URL.revokeObjectURL(blobUrl);
-        blobUrl = window.URL.createObjectURL(blob);
-        a_1.href = blobUrl;
-        button.onclick = function () {
-            if (torrentChanged) {
-                if (!SetTorrentData() || !torrentObject || !torrentObject.info)
-                    return;
-                UpdateBlob();
-                a_1.download = torrentObject.info.name + ".torrent";
-                window.URL.revokeObjectURL(blobUrl);
-                blobUrl = window.URL.createObjectURL(blob);
-                a_1.href = blobUrl;
-            };
-            a_1.click();
-        };
-    };
+    let blob = new Blob([new Uint8Array(Bencode.EncodeToBytes(torrentObject))], { type: "application/octet-stream" });
     await db.setItem(`upload_autoSaveMessageTorrentBlob`, blob)
     $('.progress > div').css('width', "100%");  // 整体进度
     $('[name="progress-total"]').text('100%');
@@ -269,7 +235,7 @@ const CreateFromFile = (obj) => {
 
         limitPromisePool(run(), maxWorkerCount).then(async () => {
             infoObject["pieces"] = Array.from(pieces);
-           await Finished();
+            await Finished();
             $('[name="progress-name"]').text('Done.');
             resolve();
         }).catch(error => {
@@ -350,7 +316,7 @@ const CreateFromFolder = async (obj) => {
                             let percent = bytesProcessedSoFar / totalSize * 100;
                             $('.progress > div').css('width', percent + "%")  // 整体进度
                             $('[name="progress-total"]').text(percent.toFixed(2) + '%');
-                            await  MaybeFinished();
+                            await MaybeFinished();
                             resolve()
                         });
                         // set the remaining data
@@ -373,7 +339,7 @@ const CreateFromFolder = async (obj) => {
                                 sha1({ data: currentChunk, blockSize: chunkSize, readChunkSize: currentChunkDataIndex }).then(async function (result) {
                                     processedBlockCount += blocksPerChunk;
                                     pieces.set(result, chunkIndex * blocksPerChunk * 20);
-                                   await MaybeFinished();
+                                    await MaybeFinished();
                                     resolve()
                                 });
                             } else {
