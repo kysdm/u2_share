@@ -615,8 +615,8 @@ function SetupSha1WithoutWorkers() {
                 })
                 .then(response => {
                     if (!response.ok) {
-                        window.alert('sha1.js 下载失败')
-                        console.error('Network response was not OK');
+                        console.error('sha1.js 下载失败')
+                        // console.error('Network response was not OK');
                         reject('Network response was not OK');
                     };
                     return response.text();
@@ -626,8 +626,8 @@ function SetupSha1WithoutWorkers() {
                     resolve(URL.createObjectURL(blob));
                 })
                 .catch(error => {
-                    window.alert('sha1.js 崩溃')
-                    console.error('There has been a problem with your fetch operation:', error);
+                    console.error('sha1.js 崩溃')
+                    // console.error('There has been a problem with your fetch operation:', error);
                     reject(error);
                 });
         });

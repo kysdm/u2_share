@@ -47,11 +47,8 @@ GreasyFork 地址
     jq('body').append(`<script type="text/javascript"> function createTag(name,attribute,content){var components=[];components.push('[');components.push(name);if(attribute!==null){components.push('=');components.push(attribute)}components.push(']');if(content!==null){components.push(content);components.push('[/');components.push(name);components.push(']')}return components.join('')};function replaceText(str,start,end,replacement){return str.substring(0,start)+replacement+str.substring(end)};function addTag(textArea,name,attribute,content,surround){var selStart=textArea.selectionStart;var selEnd=textArea.selectionEnd;if(selStart===null||selEnd===null){selStart=selEnd=textArea.value.length}var selTarget=selStart+name.length+2+(attribute?attribute.length+1:0);if(selStart===selEnd){textArea.value=replaceText(textArea.value,selStart,selEnd,createTag(name,attribute,content))}else{var replacement=null;if(surround){replacement=createTag(name,attribute,textArea.value.substring(selStart,selEnd))}else{replacement=createTag(name,attribute,content)}textArea.value=replaceText(textArea.value,selStart,selEnd,replacement)}textArea.setSelectionRange(selTarget,selTarget)};</script>`);
 
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js')
-        .catch(() => { window.alert(location.pathname + '\localforage.js 加载失败') });
     await loadScript('https://userscript.kysdm.com/js/mediainfo.js?v=1.0')
-        .catch(() => { window.alert(location.pathname + '\nmediainfo.js 加载失败') })
     await loadScript('https://userscript.kysdm.com/js/conversion.js?v=1.0')
-        .catch(() => { window.alert(location.pathname + '\nconversion.js 加载失败.') })
 
     // DB
     const db = localforage.createInstance({ name: "bbcodejs" });
