@@ -146,6 +146,7 @@ async function Finished() {
     torrentObject.info["pieces"] = pieceStr;
     let blob = new Blob([new Uint8Array(Bencode.EncodeToBytes(torrentObject))], { type: "application/octet-stream" });
     await db.setItem(`upload_autoSaveMessageTorrentBlob`, blob)
+    await db.setItem(`upload_autoSaveMessageTorrentName`, torrentObject.info.name);
     $('.progress > div').css('width', "100%");  // 整体进度
     $('[name="progress-total"]').text('100%');
     $('[name="progress-name"]').text('Done.');
@@ -684,7 +685,11 @@ function SetupSha1WithoutWorkers() {
         };
     };
     // console.log('sha1加载完成');
-    $('#upload_file,#upload_folder,#torrent_create').attr('disabled', false);  // 当sha1函数完成加载，解除按钮禁用
+    // 当sha1函数完成加载，解除按钮禁用
+    document.getElementById('upload_file').disabled = false;
+    document.getElementById('upload_folder').disabled = false;
+    document.getElementById('torrent_create').disabled = false;
+
     sha1 = function (data) {
         return new Promise(function (resolve) { return EnqueueWorkerTask(data, resolve); });
     };
