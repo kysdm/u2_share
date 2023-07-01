@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.0.1
+// @version      1.0.2
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -233,6 +233,36 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
     </tbody>
 </table>`);
 
+            jq('#compose').find("tr:eq(1)").after(`
+<tr>
+    <td class="rowhead nowrap" valign="top" align="right">种子信息</td>
+    <td class="rowfollow" valign="top" align="left">
+        <table style="width: 100%; table-layout:fixed; border: none; cellspacing: none; cellpadding: none;">
+            <tbody>
+                <tr>
+                    <td style="width: auto; border: none;">
+                        <span id="torrentinfo1" style="text-align: left;">-</span>
+                        <span id="torrentinfo2" style="text-align: left;"></span>
+                    </td>
+                    <td style="width: auto; border: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <font id="torrentinfo3" style="color: red; font-weight: bold;"></font>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </td>
+</tr>
+<tr>
+    <td class="rowhead nowrap" valign="top" align="right">种子列表<br>
+        <span id="expandall" style="font-weight: normal; display: inline;"><a href="javascript: expandall(true)">[全部展开]</a></span>
+        <span id="closeall"  style="font-weight: normal; display: none;"><a href="javascript: expandall(false)">[全部关闭]</a></span>
+    </td>
+    <td id="file_tree" class="rowfollow" align="left">
+        <span id="filelist" style="display: block;">-</span>
+    </td>
+</tr>
+`);
+
             // https://github.com/kysdm/u2_share/blob/main/torrent-creator/sha1.min.js
             // jsdelivr刷新太慢了，直接CF反代了
             await loadScript('https://userscript.kysdm.com/js/torrent-creator.js')
@@ -269,14 +299,36 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                 jq('#qr').attr('disabled', false);  // 解除上传按钮限制
                 jq('#torrent_download').attr('disabled', false);  // 解除按钮禁用
                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
+                await pageTorrentInfo();
             });
             jq('#filechooser').change(function () {
+                const encoder = new TextEncoder();
+                const maxPathName = this.files[0].name;
+                const maxPathUtf8Bytes = encoder.encode(maxPathName).length;
+                if (maxPathUtf8Bytes > 230 && !confirm(`文件路径超长，是否继续？\n\n${maxPathUtf8Bytes}\n\n${maxPathName}`)) return;
                 jq('#upload_chooser').text(this.files[0].name);
                 jq('#upload_chooser').prop('title', this.files[0].name);
                 jq('#torrent').val('');
                 jq('#folderchooser').val('');
             });
             jq('#folderchooser').change(function () {
+                const encoder = new TextEncoder();
+                let maxPathUtf8Bytes = 0;
+                let maxPathName = new Array();
+
+                for (const file of this.files) {
+                    const currentPath = file.webkitRelativePath;
+                    const currentPathUtf8Bytes = encoder.encode(currentPath).length;
+                    if (maxPathUtf8Bytes < currentPathUtf8Bytes) {
+                        maxPathUtf8Bytes = currentPathUtf8Bytes;
+                        maxPathName = [currentPath];
+                    } else if (maxPathUtf8Bytes === currentPathUtf8Bytes) {
+                        maxPathName.push(currentPath);
+                    };
+                };
+
+                if (maxPathUtf8Bytes > 230 && !confirm(`文件路径超长，是否继续？\n\n${maxPathUtf8Bytes}\n\n${maxPathName.join('\n')}`)) return;
+
                 jq('#upload_chooser').text((this.files[0].webkitRelativePath).split("/")[0]);
                 jq('#upload_chooser').prop('title', (this.files[0].webkitRelativePath).split("/")[0]);
                 jq('#torrent').val('');
@@ -290,9 +342,13 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                 if (file.length !== 0) {
                     torrent_start();
                     await CreateTorrentFile(file);
+                    await db.setItem(`upload_autoSaveMessageTorrentName`, file[0].name);
+                    await pageTorrentInfo();
                 } else if (folder.length !== 0) {
                     torrent_start();
                     await CreateTorrentFolder(folder);
+                    await db.setItem(`upload_autoSaveMessageTorrentName`, (folder[0].webkitRelativePath).split("/")[0]);
+                    await pageTorrentInfo();
                 } else {
                     window.alert('没有选择任何文件');
                     return;
@@ -314,6 +370,10 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                 jq('#download_link').attr('href', 'javascript:void(0)').attr('download', '');  // 删除下载按钮的URL
                 await db.removeItem(`upload_autoSaveMessageTorrentBlob`);
                 await db.removeItem(`upload_autoSaveMessageTorrentName`);
+                jq('#torrentinfo1').html('-');
+                jq('#torrentinfo2').html('');
+                jq('#torrentinfo3').html('');
+                jq('#file_tree').html('-');
             });
             var downloadUrl;
             jq('#torrent_download').click(async function () {
@@ -332,7 +392,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
             };
 
             // 拖拽
-            jq('#compose > table > tbody > tr:lt(3)').on({
+            jq('#compose > table > tbody > tr:lt(5)').on({
                 dragenter: function (e) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -347,6 +407,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
 
                     // 递归扫描文件夹
                     const filesList = new Array();
+                    const encoder = new TextEncoder();
                     const scanFiles = (entry) => {
                         return new Promise(async (resolve, reject) => {
                             if (entry.isDirectory) {
@@ -395,7 +456,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                         if (item.kind === "file") {
                             let entry = item.webkitGetAsEntry();
                             await scanFiles(entry);
-                            console.log('完成文件/文件夹扫描');
+                            // console.log('完成文件/文件夹扫描');
                         };
                     };
 
@@ -403,7 +464,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                         // 可能是单文件也可能是文件夹内只有一个文件
                         if (filesList[0].webkitRelativePath === filesList[0].name) {
                             if (filesList[0].name.toLowerCase().match(/.+\.torrent$/)) {
-                                console.log('是种子文件');
+                                // console.log('是种子文件');
                                 const response = await fetch(URL.createObjectURL(filesList[0]));
                                 const torrent_blob = await response.blob();
                                 await db.setItem(`upload_autoSaveMessageTorrentBlob`, torrent_blob);
@@ -413,8 +474,12 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                                 jq('#qr').attr('disabled', false);  // 解除上传按钮锁定
                                 jq('#torrent_download').attr('disabled', false);  // 解除按钮禁用
                                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
+                                await pageTorrentInfo();
                             } else {
-                                console.log('是普通单文件');
+                                // console.log('是普通单文件');
+                                const maxPathName = filesList[0].name;
+                                const maxPathUtf8Bytes = encoder.encode(maxPathName).length;
+                                if (maxPathUtf8Bytes > 230 && !confirm(`文件路径超长，是否继续？\n\n${maxPathUtf8Bytes}\n\n${maxPathName}`)) return;
                                 jq('#upload_chooser').text(filesList[0].name);
                                 jq('#upload_chooser').prop('title', filesList[0].name);
                                 torrent_start();
@@ -422,9 +487,13 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                                 await db.setItem(`upload_autoSaveMessageTorrentName`, filesList[0].name);
                                 jq('#qr').attr('disabled', false);
                                 jq('#torrent_download').attr('disabled', false);
+                                await pageTorrentInfo();
                             };
                         } else {
-                            console.log('文件夹内有一个文件');
+                            // console.log('文件夹内有一个文件');
+                            const maxPathName = filesList[0].webkitRelativePath
+                            const maxPathUtf8Bytes = encoder.encode(maxPathName).length;
+                            if (maxPathUtf8Bytes > 230 && !confirm(`文件路径超长，是否继续？\n\n${maxPathUtf8Bytes}\n\n${maxPathName}`)) return;
                             jq('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
                             jq('#upload_chooser').prop('title', (filesList[0].webkitRelativePath).split("/")[0]);
                             torrent_start();
@@ -432,9 +501,26 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                             await db.setItem(`upload_autoSaveMessageTorrentName`, (filesList[0].webkitRelativePath).split("/")[0]);
                             jq('#qr').attr('disabled', false);
                             jq('#torrent_download').attr('disabled', false);
+                            await pageTorrentInfo();
                         };
                     } else {
-                        console.log('文件夹内有多个文件');
+                        // console.log('文件夹内有多个文件');
+                        let maxPathUtf8Bytes = 0;
+                        let maxPathName = new Array();
+
+                        for (const file of filesList) {
+                            const currentPath = file.webkitRelativePath;
+                            const currentPathUtf8Bytes = encoder.encode(currentPath).length;
+                            if (maxPathUtf8Bytes < currentPathUtf8Bytes) {
+                                maxPathUtf8Bytes = currentPathUtf8Bytes;
+                                maxPathName = [currentPath];
+                            } else if (maxPathUtf8Bytes === currentPathUtf8Bytes) {
+                                maxPathName.push(currentPath);
+                            };
+                        };
+
+                        if (maxPathUtf8Bytes > 230 && !confirm(`文件路径超长，是否继续？\n\n${maxPathUtf8Bytes}\n\n${maxPathName.join('\n')}`)) return;
+
                         jq('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
                         jq('#upload_chooser').prop('title', (filesList[0].webkitRelativePath).split("/")[0]);
                         torrent_start();
@@ -442,6 +528,7 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
                         await db.setItem(`upload_autoSaveMessageTorrentName`, (filesList[0].webkitRelativePath).split("/")[0]);
                         jq('#qr').attr('disabled', false);
                         jq('#torrent_download').attr('disabled', false);
+                        await pageTorrentInfo();
                     };
 
                 }
@@ -450,14 +537,14 @@ jq('body').append(`<script type="text/javascript"> function createTag(name,attri
             jq('#qr').click(async function (e) {
                 e.preventDefault();
                 this.disabled = true; // 禁止按钮重复点击
-                const torrent_blob = await db.getItem(`upload_autoSaveMessageTorrentBlob`)
-                console.log(new File([torrent_blob], "a.torrent", { type: "application/octet-stream" }));
+                const torrentBlob = await db.getItem(`upload_autoSaveMessageTorrentBlob`)
+                console.log(new File([torrentBlob], "a.torrent", { type: "application/octet-stream" }));
 
                 const p = () => {
                     return new Promise(function (resolve, reject) {
                         // https://developer.mozilla.org/zh-CN/docs/Web/API/FormData
                         let formdata = new FormData(document.getElementById('compose'));
-                        if (torrent_blob) formdata.set("file", new File([torrent_blob], "a.torrent", { type: "application/octet-stream" }));
+                        if (torrentBlob) formdata.set("file", new File([torrentBlob], "a.torrent", { type: "application/octet-stream" }));
 
                         const request = new XMLHttpRequest();
                         request.open("POST", "takeupload.php");
@@ -1171,104 +1258,6 @@ async function bbcode2html(bbcodestr) {
     return jq(htmlobj).html();
 };
 
-
-function lang_init(lang) {
-    var lang_json = {
-        "zh_CN": {
-            "quote": "引用",
-            "info": "发布信息",
-            "mediainfo": "媒体信息",
-            "code": "代码",
-            "spoiler": "警告！下列文字很可能泄露剧情，请谨慎选择是否观看。",
-            "spoiler_button_1": "我就是手贱",
-            "spoiler_button_2": "我真是手贱",
-            "main_title": "主标题",
-            "rt_text": "请输入上标",
-            "main_body": "请输入正文",
-            "main_body_prefix": "请输入标题",
-            "url_name": "请输入网址名称",
-            "url_link": "请输入网址链接",
-            "select_type": "请选择分类...",
-            "preview": "预览",
-            "auto_fold": "过深引用自动折叠"
-        },
-        "zh_TW": {
-            "quote": "引用",
-            "info": "發佈訊息",
-            "mediainfo": "媒體訊息",
-            "code": "代碼",
-            "spoiler": "警告！下列文字很可能洩露劇情，請謹慎選擇是否觀看。",
-            "spoiler_button_1": "我就是手賤",
-            "spoiler_button_2": "我真是手賤",
-            "main_title": "主標題",
-            "rt_text": "請輸入上標",
-            "main_body": "請輸入正文",
-            "main_body_prefix": "請輸入標題",
-            "url_name": "請輸入網址名稱",
-            "url_link": "請輸入網址連結",
-            "select_type": "請選擇分類...",
-            "preview": "預覽",
-            "auto_fold": "過深引用自動摺疊"
-        },
-        "zh_HK": {
-            "quote": "引用",
-            "info": "發佈訊息",
-            "mediainfo": "媒體訊息",
-            "code": "代碼",
-            "spoiler": "警告！下列文字很可能洩露劇情，請謹慎選擇是否觀看。",
-            "spoiler_button_1": "我就是手賤",
-            "spoiler_button_2": "我真是手賤",
-            "main_title": "主標題",
-            "rt_text": "請輸入上標",
-            "main_body": "請輸入正文",
-            "main_body_prefix": "請輸入標題",
-            "url_name": "請輸入網址名稱",
-            "url_link": "請輸入網址鏈接",
-            "select_type": "請選擇分類...",
-            "preview": "預覽",
-            "auto_fold": "過深引用自動摺疊"
-        },
-        "en_US": {
-            "quote": "Quote",
-            "info": "Infobox",
-            "mediainfo": "Media Info",
-            "code": "CODE",
-            "spoiler": "Warning! This section contains spoiler!",
-            "spoiler_button_1": "I agree to view this.",
-            "spoiler_button_2": "Hide this.",
-            "main_title": "Main Title",
-            "rt_text": "Please enter superscript",
-            "main_body": "Please enter the text",
-            "main_body_prefix": "Please enter a title",
-            "url_name": "Please enter the URL name",
-            "url_link": "Please enter the URL link",
-            "select_type": "Please select a type.",
-            "preview": "Preview",
-            "auto_fold": "Over quote auto fold"
-        },
-        "ru_RU": {
-            "quote": "Цитата",
-            "info": "Отправленные",
-            "mediainfo": "Данные о Медиа",
-            "code": "CODE",
-            "spoiler": "Предупреждение! Данный раздел содержит СПОЙЛЕРЫ!",
-            "spoiler_button_1": "I agree to view this.",
-            "spoiler_button_2": "Hide this.",
-            "main_title": "Основное название",
-            "rt_text": "Пожалуйста, введите надстрочный индекс",
-            "main_body": "Пожалуйста, введите текст",
-            "main_body_prefix": "Пожалуйста, введите название",
-            "url_name": "Пожалуйста, введите имя URL",
-            "url_link": "Пожалуйста, введите URL-ссылку",
-            "select_type": "выберите тип ...",
-            "preview": "Предварительный просмотр",
-            "auto_fold": "Автоматическое складывание для более глубоких ссылок"
-        }
-    };
-    return lang_json[lang];
-};
-
-
 async function autoSaveUpload() {
     let db = localforage.createInstance({ name: "bbcodejs" });
     let num_global = 10;
@@ -1361,28 +1350,30 @@ async function autoSaveUpload() {
                     if (!blob || blob.size <= 0) return;
 
                     const button = document.getElementById('torrent_create');
-                    const torrent_name = await db.getItem(`upload_autoSaveMessageTorrentName`);
+                    const torrentName = await db.getItem(`upload_autoSaveMessageTorrentName`);
 
                     if (!button.disabled) {
-                        jq('#upload_chooser').text(`${torrent_name}`);
+                        jq('#upload_chooser').text(`${torrentName}`);
                         jq('#upload_chooser').prop('title', '自动保存的种子文件');
                         jq('#qr').attr('disabled', false);  // 解除上传按钮锁定
                         jq('#torrent_download').attr('disabled', false);
                         jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
+                        await pageTorrentInfo();
                         return;
                     };
 
                     // 执行上述代码时，sha1.js未加载完成
                     let observer = new MutationObserver(function (mutations) {
-                        mutations.forEach(function (mutation) {
+                        mutations.forEach(async function (mutation) {
                             if (mutation.attributeName === 'disabled') {
                                 let disabled = mutation.target.disabled;
                                 if (!disabled) {
-                                    jq('#upload_chooser').text(`${torrent_name}`);
+                                    jq('#upload_chooser').text(`${torrentName}`);
                                     jq('#upload_chooser').prop('title', '自动保存的种子文件');
                                     jq('#qr').attr('disabled', false);  // 解除上传按钮锁定
                                     jq('#torrent_download').attr('disabled', false);
                                     jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
+                                    await pageTorrentInfo();
                                     observer.disconnect();
                                 }
                             }
@@ -3172,3 +3163,572 @@ function SmileIT2(smile, form, text) {
     })(/text_area_id=(?<id>[^\?&]+)/i.exec(location.search).groups.id);
 
 })();
+
+function bencodeDecodeUint8Array(data) {
+    const decoder = new TextDecoder();
+    let pointer = 0;
+
+    function decodeString() {
+        const delimiterIndex = data.indexOf(58, pointer);
+        const lengthBuffer = data.slice(pointer, delimiterIndex);
+        const length = parseInt(decoder.decode(lengthBuffer), 10);
+        const start = delimiterIndex + 1;
+        const end = start + length;
+        const value = data.slice(start, end);
+        pointer = end;
+        return value;
+    };
+
+    function decodeNumber() {
+        const endIndex = data.indexOf(101, pointer);
+        const valueBuffer = data.slice(pointer + 1, endIndex);
+        const value = parseInt(decoder.decode(valueBuffer), 10);
+        pointer = endIndex + 1;
+        return value;
+    };
+
+    function decodeList() {
+        const result = [];
+        pointer++; // Move past 'l'
+        while (data[pointer] !== 101) {
+            const item = decodeValue();
+            result.push(item);
+        };
+        pointer++; // Move past 'e'
+        return result;
+    };
+
+    function decodeDictionary() {
+        const result = {};
+        pointer++; // Move past 'd'
+        while (data[pointer] !== 101) {
+            const key = decoder.decode(decodeString());
+            const value = decodeValue();
+            result[key] = value;
+        };
+        pointer++; // Move past 'e'
+        return result;
+    };
+
+    function decodeValue() {
+        const currentByte = data[pointer];
+
+        if (currentByte === 105) {
+            return decodeNumber();
+        } else if (currentByte === 108) {
+            return decodeList();
+        } else if (currentByte === 100) {
+            return decodeDictionary();
+        } else {
+            return decodeString();
+        };
+    };
+
+    return decodeValue();
+};
+
+
+/**
+ * 生成文件树结构。
+ * - item: 路径List
+ * - length: 文件体积
+ */
+class TrieTree {
+    constructor() {
+        this.root = {};
+    }
+
+    insert(item, length) {
+        let current_node = this.root;
+
+        for (let i = 0; i < item.length; i++) {
+            let _item = item[i];
+            let keys = Object.keys(current_node);
+            let _break = false;
+
+            for (let j = 0; j < keys.length; j++) {
+                let k = keys[j];
+
+                if (k === _item) {
+                    let node = current_node[_item];
+                    current_node = node;
+                    _break = true;
+                } else if (k === 'children') {
+                    let node = current_node['children'][_item];
+                    if (node !== undefined) {
+                        current_node = node;
+                        _break = true;
+                    }
+                }
+            }
+
+            if (_break === true) {
+                continue;
+            }
+
+            let new_node = (i + 1 === item.length) ? { "type": "file", "length": length } : { "type": "directory", "children": {} };
+
+            try {
+                current_node["children"][_item] = new_node;
+            } catch (error) {
+                current_node[_item] = new_node;
+            }
+
+            current_node = new_node;
+        }
+    }
+}
+
+
+// 对JSON进行排序
+const stringify = function (obj, opts) {
+    if (!opts) opts = {};
+    if (typeof opts === 'function') opts = { cmp: opts };
+    var space = opts.space || '';
+    if (typeof space === 'number') space = Array(space + 1).join(' ');
+    var cycles = (typeof opts.cycles === 'boolean') ? opts.cycles : false;
+    var replacer = opts.replacer || function (key, value) { return value; };
+
+    var cmp = opts.cmp && (function (f) {
+        return function (node) {
+            return function (a, b) {
+                var aobj = { key: a, value: node[a] };
+                var bobj = { key: b, value: node[b] };
+                return f(aobj, bobj);
+            };
+        };
+    })(opts.cmp);
+
+    var seen = [];
+    return (function stringify(parent, key, node, level) {
+        var indent = space ? ('\n' + new Array(level + 1).join(space)) : '';
+        var colonSeparator = space ? ': ' : ':';
+
+        if (node && node.toJSON && typeof node.toJSON === 'function') {
+            node = node.toJSON();
+        }
+
+        node = replacer.call(parent, key, node);
+
+        if (node === undefined) {
+            return;
+        }
+        if (typeof node !== 'object' || node === null) {
+            return JSON.stringify(node);
+        }
+        if (isArray(node)) {
+            var out = [];
+            for (var i = 0; i < node.length; i++) {
+                var item = stringify(node, i, node[i], level + 1) || JSON.stringify(null);
+                out.push(indent + space + item);
+            }
+            return '[' + out.join(',') + indent + ']';
+        }
+        else {
+            if (seen.indexOf(node) !== -1) {
+                if (cycles) return JSON.stringify('__cycle__');
+                throw new TypeError('Converting circular structure to JSON');
+            }
+            else seen.push(node);
+
+            var keys = objectKeys(node).sort(cmp && cmp(node));
+            var out = [];
+            for (var i = 0; i < keys.length; i++) {
+                var key = keys[i];
+                var value = stringify(node, key, node[key], level + 1);
+
+                if (!value) continue;
+
+                var keyValue = JSON.stringify(key)
+                    + colonSeparator
+                    + value;
+                ;
+                out.push(indent + space + keyValue);
+            }
+            seen.splice(seen.indexOf(node), 1);
+            return '{' + out.join(',') + indent + '}';
+        }
+    })({ '': obj }, '', obj, 0);
+};
+
+const isArray = Array.isArray || function (x) {
+    return {}.toString.call(x) === '[object Array]';
+};
+
+const objectKeys = Object.keys || function (obj) {
+    var has = Object.prototype.hasOwnProperty || function () { return true };
+    var keys = [];
+    for (var key in obj) {
+        if (has.call(obj, key)) keys.push(key);
+    }
+    return keys;
+};
+
+function convertBytesToAutoUnit(bytes) {
+    var units = ['B', 'KB', 'MB'];
+    var unitIndex = 0;
+
+    while (bytes >= 1024 && unitIndex < units.length - 1) {
+        bytes >>= 10;
+        unitIndex++;
+    };
+
+    return bytes + units[unitIndex];
+};
+
+function convert(s) {
+    if (s / 1024 < 1024) return (s / 1024).toFixed(3) + lang['KiB']
+    if (s / 1024 / 1024 < 1024) return (s / 1024 / 1024).toFixed(3) + lang['MiB']
+    if (s / 1024 / 1024 / 1024 < 1024) return (s / 1024 / 1024 / 1024).toFixed(3) + lang['GiB']
+    if (s / 1024 / 1024 / 1024 / 1024 < 1024) return (s / 1024 / 1024 / 1024 / 1024).toFixed(3) + lang['TiB']
+};
+
+const putFileTree = (torrent_tree) => {
+    // 插入ID
+    let counter = 0;
+    const InsertSeq = (data) => {
+        for (key in data) {
+            data[key]['id'] = counter;
+            counter++;
+            if (data[key]['type'] == 'directory') InsertSeq(data[key]['children']);
+        };
+        return data;
+    };
+    // 获取文件ID
+    const getFile = (data) => {
+        let a = []
+        for (key in data) {
+            if (data[key]['type'] == 'file') a.push(data[key]['id']);
+        };
+        a = a.concat(getDirectory(data));
+        return a;
+    };
+    // 获取文件夹ID
+    const getDirectory = (data, directory = []) => {
+        for (key in data) {
+            if (data[key]['type'] == 'directory') directory.push(data[key]['id']);
+        };
+        return directory;
+    };
+    // 获取文件体积
+    const getSize = (data, size = 0) => {
+        // console.log(data);
+        for (key in data) {
+            if (data[key]['type'] == 'file') {
+                size = size + data[key]['length'];
+            } else {
+                size = getSize(data[key]['children'], size);
+            };
+        }
+        return size;
+    };
+    // 遍历JSON
+    const tree = (j, i) => {
+        for (let key in j) {
+            // console.log(j);
+            // console.log(j['key']);
+            if (j[key]['type'] == 'directory') {
+                let children = j[key]['children'];
+                let f_id_sh = getFile(children);  // 获取文件夹需要的id
+                let f_size = convert(getSize(children))  // 文件夹大小
+                if (f_id === 0) {
+                    f_html = f_html + `<tr id="f_id_0" tag="closed"><td class="rowfollow"><a href="javascript:void(0)" onclick="showorhide([${f_id_sh}],0)" class="faqlink">${key}</a></td><td class="rowfollow dir_size" align="right">[${f_size}]</td></tr>`;
+                } else {
+                    f_html = f_html + `<tr id="f_id_${f_id}" style="display: none;" tag="closed"><td class="rowfollow">${space.repeat(i)}<a href="javascript:void(0)" onclick="showorhide([${f_id_sh}],${f_id})" class="faqlink">${key}</a></td><td class="rowfollow dir_size" align="right">[${f_size}]</td></tr>`;
+                };
+                f_id++;
+                tree(children, i + 1);
+            }
+            else {
+                if (f_id === 0) {
+                    // 单文件种子
+                    f_html = f_html + `<tr id="f_id_${f_id}"><td class="rowfollow">${space.repeat(i)}${key}</td><td class="rowfollow" align="right">${convert(j[key]['length'])}</td></tr>`;
+                } else {
+                    f_html = f_html + `<tr id="f_id_${f_id}" style="display: none;"><td class="rowfollow">${space.repeat(i)}${key}</td><td class="rowfollow" align="right">${convert(j[key]['length'])}</td></tr>`;
+                };
+                f_id++;
+            };
+        };
+    };
+
+    if (torrent_tree === null) {
+        return;
+    };
+    torrent_tree = stringify(torrent_tree, function (a, b) {
+        // 对keys排序
+        if (typeof (a.value) !== 'object' || typeof (b.value) !== 'object') return 0;
+        if (a.value.type === 'directory' && b.value.type === 'file') {
+            return -1;
+        } else if (a.value.type === 'file' && b.value.type === 'directory') {
+            return 1;
+        } else {
+            return a.key.toLowerCase() < b.key.toLowerCase() ? -1 : 1;
+        };
+    });
+    torrent_tree = JSON.parse(torrent_tree);
+    torrent_tree = InsertSeq(torrent_tree);
+    // console.log(__json);
+    let f_id = 0;  // 元素id
+    let f_html = '';  // 文件列表
+    const space = '&nbsp;&nbsp;&nbsp;&nbsp;';  // 缩进
+    tree(torrent_tree, 0);
+    // $('#filelist').find('tr').after(f_html);
+    jq('#file_tree').html(
+        `<span id="filelist">
+            <style>
+                .dir_size {
+                    color: gray;
+                    white-space: nowrap;
+                }
+            </style>
+            <table border="1" cellspacing="0" cellpadding="5">
+                <tbody>
+                    ${f_html}
+                </tbody>
+            </table>
+        </span>`
+    );
+};
+
+async function pageTorrentInfo() {
+    const db = localforage.createInstance({ name: "bbcodejs" });
+    const torrentBlob = await db.getItem(`upload_autoSaveMessageTorrentBlob`)
+    const response = await fetch(URL.createObjectURL(torrentBlob));
+    const arrayBuffer = await response.arrayBuffer();
+    const torrentUint8Array = new Uint8Array(arrayBuffer)
+    const decodedData = bencodeDecodeUint8Array(torrentUint8Array);
+    console.log(decodedData);
+    // https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder
+    const encoder = new TextEncoder();
+    const decoderUtf8 = new TextDecoder();
+    const decoder = decodedData.encoding ? new TextDecoder(decoderUtf8.decode(decodedData.encoding)) : new TextDecoder();
+    let maxPathUtf8Bytes = 0;
+    let maxPathName = new Array();
+    let torrentSize = 0;
+    let fileCount;
+    const torrentName = decoder.decode(decodedData.info.name);
+    const piecesLength = decodedData.info['piece length'];
+    const files = decodedData.info.files;
+    const file_tree = decodedData.info['file tree']; //v2
+    const trie = new TrieTree();
+
+    let torrentVer;
+    let piecesCount;
+    if (typeof files === 'object' && typeof file_tree === 'object') {
+        torrentVer = 'hybrid';
+        piecesCount = decodedData.info.pieces.length / 20;
+    } else if (typeof file_tree === 'undefined' && (typeof files === 'object' || typeof files === 'undefined')) {
+        torrentVer = 'v1'
+        piecesCount = decodedData.info.pieces.length / 20;
+    } else if (typeof file_tree === 'object') {
+        torrentVer = 'v2'
+    } else {
+        torrentVer = 'null'
+    };
+
+    if (torrentVer === 'v2') {
+        if (Object.keys(file_tree).length === 1) {
+            // 只有一个文件时  即使外面有一层文件夹，制作V2种子时会自动忽略外面的文件夹
+            fileCount = 1;
+            const _path = Object.keys(file_tree)[0];
+            const _length = file_tree[_path][""].length;
+            trie.insert([_path], _length);
+            piecesCount = Math.ceil(_length / piecesLength)
+            const currentPathUtf8Bytes = encoder.encode(_path).length;
+            maxPathUtf8Bytes = currentPathUtf8Bytes;
+            maxPathName = [_path];
+        } else {
+            // 遍历v2的树结构，生成自定义的树结构
+            const traverseFileTree = (obj, depth = 0, path = '') => {
+                // console.log(obj);
+                for (let key in obj) {
+                    if (typeof obj[key] === 'object') {
+                        if (key === '') {
+                            trie.insert(path.split('/'), obj[key].length);
+                            fileCount++;
+                            piecesCount += Math.ceil(obj[key].length / piecesLength);
+                            const currentPathUtf8Bytes = encoder.encode(path).length;
+                            if (maxPathUtf8Bytes < currentPathUtf8Bytes) {
+                                maxPathUtf8Bytes = currentPathUtf8Bytes;
+                                maxPathName = [path];
+                            } else if (maxPathUtf8Bytes === currentPathUtf8Bytes) {
+                                maxPathName.push(path);
+                            };
+                            return;
+                        }
+                        const nextPath = path !== '' ? `${path}/${key}` : `${torrentName}/${key}`;
+                        traverseFileTree(obj[key], depth + 1, nextPath);
+                    }
+                }
+            }
+            piecesCount = 0;
+            fileCount = 0;
+            traverseFileTree(file_tree)
+        };
+    } else {
+        if (typeof files === 'undefined') {
+            fileCount = 1;
+            const length = decodedData.info.length;
+            torrentSize = length;
+            trie.insert([torrentName], length);
+            const currentPathUtf8Bytes = encoder.encode(torrentName).length;
+            maxPathUtf8Bytes = currentPathUtf8Bytes;
+            maxPathName = [torrentName];
+        } else {
+            fileCount = files.length;
+            for (let file in files) {
+                if (files.hasOwnProperty(file)) {
+                    let paths = files[file].path;
+                    const length = files[file].length;
+                    torrentSize = torrentSize + length;
+                    let currentPath = torrentName;
+                    let newPaths = [torrentName];
+                    for (let path in paths) {
+                        if (paths.hasOwnProperty(path)) {
+                            const pahtDecode = decoder.decode(paths[path])
+                            currentPath = currentPath + '/' + pahtDecode;
+                            newPaths.push(pahtDecode);
+                        };
+                    };
+                    trie.insert(newPaths, length);
+                    const currentPathUtf8Bytes = encoder.encode(currentPath).length;
+                    if (maxPathUtf8Bytes < currentPathUtf8Bytes) {
+                        maxPathUtf8Bytes = currentPathUtf8Bytes;
+                        maxPathName = [currentPath];
+                    } else if (maxPathUtf8Bytes === currentPathUtf8Bytes) {
+                        maxPathName.push(currentPath);
+                    };
+                };
+            };
+        };
+    }
+
+    jq('#torrentinfo1').html(`<b>版本:</b> &nbsp;${torrentVer} &nbsp; &nbsp;<b>区块:</b> &nbsp;${convertBytesToAutoUnit(piecesLength)} &nbsp; &nbsp;<b>区块数:</b> &nbsp;${piecesCount} &nbsp; &nbsp;<b>文件数:</b> &nbsp;${fileCount}`);
+    jq('#torrentinfo2').html(`&nbsp; &nbsp;<b>路径长度:</b> &nbsp;${maxPathUtf8Bytes}`);
+    jq('#torrentinfo2').prop('title', maxPathName.join("\n"));
+
+    let warnStr = new Array();
+    if (torrentVer !== 'v1') warnStr.push('非V1模式种子');
+    if (!(1048576 <= piecesLength <= 16777216)) warnStr.push('区块不在1M~16M内');
+    if (piecesCount > 10000) warnStr.push('区块数量超过1W');
+    if (maxPathUtf8Bytes > 230) warnStr.push('路径长度超过230字节');
+    jq('#torrentinfo3').html(warnStr.join(' | '));
+
+    putFileTree(trie.root);
+}
+
+function lang_init(lang) {
+    var lang_json = {
+        "zh_CN": {
+            "quote": "引用",
+            "info": "发布信息",
+            "mediainfo": "媒体信息",
+            "code": "代码",
+            "spoiler": "警告！下列文字很可能泄露剧情，请谨慎选择是否观看。",
+            "spoiler_button_1": "我就是手贱",
+            "spoiler_button_2": "我真是手贱",
+            "main_title": "主标题",
+            "rt_text": "请输入上标",
+            "main_body": "请输入正文",
+            "main_body_prefix": "请输入标题",
+            "url_name": "请输入网址名称",
+            "url_link": "请输入网址链接",
+            "select_type": "请选择分类...",
+            "preview": "预览",
+            "auto_fold": "过深引用自动折叠",
+            "KiB": " KiB",
+            "MiB": " MiB",
+            "GiB": " GiB",
+            "TiB": " TiB",
+        },
+        "zh_TW": {
+            "quote": "引用",
+            "info": "發佈訊息",
+            "mediainfo": "媒體訊息",
+            "code": "代碼",
+            "spoiler": "警告！下列文字很可能洩露劇情，請謹慎選擇是否觀看。",
+            "spoiler_button_1": "我就是手賤",
+            "spoiler_button_2": "我真是手賤",
+            "main_title": "主標題",
+            "rt_text": "請輸入上標",
+            "main_body": "請輸入正文",
+            "main_body_prefix": "請輸入標題",
+            "url_name": "請輸入網址名稱",
+            "url_link": "請輸入網址連結",
+            "select_type": "請選擇分類...",
+            "preview": "預覽",
+            "auto_fold": "過深引用自動摺疊",
+            "KiB": " KiB",
+            "MiB": " MiB",
+            "GiB": " GiB",
+            "TiB": " TiB",
+        },
+        "zh_HK": {
+            "quote": "引用",
+            "info": "發佈訊息",
+            "mediainfo": "媒體訊息",
+            "code": "代碼",
+            "spoiler": "警告！下列文字很可能洩露劇情，請謹慎選擇是否觀看。",
+            "spoiler_button_1": "我就是手賤",
+            "spoiler_button_2": "我真是手賤",
+            "main_title": "主標題",
+            "rt_text": "請輸入上標",
+            "main_body": "請輸入正文",
+            "main_body_prefix": "請輸入標題",
+            "url_name": "請輸入網址名稱",
+            "url_link": "請輸入網址鏈接",
+            "select_type": "請選擇分類...",
+            "preview": "預覽",
+            "auto_fold": "過深引用自動摺疊",
+            "KiB": " KiB",
+            "MiB": " MiB",
+            "GiB": " GiB",
+            "TiB": " TiB",
+        },
+        "en_US": {
+            "quote": "Quote",
+            "info": "Infobox",
+            "mediainfo": "Media Info",
+            "code": "CODE",
+            "spoiler": "Warning! This section contains spoiler!",
+            "spoiler_button_1": "I agree to view this.",
+            "spoiler_button_2": "Hide this.",
+            "main_title": "Main Title",
+            "rt_text": "Please enter superscript",
+            "main_body": "Please enter the text",
+            "main_body_prefix": "Please enter a title",
+            "url_name": "Please enter the URL name",
+            "url_link": "Please enter the URL link",
+            "select_type": "Please select a type.",
+            "preview": "Preview",
+            "auto_fold": "Over quote auto fold",
+            "KiB": " KiB",
+            "MiB": " MiB",
+            "GiB": " GiB",
+            "TiB": " TiB",
+        },
+        "ru_RU": {
+            "quote": "Цитата",
+            "info": "Отправленные",
+            "mediainfo": "Данные о Медиа",
+            "code": "CODE",
+            "spoiler": "Предупреждение! Данный раздел содержит СПОЙЛЕРЫ!",
+            "spoiler_button_1": "I agree to view this.",
+            "spoiler_button_2": "Hide this.",
+            "main_title": "Основное название",
+            "rt_text": "Пожалуйста, введите надстрочный индекс",
+            "main_body": "Пожалуйста, введите текст",
+            "main_body_prefix": "Пожалуйста, введите название",
+            "url_name": "Пожалуйста, введите имя URL",
+            "url_link": "Пожалуйста, введите URL-ссылку",
+            "select_type": "выберите тип ...",
+            "preview": "Предварительный просмотр",
+            "auto_fold": "Автоматическое складывание для более глубоких ссылок",
+            "KiB": " KiБ",
+            "MiB": " MiБ",
+            "GiB": " GiБ",
+            "TiB": " TiБ",
+        }
+    };
+    return lang_json[lang];
+};
