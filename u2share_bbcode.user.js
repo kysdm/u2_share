@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.0.3
+// @version      1.0.4
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -44,7 +44,7 @@ GreasyFork 地址
     jq('body').append(`<style type="text/css">td.smile-icon { padding: 3px !important; }</style>`);
     jq('body').append(`<style type="text/css">.dir_size { color: gray; white-space: nowrap; }</style>`);
     // JS
-    jq('body').append(`<script type="text/javascript"> function createTag(name,attribute,content){var components=[];components.push('[');components.push(name);if(attribute!==null){components.push('=');components.push(attribute)}components.push(']');if(content!==null){components.push(content);components.push('[/');components.push(name);components.push(']')}return components.join('')};function replaceText(str,start,end,replacement){return str.substring(0,start)+replacement+str.substring(end)};function addTag(textArea,name,attribute,content,surround){var selStart=textArea.selectionStart;var selEnd=textArea.selectionEnd;if(selStart===null||selEnd===null){selStart=selEnd=textArea.value.length}var selTarget=selStart+name.length+2+(attribute?attribute.length+1:0);if(selStart===selEnd){textArea.value=replaceText(textArea.value,selStart,selEnd,createTag(name,attribute,content))}else{var replacement=null;if(surround){replacement=createTag(name,attribute,textArea.value.substring(selStart,selEnd))}else{replacement=createTag(name,attribute,content)}textArea.value=replaceText(textArea.value,selStart,selEnd,replacement)}textArea.setSelectionRange(selTarget,selTarget)};</script>`);
+    jq('body').append(`<script type="text/javascript">function createTag(name,attribute,content){var components=[];components.push('[');components.push(name);if(attribute!==null){components.push('=');components.push(attribute)}components.push(']');if(content!==null){components.push(content);components.push('[/');components.push(name);components.push(']')}return components.join('')};function replaceText(str,start,end,replacement){return str.substring(0,start)+replacement+str.substring(end)};function addTag(textArea,name,attribute,content,surround){var selStart=textArea.selectionStart;var selEnd=textArea.selectionEnd;if(selStart===null||selEnd===null){selStart=selEnd=textArea.value.length}var selTarget=selStart+name.length+2+(attribute?attribute.length+1:0);if(selStart===selEnd){textArea.value=replaceText(textArea.value,selStart,selEnd,createTag(name,attribute,content))}else{var replacement=null;if(surround){replacement=createTag(name,attribute,textArea.value.substring(selStart,selEnd))}else{replacement=createTag(name,attribute,content)}textArea.value=replaceText(textArea.value,selStart,selEnd,replacement)}textArea.setSelectionRange(selTarget,selTarget)};</script>`);
 
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js')
     await loadScript('https://userscript.kysdm.com/js/mediainfo.js?v=1.0')
@@ -53,7 +53,6 @@ GreasyFork 地址
     // DB
     const db = localforage.createInstance({ name: "bbcodejs" });
     let attachmap_db = localforage.createInstance({ name: "attachmap" });
-
 
     // 现存BBCODE元素
     (async () => {
@@ -104,10 +103,8 @@ GreasyFork 地址
             function add_main_title() {
                 var type_id = jq('#browsecat').val();
                 if (type_id === '0') {
-                    // console.log('请选择分类...');
                     main_title = '<font color="red"><b>' + lang['select_type'] + '</b></font>';
                 } else if (['9', '411', '413', '12', '13', '14', '15', '16', '17', '410', '412'].indexOf(type_id) !== -1) {
-                    // console.log('分类ID是： ' + type_id + ' anime');
                     main_title = '<b>'
                         + add_brackets(jq('#anime_chinese-input').val())
                         + add_brackets(jq('#anime_english-input').val())
@@ -119,7 +116,6 @@ GreasyFork 地址
                         + add_brackets(jq('#anime_extra-input').val())
                         + '</b>';
                 } else if (['21', '22', '23'].indexOf(type_id) !== -1) {
-                    // console.log('分类ID是： ' + type_id + ' manga');
                     main_title = '<b>'
                         + add_brackets(jq('#manga_title-input').val())
                         + add_brackets(jq('#manga_author-input').val())
@@ -129,7 +125,6 @@ GreasyFork 地址
                         + add_brackets(jq('#manga_remark-input').val())
                         + '</b>';
                 } else if (type_id === '30') {
-                    // console.log('分类ID是： ' + type_id + ' music');
                     var prefix_1 = jq('#music_prefix').find("select").val();
                     var prefix_2 = jq('#music_collection').find("select").val();
                     if (['EAC', 'XLD'].indexOf(prefix_1) !== -1) { var music_quality = false; }
@@ -159,10 +154,8 @@ GreasyFork 地址
                             break;
                     }
                 } else if (type_id === '40') {
-                    // console.log('分类ID是： ' + type_id + ' other');
                     main_title = '<b>' + jq('#other_title-input').val() + '</b>';
                 } else {
-                    // console.log('分类ID是： ' + type_id);
                 }
                 jq('#checktitle').html(check_title(main_title));
             }
@@ -174,7 +167,6 @@ GreasyFork 地址
             );
 
             // 种子文件
-            // (async () => {
             jq('#torrent').parent().html(`
 <table style="width: 100%; table-layout:fixed; border: none; cellspacing: none; cellpadding: none;">
     <tbody>
@@ -201,7 +193,7 @@ GreasyFork 地址
     <tbody>
         <tr>
             <td name="progress" style="width: 25%; border: none;">
-                <div class="progress"><div></div></div>
+                <div class="progress"><div>
             </td>
             <td name="progress" style="width: 23%; border: none; text-align: center; font-style: italic;">
                 <span name="progress-percent"></span>
@@ -247,7 +239,6 @@ GreasyFork 地址
 `);
 
             await loadScript('https://userscript.kysdm.com/js/torrent-creator.js?v=1.0')
-                .catch(() => { window.alert(location.pathname + '\ntorrent-creator.js 加载失败.') });
 
             jq('.progress').css({
                 'width': '99%',
@@ -321,18 +312,15 @@ GreasyFork 地址
                 if (file.length !== 0) {
                     torrent_start();
                     await CreateTorrentFile(file);
-                    // await db.setItem(`upload_autoSaveMessageTorrentName`, file[0].name);
                     await pageTorrentInfo();
                 } else if (folder.length !== 0) {
                     torrent_start();
                     await CreateTorrentFolder(folder);
-                    // await db.setItem(`upload_autoSaveMessageTorrentName`, (folder[0].webkitRelativePath).split("/")[0]);
                     await pageTorrentInfo();
                 } else {
                     window.alert('没有选择任何文件');
                     return;
                 };
-                // console.log(torrent_blob);
             });
             // 清空
             jq('#torrent_clean').click(async function () {
@@ -406,7 +394,7 @@ GreasyFork 地址
                                 };
                                 const entries = await read();
                                 if (entries.length > 0) await read();
-                                console.log('完成读取当前文件夹');
+                                // console.log('完成读取当前文件夹');
                                 resolve();
                             } else {
                                 entry.file(
@@ -435,7 +423,6 @@ GreasyFork 地址
                         if (item.kind === "file") {
                             let entry = item.webkitGetAsEntry();
                             await scanFiles(entry);
-                            // console.log('完成文件/文件夹扫描');
                         };
                     };
 
@@ -463,7 +450,6 @@ GreasyFork 地址
                                 jq('#upload_chooser').prop('title', filesList[0].name);
                                 torrent_start();
                                 await CreateTorrentFile(filesList);
-                                // await db.setItem(`upload_autoSaveMessageTorrentName`, filesList[0].name);
                                 jq('#qr').attr('disabled', false);
                                 jq('#torrent_download').attr('disabled', false);
                                 await pageTorrentInfo();
@@ -477,7 +463,6 @@ GreasyFork 地址
                             jq('#upload_chooser').prop('title', (filesList[0].webkitRelativePath).split("/")[0]);
                             torrent_start();
                             await CreateTorrentFolder(filesList);
-                            // await db.setItem(`upload_autoSaveMessageTorrentName`, (filesList[0].webkitRelativePath).split("/")[0]);
                             jq('#qr').attr('disabled', false);
                             jq('#torrent_download').attr('disabled', false);
                             await pageTorrentInfo();
@@ -504,7 +489,6 @@ GreasyFork 地址
                         jq('#upload_chooser').prop('title', (filesList[0].webkitRelativePath).split("/")[0]);
                         torrent_start();
                         await CreateTorrentFolder(filesList);
-                        // await db.setItem(`upload_autoSaveMessageTorrentName`, (filesList[0].webkitRelativePath).split("/")[0]);
                         jq('#qr').attr('disabled', false);
                         jq('#torrent_download').attr('disabled', false);
                         await pageTorrentInfo();
@@ -558,7 +542,7 @@ GreasyFork 地址
                 p().then(async r => {
                     if (!r.responseURL.includes("takeupload.php")) {
                         // 成功上传
-                        console.log('成功上传');
+                        // console.log('成功上传');
                         clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 停止自动保存
                         await db.removeItem(`upload_autoSaveMessageTime`);
                         await db.removeItem(`upload_autoSaveMessageBbcode`);
@@ -568,7 +552,7 @@ GreasyFork 地址
                         await db.removeItem(`upload_autoSaveMessageInfo`);
                         await db.removeItem(`upload_autoSaveMessageTorrentBlob`);
                         await db.removeItem(`upload_autoSaveMessageTorrentName`);
-                        console.log(`upload-已清空保存的记录`);
+                        // console.log(`upload-已清空保存的记录`);
                         window.open(r.responseURL, '_self');
                         return;
                     };
@@ -674,12 +658,10 @@ GreasyFork 地址
             if (r_tag_start_exec && !r_tag_end_exec) {
                 let tag_start_val = r_tag_start_exec.groups.tag;;
                 console.log('检测到丢失的标签 => ' + `[/${tag_start_val}]`);
-                lost_tags.push(`[/${tag_start_val}]`)
-                // value = value + `[/${tag_start_val}]`;
+                lost_tags.push(`[/${tag_start_val}]`);
                 state = true;
             };
 
-            // return { "value": value, "state": state };
             return { "state": state };
         };
 
@@ -1009,7 +991,6 @@ GreasyFork 地址
                                     let attach_image = jq(span).children('bdo').children('img'); // 图片附件
                                     if (attach_normal.length !== 0 && attach_image.length === 0) {
                                         // console.log('普通附件');
-                                        // console.log(attach_normal);
                                         let attach_info_obj = /(?<time>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/i.exec(jq(attach_normal).children('a').attr('onmouseover'));
                                         const attach = {
                                             "attach_id": jq(attach_normal).children('a').attr('id').replace('attach', ''),
@@ -1042,7 +1023,6 @@ GreasyFork 地址
                                             "attach_time": attach_info_obj ? attach_info_obj.groups.time : '',
                                             "attach_thumb": ''
                                         };
-                                        // console.log('value.attach_thumb: ', value.attach_thumb);
                                         if (value && Number.isFinite(value.attach_thumb)) {
                                             if (value.attach_thumb === 0) {
                                                 // console.log('没有触发缩图');
@@ -1059,7 +1039,6 @@ GreasyFork 地址
                                             };
                                         };
                                         // 没有通过标准方法上传的图片，没有记录attach_thumb值
-                                        // console.log(`${attach.attach_url}.thumb.jpg`);
                                         let thumb = await urlCheck(`${attach.attach_url}.thumb.jpg`).catch(e => { });  // 检查缩图是否存在
                                         if (typeof (thumb) === "undefined") {
                                             // 发生了错误 不写数据库
@@ -1085,7 +1064,7 @@ GreasyFork 地址
                                         // Attachment for key 82505eca8a43a36bc9c60a7d9609a5df not found.
                                         // 附件 82505eca8a43a36bc9c60a7d9609a5df 无效。
                                         if (d.includes(hash)) {
-                                            console.log('附件无效')
+                                            // console.log('附件无效')
                                             const attach = {
                                                 "attach_id": '',
                                                 "attach_type": 'invalid',
@@ -1100,7 +1079,7 @@ GreasyFork 地址
                                     };
                                 },
                                 error: function (d) {
-                                    console.log('附件获取失败');
+                                    // console.log('附件获取失败');
                                     reject(d.status);
                                 },
                             });
@@ -1121,7 +1100,7 @@ GreasyFork 地址
                 let val = bbcode_tag.groups.val;
                 index = bbcode_tag.index;
                 _textarea = _textarea.slice(index);
-                // console.log(`当前标签：` + tag + ' | ' + val);
+
                 switch (tag) {
                     case 'b':
                         t = b(val, _textarea); break;
@@ -1165,8 +1144,7 @@ GreasyFork 地址
                 textarea = textarea.replace(_textarea, t);
                 _textarea = t;
                 if (++convert_count > 5000) break;
-                // console.log('发生次数: ' + convert_count);
-                // console.log(textarea);
+
             };
             return textarea;
         };
@@ -1239,8 +1217,9 @@ GreasyFork 地址
     };
 
     async function autoSaveUpload() {
-        let num_global = 10;
-        let num = 10; // 设置自动保存时间间隔
+        // 设置自动保存时间间隔
+        let num_global = 8;
+        let num = 5;
 
         jq('#bbcodejs_tbody').append(`<span id="upload_auto_save_on" style="margin-top:4px; display: none;">`
             + `<input id="upload_switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">`
@@ -1275,18 +1254,18 @@ GreasyFork 地址
             jq(`#upload_auto_save_on`).fadeIn(200);
             jq(`#upload_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
             await db.setItem(`upload_autoSaveMessageSwitch`, true)
-            console.log(`upload-自动保存已开启`);
+            // console.log(`upload-自动保存已开启`);
         });
 
-        // 提交候选
-        jq('#qr').click(async function () {
-            // clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 关闭自动保存
-            // await clean();
-            console.log(`upload-提交上传请求`);
-        });
-
+        /*         // 提交候选
+                jq('#qr').click(async function () {
+                    // clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 关闭自动保存
+                    // await clean();
+                    console.log(`upload-提交上传请求`);
+                });
+         */
         async function clean() {
-            // clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 清除setInterval函数
+            clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 清除setInterval函数
             await db.removeItem(`upload_autoSaveMessageTime`);
             await db.removeItem(`upload_autoSaveMessageBbcode`);
             await db.removeItem(`upload_autoSaveMessageSmallDescr`);
@@ -1295,7 +1274,7 @@ GreasyFork 地址
             await db.removeItem(`upload_autoSaveMessageInfo`);
             await db.removeItem(`upload_autoSaveMessageTorrentBlob`);
             await db.removeItem(`upload_autoSaveMessageTorrentName`);
-            console.log(`upload-已清空保存的记录`);
+            // console.log(`upload-已清空保存的记录`);
         }
 
         // 检测上次自动保存开关设定
@@ -1365,14 +1344,14 @@ GreasyFork 地址
                     });
                     jq('[class^="torrent-info-input"]').trigger("input"); // 手动触发标题更改
                     jq('.bbcode').trigger("input"); // 手动触发bbcode更改
-                    console.log(`upload-已还原备份`);
+                    // console.log(`upload-已还原备份`);
                 };
             } else {
                 // 关闭自动保存
                 jq(`#upload_auto_save_on`).hide();
                 jq(`#upload_auto_save_off`).show();
                 await db.setItem(`upload_autoSaveMessageSwitch`, false)
-                console.log(`upload-自动保存已关闭`);
+                // console.log(`upload-自动保存已关闭`);
             }
         }).catch(async function (err) {
             // 第一次运行时 <第一次运行时 数据库里什么都没有>
@@ -1380,18 +1359,15 @@ GreasyFork 地址
             jq(`#upload_auto_save_on`).hide();
             jq(`#upload_auto_save_off`).show();
             await db.setItem(`upload_autoSaveMessageSwitch`, false)
-            console.log(`upload-第一次运行`);
+            // console.log(`upload-第一次运行`);
             console.log(`upload-${err}`);
         });
 
         async function autoSave() {
-            // 由于安全问题 不允许为 input file 赋值
-            num--
-            // console.log(num);
-            if (num <= 0) {
+            if (--num <= 0) {
                 jq(`#upload_auto_save_text`).fadeIn(2000);
-                await db.setItem(`upload_autoSaveMessageTime`, getDateString()) // 记录保存数据的时间 string
-                await db.setItem(`upload_autoSaveMessageBbcode`, jq('.bbcode').val()) // 保存 bbcode 输入框内容
+                await db.setItem(`upload_autoSaveMessageTime`, getDateString()); // 记录保存数据的时间 string
+                await db.setItem(`upload_autoSaveMessageBbcode`, jq('.bbcode').val()); // 保存 bbcode 输入框内容
                 // 倒是可以跑循环 直接拿到数据 就不用写这么大一堆了 (
                 let upload_info = {
                     "category": jq('#browsecat').val(),
@@ -1426,35 +1402,10 @@ GreasyFork 地址
                 await db.setItem(`upload_autoSaveMessageSmallDescr`, jq('[name="small_descr"]').val());
                 await db.setItem(`upload_autoSaveMessagePoster`, jq('[name="poster"]').val());
                 await db.setItem(`upload_autoSaveMessageAnidbUrl`, jq('[name="anidburl"]').val());
-                num = num_global + 4; // 重置倒计时
+                num = num_global; // 重置倒计时
                 jq(`#upload_auto_save_text`).fadeOut(2000);
             };
         }
-    };
-
-
-    // 异步 replace
-    // https://stackoverflow.com/questions/33631041/javascript-async-await-in-replace
-    async function replaceAsync(str, regex, asyncFn) {
-        const promises = [];
-        str.replace(regex, (match, ...args) => {
-            const promise = asyncFn(match, ...args);
-            promises.push(promise);
-        });
-        const data = await Promise.all(promises);
-        return str.replace(regex, () => data.shift());
-    };
-
-
-    // 当前时间 字符串格式
-    function getDateString() {
-        const time = new Date();
-        return time.getFullYear().toString() + zero(time.getMonth() + 1).toString() + zero(time.getDate()).toString()
-            + zero(time.getHours()) + zero(time.getMinutes()) + zero(time.getSeconds())
-    };
-
-    function zero(obj) {
-        return obj < 10 ? '0' + obj : obj
     };
 
 
@@ -1464,8 +1415,8 @@ GreasyFork 地址
     // type 识别符
     // parent 父级元素
     async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, parent) {
-        let num_global = 10; // 设置自动保存时间间隔
-        let num = 10; // 设置自动保存时间间隔
+        let num_global = 8; // 设置自动保存时间间隔
+        let num = 5; // 设置自动保存时间间隔
 
         jq(elementButton).append(`<span id="${type}_auto_save_on" style="margin-top:4px; display: none;">`
             + `<input id="${type}_switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">`
@@ -1484,7 +1435,7 @@ GreasyFork 地址
                     jq(`#${type}_auto_save_off`).fadeIn(200); // 渐入按钮
                     clearInterval(jq(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
                     await db.setItem(`${type}_autoSaveMessageSwitch`, false)
-                    console.log(`${type}-自动保存已关闭`);
+                    // console.log(`${type}-自动保存已关闭`);
                     break;
                 case `${type}_clean`:
                     if (window.confirm("确定清空所有数据?")) {
@@ -1500,13 +1451,13 @@ GreasyFork 地址
             jq(`#${type}_auto_save_on`).fadeIn(200);
             jq(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
             await db.setItem(`${type}_autoSaveMessageSwitch`, true)
-            console.log(`${type}-自动保存已开启`);
+            // console.log(`${type}-自动保存已开启`);
         });
 
         // 提交候选后 删除所有保存的记录 (如果要还原记录，直接返回上一页即可。)
         jq(elementPost).click(async function () {
             await clean();
-            console.log(`${type}-提交上传请求`);
+            // console.log(`${type}-提交上传请求`);
         });
 
         async function clean() {
@@ -1514,7 +1465,7 @@ GreasyFork 地址
             await db.removeItem(`${type}_autoSaveMessageTime`);
             await db.removeItem(`${type}_autoSaveMessageBbcode`);
             await db.removeItem(`${type}_autoSaveMessageSubject`);
-            console.log(`${type}-已清空保存的记录`);
+            // console.log(`${type}-已清空保存的记录`);
         };
 
         // 检测上次自动保存开关设定
@@ -1524,7 +1475,7 @@ GreasyFork 地址
                 jq(`#${type}_auto_save_on`).show();
                 jq(`#${type}_auto_save_off`).hide();
                 jq(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
-                console.log(`${type}-自动保存已开启`);
+                // console.log(`${type}-自动保存已开启`);
                 // 检查输入框内是否已经存在字符串
                 let _input_bool = true
                 jq(`${parent} input[name='subject']`).add(elementBbcode).each(function () {
@@ -1536,7 +1487,7 @@ GreasyFork 地址
                     await db.getItem(`${type}_autoSaveMessageSubject`).then((value) => { jq(`${parent} input[name='subject']`).val(value); });
                     await await db.getItem(`${type}_autoSaveMessageBbcode`).then((value) => { jq(elementBbcode).val(value); }) // 还原bbcode输入框内容
                     jq(elementBbcode).trigger("input"); // 手动触发bbcode更改
-                    console.log(`${type}-已还原备份`);
+                    // console.log(`${type}-已还原备份`);
                 };
             } else {
                 // 关闭自动保存
@@ -1550,24 +1501,21 @@ GreasyFork 地址
             jq(`#${type}_auto_save_on`).hide();
             jq(`#${type}_auto_save_off`).show();
             await db.setItem(`${type}_autoSaveMessageSwitch`, false);
-            console.log(`${type}-第一次运行`);
+            // console.log(`${type}-第一次运行`);
             console.log(`${type}-${err}`);
         });
 
         async function autoSave() {
-            num--;
-            // console.log(num);
-            if (num <= 0) {
+            if (--num <= 0) {
                 jq(`#${type}_auto_save_text`).fadeIn(2000);
                 await db.setItem(`${type}_autoSaveMessageTime`, getDateString()) // 记录保存数据的时间 string
                 await db.setItem(`${type}_autoSaveMessageBbcode`, jq(elementBbcode).val()) // 保存 bbcode 输入框内容
                 await db.setItem(`${type}_autoSaveMessageSubject`, jq(`${parent} input[name='subject']`).val());
-                num = num_global + 4; // 重置倒计时
+                num = num_global; // 重置倒计时
                 jq(`#${type}_auto_save_text`).fadeOut(2000);
             };
         };
     };
-
 
     // 输入框与预览框同步滚动
     // element 按钮插入位置
@@ -1584,10 +1532,10 @@ GreasyFork 地址
             if (value) {
                 jq(`#${type}_sync_scroll_on`).show();
                 new onScroll();
-                console.log(`${type}-同步滚动已打开`);
+                // console.log(`${type}-同步滚动已打开`);
             } else {
                 jq(`#${type}_sync_scroll_off`).show();
-                console.log(`${type}-同步滚动已关闭`);
+                // console.log(`${type}-同步滚动已关闭`);
             };
         });
 
@@ -1597,7 +1545,7 @@ GreasyFork 地址
             jq(`#${type}_sync_scroll_on`).fadeIn(200); // 渐入按钮
             await db.setItem(`${type}_syncScrollSwitch`, true);
             new onScroll();
-            console.log(`${type}-同步滚动已打开`);
+            // console.log(`${type}-同步滚动已打开`);
         });
 
         jq(`#${type}_sync_scroll_on`).click(async function () {
@@ -1605,7 +1553,7 @@ GreasyFork 地址
             jq(`#${type}_sync_scroll_off`).fadeIn(200); // 渐入按钮
             await db.setItem(`${type}_syncScrollSwitch`, false);
             new offScroll();
-            console.log(`${type}-同步滚动已关闭`);
+            // console.log(`${type}-同步滚动已关闭`);
         });
 
         // 绑定鼠标事件
@@ -1971,9 +1919,7 @@ GreasyFork 地址
                 addTagBox(textArea, action.slice(17, -3), null, null, true);
                 break;
             };
-            // default: {
-            //     console.log(action);
-            // }
+
         }
         textArea.focus();
     };
@@ -2205,11 +2151,11 @@ GreasyFork 地址
                 cache: false,
                 url: url,
                 success: function (d) {
-                    console.log('url有效');
+                    // console.log('url有效');
                     resolve(true)
                 },
                 error: function (d) {
-                    console.log('url无效');
+                    // console.log('url无效');
                     resolve(false);
                 }
             });
@@ -2781,7 +2727,6 @@ function SmileIT2(smile, form, text) {
                             let attach_hash_obj = /(?<hash>\w{32})/i.exec(jq(d).find('script').text());
                             // <span class="striking">失败！不允许该文件扩展名。</span>
                             const attach_hash = attach_hash_obj.groups.hash; // 附件的hash值
-                            // console.log(attach_hash)
                             const attach = { "attach_thumb": attach_thumb };
                             await attachmap_db.setItem(attach_hash, attach); // 写入数据库
                             // 不知道怎么计算的，怎么传都用不完配额
@@ -3002,7 +2947,7 @@ function SmileIT2(smile, form, text) {
                 };
 
                 const mediainfo = await MediaInfo({ format: 'text' });
-                console.log('Mediainfo Working…');
+                // console.log('Mediainfo Working…');
                 const getSize = () => file.size;
                 const readChunk = (chunkSize, offset) =>
                     new Promise((resolve, reject) => {
@@ -3097,30 +3042,27 @@ function SmileIT2(smile, form, text) {
                         if (/\.(flv|mkv|mp4|ts|avi|mov|wmv|mpg|mpeg|rm|ram|swf|f4v|h261|h264|h263|m2ts)$/i.test(file_list[i].name)) {  // 常见的视频后缀名
                             jq('[name="progress-percent"]').text('解析中...');
                             jq('[name="progress-name"]').text(file_list[i].name);
-                            await mediainfoFn(window.parent.document.getElementById(text_area_id), file_list[i])
-                                .catch(e => { window.alert(e); });
-                            // console.log('END');
+                            await mediainfoFn(window.parent.document.getElementById(text_area_id), file_list[i]).catch(e => { window.alert(e); });
                             continue;
                         };
-                        // console.log(file_list[i]);
                         let f = await imgCompressor(file_list[i]).catch(e => { window.alert(e) });
                         if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
                         const val = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
                         if (val) _list.push(val); // 存储hash值
                     };
                 })();
-                // console.log(attach_hash_list);
                 let bbcode = '';
+
                 _list.forEach(async (val) => {
                     if (/^[a-zA-Z0-9]{32}$/.test(val)) { bbcode += `[attach]${val}[/attach]`; }
                     else if (/^https?:\/\/.+/.test(val)) { bbcode += `[img]${val}[/img]`; }
                     else { console.error("无效数据 -> " + val); };
                 });
+
                 addTextBox(window.parent.document.getElementById(text_area_id), bbcode); // 添加附件bbcode
                 window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
                 jq('[name="progress"]').hide();  // 隐藏进度条
                 jq('.embedded').show();  // 显示附件菜单
-                // jq('[name="file"]').val(''); // 清空输入框
 
             },
                 false);
@@ -3390,8 +3332,6 @@ function SmileIT2(smile, form, text) {
         // 遍历JSON
         const tree = (j, i) => {
             for (let key in j) {
-                // console.log(j);
-                // console.log(j['key']);
                 if (j[key]['type'] == 'directory') {
                     let children = j[key]['children'];
                     let f_id_sh = getFile(children);  // 获取文件夹需要的id
@@ -3589,6 +3529,26 @@ function SmileIT2(smile, form, text) {
                 reject('err');
             };
         });
+    };
+
+    // 异步 replace
+    // https://stackoverflow.com/questions/33631041/javascript-async-await-in-replace
+    async function replaceAsync(str, regex, asyncFn) {
+        const promises = [];
+        str.replace(regex, (match, ...args) => {
+            const promise = asyncFn(match, ...args);
+            promises.push(promise);
+        });
+        const data = await Promise.all(promises);
+        return str.replace(regex, () => data.shift());
+    };
+
+    // 当前时间 字符串格式
+    function getDateString() {
+        const zero = (obj) => { return obj < 10 ? '0' + obj : obj };
+        const time = new Date();
+        return time.getFullYear().toString() + zero(time.getMonth() + 1).toString() + zero(time.getDate()).toString()
+            + zero(time.getHours()) + zero(time.getMinutes()) + zero(time.getSeconds())
     };
 
     function lang_init(lang) {
