@@ -181,7 +181,7 @@ GreasyFork 地址
 
             jq('#anime_chinese').before(`
 <tr>
-    <td class="rowhead nowrap" valign="top" align="right">引用</td>
+    <td class="rowhead nowrap" valign="top" align="right">引用种子</td>
     <td class="rowfollow" valign="top" align="left">
         <input type="text" id="copytorrentinfo" size="10">
         <button id="copyButton" style="margin-left: 10px; margin-right:10px;">确定</button>
