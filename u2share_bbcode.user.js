@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.0.4
+// @version      1.0.5
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -53,6 +53,7 @@ GreasyFork 地址
     // DB
     const db = localforage.createInstance({ name: "bbcodejs" });
     let attachmap_db = localforage.createInstance({ name: "attachmap" });
+    const history_db = localforage.createInstance({ name: "history" });
 
     // 现存BBCODE元素
     (async () => {
@@ -100,9 +101,13 @@ GreasyFork 地址
 
             var main_title = '<font color="red"><b>' + lang['select_type'] + '</b></font>';
 
-            function add_main_title() {
-                var type_id = jq('#browsecat').val();
-                if (type_id === '0') {
+            function addMainTitle() {
+                const custom_title = jq('#custom_title').val();
+                let type_id = jq('#browsecat').val();
+
+                if (custom_title !== '') {
+                    main_title = `<b>${custom_title}</b>`
+                } else if (type_id === '0') {
                     main_title = '<font color="red"><b>' + lang['select_type'] + '</b></font>';
                 } else if (['9', '411', '413', '12', '13', '14', '15', '16', '17', '410', '412'].indexOf(type_id) !== -1) {
                     main_title = '<b>'
@@ -155,16 +160,86 @@ GreasyFork 地址
                     }
                 } else if (type_id === '40') {
                     main_title = '<b>' + jq('#other_title-input').val() + '</b>';
-                } else {
                 }
+
                 jq('#checktitle').html(check_title(main_title));
             }
 
-            jq("#browsecat").change(() => { new add_main_title; });
-            jq(".torrent-info-input").bind('input propertychange', () => { new add_main_title; });
+            jq("#browsecat").change(() => { new addMainTitle; });
+            jq(".torrent-info-input").bind('input propertychange', () => { new addMainTitle; });
             jq('#other_title').after('<tr><td class="rowhead nowrap" valign="top" align="right">' + lang['main_title'] + '</td>'
                 + '<td id="checktitle" class="rowfollow" valign="top" align="left" valign="middle">' + main_title + '</td></tr>'
             );
+
+
+            const token = await history_db.getItem('token');
+            let token_waring = ''
+
+            if (token === null || token.length !== 96) {
+                token_waring = `<span style="color: red">API Token 不存在或无效</span>&nbsp;
+<a href="https://greasyfork.org/zh-CN/scripts/428545" style="font-weight: bold; text-decoration: underline; font-style: italic;">鉴权脚本 (安装后打开任意种子页面触发鉴权)</a>`};
+
+            jq('#anime_chinese').before(`
+<tr>
+    <td class="rowhead nowrap" valign="top" align="right">引用</td>
+    <td class="rowfollow" valign="top" align="left">
+        <input type="text" id="copytorrentinfo" size="10">
+        <button id="copyButton" style="margin-left: 10px; margin-right:10px;">确定</button>
+        ${token_waring}
+        <br>
+        输入种子ID，复制该种子的描述信息。
+    </td>
+</tr>
+<tr>
+    <td class="rowhead nowrap" valign="top" align="right">自定义标题</td>
+    <td class="rowfollow" valign="top" align="left">
+        <input type="text" id="custom_title" name="custom_title" style="width: 80%;"><br>
+        除非你确切知道你在做什么，否则请不要在此处输入任何内容。
+    </td>
+</tr>`
+            )
+
+            const browsecat_options = {};
+            const uid = jq("#info_block a:first").attr("href").match(/id=(\d+)/)[1];
+
+            jq("#browsecat option").each(function () {
+                const text = jq(this).text();
+                const value = jq(this).val();
+                browsecat_options[text] = value;
+            });
+
+            jq("#custom_title").bind('input propertychange', () => { new addMainTitle; });
+
+            // console.log(browsecat_options);
+
+            jq('#copyButton').click(async function (ev) {
+                ev.preventDefault(); // 阻止表单的提交行为
+
+                let tid = jq('#copytorrentinfo').val().trim();;
+                if (isNaN(tid)) { window.alert('无效种子ID'); return; }
+
+                let api = await getApi(token, uid, tid);
+                if (api.msg !== 'success') { window.alert(`API获取发生错误\n\n${api.msg}`); console.log(api); return; }
+
+                let history = api.data.history;
+
+                if (history.length === 0) { window.alert('API没有此种子数据'); return; }
+
+                jq("#compose input[id]").map(function () {
+                    // 预先清空所有字段
+                    if (this.id.endsWith("-input") || this.id === 'poster') jq(`#${this.id}`).val('');
+                    jq('#custom_title').val(history[0].title)
+                    jq('[name="small_descr"]').val(history[0].subtitle);
+                    jq('[name="anidburl"]').val(history[0].anidb === null ? '' : `https://anidb.net/anime/${history[0].anidb}`);
+                    jq('#browsecat').val(browsecat_options[history[0]['category']]);
+                    document.getElementById('browsecat').dispatchEvent(new Event('change')); // 手动触发列表更改事件
+                    jq('.bbcode').val(history[0].description_info);
+                    jq('[class^="torrent-info-input"]').trigger("input"); // 手动触发标题更改
+                    jq('.bbcode').trigger("input"); // 手动触发bbcode更改
+                });
+
+            })
+
 
             // 种子文件
             jq('#torrent').parent().html(`
@@ -501,16 +576,41 @@ GreasyFork 地址
                 e.preventDefault();
                 this.disabled = true; // 禁止按钮重复点击
                 const torrentBlob = await db.getItem(`upload_autoSaveMessageTorrentBlob`);
+
                 if (torrentBlob === null || typeof torrentBlob === 'undefined') {
                     window.alert('种子文件不存在，在其他页面点击清除按钮了？');
                     return;
                 }
+
                 console.log(new File([torrentBlob], "a.torrent", { type: "application/octet-stream" }));
 
                 const p = () => {
                     return new Promise(function (resolve, reject) {
                         // https://developer.mozilla.org/zh-CN/docs/Web/API/FormData
                         let formdata = new FormData(document.getElementById('compose'));
+
+                        // 处理自定义标题的结构
+                        let customTitle = formdata.get("custom_title");
+                        if (!isWhitespace(customTitle)) {
+                            // 自定义标题中有数据时
+                            const category = formdata.get("type");
+                            customTitle = customTitle.replace(/^\[|\]$/g, '');  // 去除自定义标题两边的括号，提交后系统会自动补全
+
+                            if (['9', '411', '413', '12', '13', '14', '15', '16', '17', '410', '412'].includes(category)) {
+                                for (let pair of formdata.entries()) if (pair[0].startsWith('anime_')) formdata.set(pair[0], '');
+                                formdata.set("anime_chinese", customTitle);
+                            } else if (['21', '22', '23'].includes(category)) {
+                                for (let pair of formdata.entries()) if (pair[0].startsWith('manga_')) formdata.set(pair[0], '');
+                                formdata.set("manga_title", customTitle);
+                            } else if (category === '30') {
+                                for (let pair of formdata.entries()) if (pair[0].startsWith('music_')) formdata.set(pair[0], '');
+                                formdata.set("music_title", customTitle);
+                            } else if (category === '40') {
+                                formdata.set("other_title", customTitle);
+                            }
+
+                        }
+
                         if (torrentBlob) formdata.set("file", new File([torrentBlob], "a.torrent", { type: "application/octet-stream" }));
 
                         const request = new XMLHttpRequest();
@@ -1284,7 +1384,7 @@ GreasyFork 地址
                 jq(`#upload_auto_save_on`).show();
                 jq(`#upload_auto_save_off`).hide();
                 jq(`#upload_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
-                console.log(`upload-自动保存已开启`);
+                // console.log(`upload-自动保存已开启`);
                 // 检查输入框内是否已经存在字符串
                 let _input_bool = true
                 jq("#compose input[id$='-input']").add('#browsecat').add('.bbcode').each(function () {
@@ -1299,6 +1399,7 @@ GreasyFork 地址
                     await db.getItem(`upload_autoSaveMessageInfo`).then((value) => {
                         if (value === null) return;
                         jq('#browsecat').val(value['category']);
+                        jq('#custom_title').val(value['custom_title']);
                         // jq('#browsecat').change(); // 手动触发列表更改事件 <使用两个jq后失效了 $('#browsecat').change(); 是有效的>
                         document.getElementById('browsecat').dispatchEvent(new Event('change')); // 手动触发列表更改事件
                         jq('#autocheck_placeholder').children().eq(0).prop("checked", value['auto_pass']);
@@ -1396,7 +1497,8 @@ GreasyFork 地址
                     "music_quantity": jq('#music_quantity-input').val(),
                     "music_quality": jq('#music_quality-input').val(),
                     "music_format": jq('#music_format-input').val(),
-                    "other_title": jq('#other_title-input').val()
+                    "other_title": jq('#other_title-input').val(),
+                    "custom_title": jq('#custom_title').val()
                 };
                 await db.setItem(`upload_autoSaveMessageInfo`, upload_info);
                 await db.setItem(`upload_autoSaveMessageSmallDescr`, jq('[name="small_descr"]').val());
@@ -3550,6 +3652,28 @@ function SmileIT2(smile, form, text) {
         return time.getFullYear().toString() + zero(time.getMonth() + 1).toString() + zero(time.getDate()).toString()
             + zero(time.getHours()) + zero(time.getMinutes()) + zero(time.getSeconds())
     };
+
+    async function getApi(token, uid, tid) {
+        return await new Promise((resolve, reject) => {
+            // https://www.w3school.com.cn/jquery/ajax_ajax.asp
+            jq.ajax({
+                type: 'get',
+                url: 'https://u2.kysdm.com/api/v1/history?token=' + token + '&maximum=1&uid=' + uid + '&torrent=' + tid,
+                contentType: 'application/json',
+                dataType: 'json',
+                cache: true,
+                success: r => resolve(r),
+                error: r_ => {
+                    console.log('发生错误，HTTP状态码[' + r.status + ']。');
+                    reject(r.status);
+                },
+            });
+        });
+    };
+
+    function isWhitespace(str) {
+        return /^\s*$/.test(str);
+    }
 
     function lang_init(lang) {
         var lang_json = {
