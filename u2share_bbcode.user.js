@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.0.5
+// @version      1.0.6
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -221,19 +221,19 @@ GreasyFork 地址
                 let api = await getApi(token, uid, tid);
                 if (api.msg !== 'success') { window.alert(`API获取发生错误\n\n${api.msg}`); console.log(api); return; }
 
-                let history = api.data.history;
+                let info = api.data.info;
 
-                if (history.length === 0) { window.alert('API没有此种子数据'); return; }
+                if (info.length === 0) { window.alert('API没有此种子数据'); return; }
 
                 jq("#compose input[id]").map(function () {
                     // 预先清空所有字段
                     if (this.id.endsWith("-input") || this.id === 'poster') jq(`#${this.id}`).val('');
-                    jq('#custom_title').val(history[0].title)
-                    jq('[name="small_descr"]').val(history[0].subtitle);
-                    jq('[name="anidburl"]').val(history[0].anidb === null ? '' : `https://anidb.net/anime/${history[0].anidb}`);
-                    jq('#browsecat').val(browsecat_options[history[0]['category']]);
+                    jq('#custom_title').val(info[0].title)
+                    jq('[name="small_descr"]').val(info[0].subtitle);
+                    jq('[name="anidburl"]').val(info[0].anidb === null ? '' : `https://anidb.net/anime/${info[0].anidb}`);
+                    jq('#browsecat').val(browsecat_options[info[0]['category']]);
                     document.getElementById('browsecat').dispatchEvent(new Event('change')); // 手动触发列表更改事件
-                    jq('.bbcode').val(history[0].description_info);
+                    jq('.bbcode').val(info[0].description_info);
                     jq('[class^="torrent-info-input"]').trigger("input"); // 手动触发标题更改
                     jq('.bbcode').trigger("input"); // 手动触发bbcode更改
                 });
@@ -3658,7 +3658,7 @@ function SmileIT2(smile, form, text) {
             // https://www.w3school.com.cn/jquery/ajax_ajax.asp
             jq.ajax({
                 type: 'get',
-                url: 'https://u2.kysdm.com/api/v1/history?token=' + token + '&maximum=1&uid=' + uid + '&torrent=' + tid,
+                url: 'https://u2.kysdm.com/api/v1/torrent_info?token=' + token + '&uid=' + uid + '&torrent=' + tid,
                 contentType: 'application/json',
                 dataType: 'json',
                 cache: true,
