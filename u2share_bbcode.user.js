@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.0.6
+// @version      1.0.7
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -223,7 +223,7 @@ GreasyFork 地址
 
                 let info = api.data.info;
 
-                if (info.length === 0) { window.alert('API没有此种子数据'); return; }
+                if (Object.keys(info).length === 0) { window.alert('API没有此种子数据'); return; }
 
                 jq("#compose input[id]").map(function () {
                     // 预先清空所有字段
