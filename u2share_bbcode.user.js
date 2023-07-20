@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.0.7
+// @version      1.0.8
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -3115,13 +3115,11 @@ function SmileIT2(smile, form, text) {
                             else { console.error("无效数据 -> " + val); continue; };
                             addTextBox(window.parent.document.getElementById(text_area_id), bbcode); // 添加附件bbcode
                             window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
+                            jq('[name="progress"]').hide();  // 隐藏进度条
+                            jq('.embedded').show();  // 显示附件菜单
                         };
                         // console.log(file);
                     };
-                    jq('[name="progress"]').hide();  // 隐藏进度条
-                    jq('.embedded').show();  // 显示附件菜单
-                    // jq('[name="file"]').val(''); // 清空输入框
-                    // console.log(clipboardData)
                 };
             });
 
