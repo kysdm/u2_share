@@ -12,6 +12,8 @@
 // @exclude      *://u2.dmhy.org/shoutbox.php*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
+// @downloadURL  https://github.com/kysdm/u2_share/raw/main/u2share_bbcode.user.js
+// @updateURL    https://github.com/kysdm/u2_share/raw/main/u2share_bbcode.user.js
 // @license      Apache-2.0
 // ==/UserScript==
 

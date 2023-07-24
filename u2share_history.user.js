@@ -11,6 +11,8 @@
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // @require      https://unpkg.com/thenby@1.3.4/thenBy.min.js
+// @downloadURL  https://github.com/kysdm/u2_share/raw/main/u2share_history.user.js
+// @updateURL    https://github.com/kysdm/u2_share/raw/main/u2share_history.user.js
 // @license      Apache-2.0
 // ==/UserScript==
 
