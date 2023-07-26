@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.4
+// @version      0.6.5
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -922,7 +922,8 @@ async function torrentInfoHistory() {
                 .before(`<td id="torrent_ver" class="no_border_wide"></td>`)
                 .before(`<td id="torrent_piece_length" class="no_border_wide"></td>`);
             $('#torrent_ver').html(`<b>${lang['torrent_ver']}:</b>&nbsp;${history_data[i].torrent_ver}`);
-            $('#torrent_piece_length').html(`<b>${lang['torrent_piece_length']}:</b>&nbsp;${convertBytesToAutoUnit(history_data[i].torrent_piece_length)}`);
+            const numberOfPieces = Math.ceil(history_data[i].torrent_size / history_data[i].torrent_piece_length);
+            $('#torrent_piece_length').html(`<b>${lang['torrent_piece_length']}:</b>&nbsp;${numberOfPieces} (${convertBytesToAutoUnit(history_data[i].torrent_piece_length)})`);
             $('#ctdescr').val(history_data[i].description_info);
             $('#codedescr').closest('a').click(function () {
                 $('#cdescr').toggle();
@@ -982,7 +983,8 @@ async function torrentInfoHistory() {
             $("td[class='rowhead nowrap']:contains(" + lang['description'] + ")").last().next().html('<div id="kdescr"><span style="word-break: break-all; word-wrap: break-word;"><bdo dir="ltr">' + bbcode2html(history_data[i].description_info) + '</bdo></span></div>'); // 描述
             $('#ctdescr').val(history_data[i].description_info);  // 描述代码
             $('#torrent_ver').html(`<b>${lang['torrent_ver']}:</b>&nbsp;${history_data[i].torrent_ver}`);  // 版本
-            $('#torrent_piece_length').html(`<b>${lang['torrent_piece_length']}:</b>&nbsp;${convertBytesToAutoUnit(history_data[i].torrent_piece_length)}`); // 区块
+            const numberOfPieces = Math.ceil(history_data[i].torrent_size / history_data[i].torrent_piece_length);
+            $('#torrent_piece_length').html(`<b>${lang['torrent_piece_length']}:</b>&nbsp;${numberOfPieces} (${convertBytesToAutoUnit(history_data[i].torrent_piece_length)})`);  // 区块
 
             if ($('h3').length === 1) { // 已经通过候选的种子
                 $("td[class='rowhead nowrap']:contains(" + lang['uploaded'] + ")").next().html(((p) => {
@@ -1338,6 +1340,8 @@ async function torrentInfoHistoryReset() {
         };
 
         let torrent_tree = history_data[index].torrent_tree;
+        const numberOfPieces = Math.ceil(history_data[i].torrent_size / history_data[0].torrent_piece_length);
+
         if (torrent_tree === null) {
             // console.log('tree 为空');
             $('#file_tree').html(
@@ -1347,13 +1351,14 @@ async function torrentInfoHistoryReset() {
                             <td class="no_border_wide"><b>${lang['files']}</b>: ${history_data[0].torrent_files_qty}<br></td>
                             <td class="no_border_wide"><b>${lang['info_hash']}:</b>&nbsp;${history_data[0].torrent_hash}</td>
                             <td id="torrent_ver" class="no_border_wide"><b>${lang['torrent_ver']}:</b>&nbsp;${history_data[0].torrent_ver}</td>
-                            <td id="torrent_piece_length" class="no_border_wide"><b>${lang['torrent_piece_length']}:</b>&nbsp;${convertBytesToAutoUnit(history_data[0].torrent_piece_length)}</td>
+                            <td id="torrent_piece_length" class="no_border_wide"><b>${lang['torrent_piece_length']}:</b>&nbsp;${numberOfPieces} (${convertBytesToAutoUnit(history_data[0].torrent_piece_length)})</td>
                         </tr>
                     </tbody>
                 </table>`
             );
             return;
         };
+
         torrent_tree = stringify(torrent_tree, function (a, b) {
             // 对keys排序
             if (typeof (a.value) !== 'object' || typeof (b.value) !== 'object') return 0;
@@ -1393,7 +1398,7 @@ async function torrentInfoHistoryReset() {
                         </td>
                         <td class="no_border_wide"><b>${lang['info_hash']}:</b>&nbsp;${history_data[index].torrent_hash}</td>
                         <td id="torrent_ver" class="no_border_wide"><b>${lang['torrent_ver']}:</b>&nbsp;${history_data[index].torrent_ver}</td>
-                        <td id="torrent_piece_length" class="no_border_wide"><b>${lang['torrent_piece_length']}:</b>&nbsp;${convertBytesToAutoUnit(history_data[index].torrent_piece_length)}</td>
+                        <td id="torrent_piece_length" class="no_border_wide"><b>${lang['torrent_piece_length']}:</b>&nbsp;${numberOfPieces} (${convertBytesToAutoUnit(history_data[0].torrent_piece_length)})</td>
                     </tr>
                 </tbody>
             </table>
