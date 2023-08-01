@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.0.8
+// @version      1.0.9
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -1203,7 +1203,7 @@ GreasyFork 地址
                 index = bbcode_tag.index;
                 _textarea = _textarea.slice(index);
 
-                switch (tag) {
+                switch (tag.toLowerCase()) {
                     case 'b':
                         t = b(val, _textarea); break;
                     case 'i':
