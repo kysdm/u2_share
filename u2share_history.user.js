@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.5
+// @version      0.6.6
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -1828,7 +1828,7 @@ function bbcode2html(bbcodestr) {
             _textarea = _textarea.slice(index);
             // console.log(_textarea);
             // console.log(`当前标签：` + tag + ' | ' + val);
-            switch (tag) {
+            switch (tag.toLowerCase()) {
                 case 'b':
                     t = b(val, _textarea); break;
                 case 'i':
