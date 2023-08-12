@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.6
+// @version      0.6.7
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -1340,7 +1340,7 @@ async function torrentInfoHistoryReset() {
         };
 
         let torrent_tree = history_data[index].torrent_tree;
-        const numberOfPieces = Math.ceil(history_data[i].torrent_size / history_data[0].torrent_piece_length);
+        const numberOfPieces = Math.ceil(history_data[0].torrent_size / history_data[0].torrent_piece_length);
 
         if (torrent_tree === null) {
             // console.log('tree 为空');
