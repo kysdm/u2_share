@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.7
+// @version      0.6.8
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -11,6 +11,9 @@
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // @require      https://unpkg.com/thenby@1.3.4/thenBy.min.js
+// @require      https://unpkg.com/diff@5.1.0/dist/diff.js
+// @require      https://cdn.jsdelivr.net/npm/diff2html@3.4.40/bundles/js/diff2html-ui-base.min.js
+// @require      https://cdn.jsdelivr.net/npm/diff2html@3.4.40/bundles/js/diff2html.min.js
 // @downloadURL  https://github.com/kysdm/u2_share/raw/main/u2share_history.user.js
 // @updateURL    https://github.com/kysdm/u2_share/raw/main/u2share_history.user.js
 // @license      Apache-2.0
@@ -42,6 +45,8 @@ var lang, torrent_id, db, user_id, topicid, key, token;
 
 (async () => {
     // 初始化
+    await loadExternalCssAsync("https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css");
+    addGlobalStyles(`.diff_container{display:flex;align-items:flex-start;justify-content:flex-start}.diff_cell{border:0;padding:0;margin-left:5px;flex:1}.draw_div{max-width:100%;min-height:15px;max-height:600px;margin:5px;outline:1px solid #0a0;overflow:auto;background-color:#fffafa}.d2h-cntx{background-color:#fffafa;border:0}.d2h-diff-tbody tr{position:relative}.d2h-wrapper{transform:translateZ(0)}.d2h-diff-table{position:relative}.d2h-code-side-linenumber{text-align:center;vertical-align:middle;width:3em;border-top:0;border-bottom:0;border-left:none;border-right:1px solid #eee;top:0;bottom:0;margin:1px}.d2h-file-side-diff{overflow-x:hidden}.d2h-code-line,.d2h-code-line-ctn{white-space:pre}.d2h-file-header{display:none}.d2h-files-diff{flex-wrap:wrap}.d2h-file-wrapper{margin-bottom:0;border:0}.d2h-code-side-line{width:calc(100% - 7em);padding:0 3.5em}.d2h-info{background-color:#ddf4ff;border:0}.d2h-del{background-color:#fee8e9;border-color:#e9aeae;border:0}.d2h-ins{background-color:#dfd;border-color:#b4e2b4;border:0}.d2h-code-side-emptyplaceholder,.d2h-emptyplaceholder{background-color:#f1f1f1;border-color:#e1e1e1}`)
     lang = new lang_init($('#locale_selection').val()); // 获取当前网页语言
     let em = /.*id=(?<tid>\d{3,5})/i.exec(location.search); if (em) torrent_id = em.groups.tid; else torrent_id = null; // 当前种子ID
     topicid = location.href.match(/topicid=(\d+)/i) || ['', '']; if (topicid[1] !== '') topicid = topicid[1];
@@ -917,7 +922,27 @@ async function torrentInfoHistory() {
                     <textarea class="bbcode" cols="100" style="width: 99%" id="ctdescr" rows="20"></textarea>
                     </div>
                 </td></tr>`
-            );
+            )
+                .after(`<tr id="diff_unit" >
+                            <td rowspan="2" class="no-top-bottom-border" style="font-weight: bold; text-align: right; vertical-align: top;">
+                                <a href="javascript:void(0)"><span class="nowrap">
+                                <img class="plus" src="pic/trans.gif" alt="Show/Hide" id="diffdescr" title="显示&nbsp;/&nbsp;隐藏"> 差异</span></a></td>
+                            </td>
+                            <td valign="top" align="left" class="no-top-bottom-border">
+                                <div class="diff_container" style="display: none;">
+                                    <div class="diff_cell">&nbsp;<select name="type" id="history_select2"></select></div>
+                                    <div class="diff_cell"><select name="type" id="history_select3"></select></div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr id="diff_draw_unit">
+                            <td valign="top" align="left" class="no-top-bottom-border">
+                                <div id="diff_draw" class="draw_div" style="display: none;"></div>
+                            </td>
+                        </tr>`);
+
+            if (await db.getItem('diff_switch')) $('#diff_draw, .diff_container').show();
+
             $(`td[class='rowhead nowrap']:contains('${lang['torrent_info']}')`).next('td').find('.no_border_wide:last')
                 .before(`<td id="torrent_ver" class="no_border_wide"></td>`)
                 .before(`<td id="torrent_piece_length" class="no_border_wide"></td>`);
@@ -928,6 +953,16 @@ async function torrentInfoHistory() {
             $('#codedescr').closest('a').click(function () {
                 $('#cdescr').toggle();
                 $('#codedescr').attr('class', $('#codedescr').attr('class') === 'plus' ? 'minus' : 'plus');
+            });
+            $('#diffdescr').closest('a').click(async function () {
+                $('#diff_draw, .diff_container').toggle();
+                if ($('#diffdescr').attr('class') === 'plus') {
+                    $('#diffdescr').attr('class', 'minus');
+                    await db.setItem('diff_switch', false);
+                } else {
+                    $('#diffdescr').attr('class', 'plus');
+                    await db.setItem('diff_switch', true);
+                }
             });
             $('#codedescrcopy').click(function () {
                 const _val = $('#ctdescr').val();
@@ -941,7 +976,7 @@ async function torrentInfoHistory() {
             });
         };
 
-        $("#history_select").append("<option value='" + history_data[i].self + "'>"
+        $("#history_select, #history_select2, #history_select3").append("<option value='" + history_data[i].self + "'>"
             + history_data[i].get_time.replace('T', ' ')
             + ((edited_type) => {
                 switch (edited_type) {
@@ -964,6 +999,21 @@ async function torrentInfoHistory() {
             })()
             + "</option>");
     };
+
+    $("#history_select2, #history_select3").change(function () {
+        const leftValue = Number($("#history_select2").val());
+        const rightValue = Number($("#history_select3").val());
+        drawDiffHistoryBbcode(history_data, leftValue, rightValue)
+    });
+
+    if ($("#history_select2").find("option").length === 1) {
+        // 就一个记录，无法进行差异处理
+        $('#diff_draw_unit,#diff_unit').hide();
+    } else {
+        // 默认比对最新记录和上一次记录
+        $("#history_select2 option:eq(1)").prop("selected", true);
+        $("#history_select2").trigger("change");  // 手动触发 change 事件
+    }
 
     // 草 为什么会这样呢 明明原来很整齐的
     $("#history_select").change(function () { // 监听菜单选择
@@ -1254,11 +1304,40 @@ async function torrentInfoHistoryReset() {
                 <textarea class="bbcode" cols="100" style="width: 99%" id="ctdescr" rows="20"></textarea>
                 </div>
             </td></tr>`
-    );
+    ).after(`<tr id="diff_unit" >
+                <td rowspan="2" class="no-top-bottom-border" style="font-weight: bold; text-align: right; vertical-align: top;">
+                    <a href="javascript:void(0)"><span class="nowrap">
+                    <img class="plus" src="pic/trans.gif" alt="Show/Hide" id="diffdescr" title="显示&nbsp;/&nbsp;隐藏"> 差异</span></a></td>
+                </td>
+                <td valign="top" align="left" class="no-top-bottom-border">
+                    <div class="diff_container" style="display: none;">
+                        <div class="diff_cell">&nbsp;<select name="type" id="history_select2"></select></div>
+                        <div class="diff_cell"><select name="type" id="history_select3"></select></div>
+                    </div>
+                </td>
+            </tr>
+            <tr id="diff_draw_unit">
+                <td valign="top" align="left" class="no-top-bottom-border">
+                    <div id="diff_draw" class="draw_div" style="display: none;"></div>
+                </td>
+            </tr>`);
+
+    if (await db.getItem('diff_switch')) $('#diff_draw, .diff_container').show();
+
     $('#ctdescr').val(history_data[0].description_info);
     $('#codedescr').closest('a').click(function () {
         $('#cdescr').toggle();
         $('#codedescr').attr('class', $('#codedescr').attr('class') === 'plus' ? 'minus' : 'plus');
+    });
+    $('#diffdescr').closest('a').click(async function () {
+        $('#diff_draw, .diff_container').toggle();
+        if ($('#diffdescr').attr('class') === 'plus') {
+            $('#diffdescr').attr('class', 'minus');
+            await db.setItem('diff_switch', false);
+        } else {
+            $('#diffdescr').attr('class', 'plus');
+            await db.setItem('diff_switch', true);
+        }
     });
     $('#codedescrcopy').click(function () {
         const _val = $('#ctdescr').val();
@@ -1424,7 +1503,7 @@ async function torrentInfoHistoryReset() {
     putFileTree(0);  // 运行一次，生成列表
 
     for (let i = 0, len = history_data.length; i < len; i++) { // 循环插入到选择列表中
-        $("#history_select").append("<option value='" + history_data[i].self + "'>"
+        $("#history_select, #history_select2, #history_select3").append("<option value='" + history_data[i].self + "'>"
             + history_data[i].get_time.replace('T', ' ')
             + ((edited_type) => {
                 switch (edited_type) {
@@ -1447,6 +1526,21 @@ async function torrentInfoHistoryReset() {
             })()
             + "</option>");
     };
+
+    $("#history_select2, #history_select3").change(function () {
+        const leftValue = Number($("#history_select2").val());
+        const rightValue = Number($("#history_select3").val());
+        drawDiffHistoryBbcode(history_data, leftValue, rightValue)
+    });
+
+    if ($("#history_select2").find("option").length === 1) {
+        // 就一个记录，无法进行差异处理
+        $('#diff_draw_unit,#diff_unit').hide();
+    } else {
+        // 默认比对最新记录和上一次记录
+        $("#history_select2 option:eq(1)").prop("selected", true);
+        $("#history_select2").trigger("change");  // 手动触发 change 事件
+    }
 
     $("#history_select").change(function () { // 监听菜单选择
         let self = Number($(this).val());
@@ -2356,3 +2450,180 @@ function convertBytesToAutoUnit(bytes) {
     return bytes + units[unitIndex];
 };
 
+async function loadExternalCssAsync(url) {
+    return new Promise((resolve) => {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.type = "text/css";
+        link.href = url;
+        link.onload = resolve;
+        link.onerror = resolve;
+        document.head.appendChild(link);
+    });
+}
+
+function addGlobalStyles(cssRules) {
+    const styleElement = document.createElement('style');
+    styleElement.appendChild(document.createTextNode(cssRules));
+    document.head.appendChild(styleElement);
+}
+
+function countChineseAndJapaneseCharacters(str) {
+    const chinesePattern = /[\u4e00-\u9fa5]/g;
+    const japanesePattern = /[\u3040-\u30FF\u31F0-\u31FF]/g;
+
+    const chineseMatches = str.match(chinesePattern);
+    const japaneseMatches = str.match(japanesePattern);
+
+    if (chineseMatches) { return chineseMatches.length * 3; }
+    else if (japaneseMatches) { return japaneseMatches.length * 2; }
+    else { return 1; }
+
+}
+
+function generateBbcode(data) {
+    return `Title: ${data.title}
+
+Subtitle: ${data.subtitle || 'N/A'}
+
+Uploader Name: ${data.uploader_name}
+
+Category: ${data.category}
+
+Anidb: ${data.anidb || 'N/A'}  *此变动不精准，仅供参考。
+
+Description:
+${data.description_info}`;
+}
+
+function measureAndWrapText(str, max_length) {
+    let newStr = '';
+    let currentLength = 0;
+    let lostHtmlTags = [];
+
+    for (var j = 0; j < str.length; j++) {
+        const char = str[j];
+
+        if (char === '<') {
+            let tag = str.substring(j, j + 6)
+
+            if (tag.startsWith('<br>')) {
+                j += 3
+                newStr += '<br>'
+                continue
+            } else if (tag.startsWith('<ins>')) {
+                j += 4
+                newStr += '<ins>'
+                lostHtmlTags.push('</ins>')
+                continue
+            } else if (tag.startsWith('</ins>')) {
+                j += 5
+                newStr += '</ins>'
+                lostHtmlTags.splice(lostHtmlTags.indexOf('</ins>'), 1);
+                continue
+            } else if (tag.startsWith('<del>')) {
+                j += 4
+                newStr += '<del>'
+                lostHtmlTags.push('</del>')
+                continue
+            } else if (tag.startsWith('</del>')) {
+                j += 5
+                newStr += '</del>'
+                lostHtmlTags.splice(lostHtmlTags.indexOf('</del>'), 1);
+                continue
+            } else {
+                console.log(`未知标签: ${tag}`);
+            }
+
+        };
+
+        let count = countChineseAndJapaneseCharacters(char);
+        if (currentLength + count <= max_length) {
+            currentLength += count;
+            newStr = newStr + char;
+        } else {
+            currentLength = count;
+            newStr = newStr + lostHtmlTags.join('') + '<br>' + lostHtmlTags.join('').replace(/'\/'/g, '') + char;
+        }
+    }
+
+    return newStr;
+}
+
+function drawDiffHistoryBbcode(data, leftValue, rightValue) {
+    // 生成BBCODE内容
+    for (let i = 0, len = data.length; i < len; i++) {
+        if (data[i].self === leftValue) {
+            var leftBbcode = generateBbcode(data[i]);
+        } else if (data[i].self === rightValue) {
+            var rightBbcode = generateBbcode(data[i]);
+        }
+    }
+
+    const configuration = {
+        drawFileList: false,
+        fileListToggle: false,
+        fileListStartVisible: false,
+        fileContentToggle: false,
+        matching: 'lines',
+        outputFormat: 'side-by-side',  // line-by-line or side-by-side
+        synchronisedScroll: true,
+        highlight: false,
+        renderNothingWhenEmpty: false,
+        wordWrap: true,
+        stickyFileHeaders: false,
+    };
+    // 生成布局
+    const diff2htmlUi = new Diff2HtmlUI(
+        document.getElementById('diff_draw'),
+        Diff.createTwoFilesPatch("a", "b", leftBbcode, rightBbcode),
+        configuration);
+    // 获取表格现在的宽度
+    $('#diff_draw').html('');
+    const maxtableLength = Math.floor(($('#diff_draw_unit').children().width() - 10) / 2 / 8);
+    // 渲染
+    diff2htmlUi.draw();
+
+    // 获取左右两列内的所有文本
+    let leftDiffStr = [];
+    let rightDiffStr = [];
+    $('.d2h-file-side-diff:first').find("span.d2h-code-line-ctn").each(function () { leftDiffStr.push($(this).html()); });
+    $('.d2h-file-side-diff:last').find("span.d2h-code-line-ctn").each(function () { rightDiffStr.push($(this).html()); });
+
+    for (var i = 0; i < leftDiffStr.length; i++) {
+        // 当前处理的行中的内容
+        let currentLeftDiffStr = leftDiffStr[i];
+        let currentRightDiffStr = rightDiffStr[i];
+
+        // 左边内容格式化后的结果
+        let currentLeftDiffWrapStr = measureAndWrapText(currentLeftDiffStr, maxtableLength);
+
+        // 当左右两行一样时，可以只格式化一边的内容
+        if (currentLeftDiffStr === currentRightDiffStr) {
+            $('.d2h-file-side-diff:first').find("span.d2h-code-line-ctn").eq(i).html(currentLeftDiffWrapStr);
+            $('.d2h-file-side-diff:last').find("span.d2h-code-line-ctn").eq(i).html(currentLeftDiffWrapStr);
+            continue;
+        }
+
+        // 右边内容格式化后的结果
+        let currentRightDiffWrapStr = measureAndWrapText(currentRightDiffStr, maxtableLength);
+
+        // 计算行中有多少换行符
+        let brLeftCount = (currentLeftDiffWrapStr === '<br>') ? 0 : (currentLeftDiffWrapStr.match(/<br>/g) || []).length;
+        let brRightCount = (currentRightDiffWrapStr === '<br>') ? 0 : (currentRightDiffWrapStr.match(/<br>/g) || []).length;
+
+        if (brLeftCount === brRightCount) {
+            $('.d2h-file-side-diff:first').find("span.d2h-code-line-ctn").eq(i).html(currentLeftDiffWrapStr);
+            $('.d2h-file-side-diff:last').find("span.d2h-code-line-ctn").eq(i).html(currentRightDiffWrapStr);
+        } else if (brLeftCount < brRightCount) {
+            currentLeftDiffWrapStr = ((currentLeftDiffWrapStr === '<br>') ? '' : currentLeftDiffWrapStr) + '<br>&nbsp;'.repeat(brRightCount - brLeftCount);
+            $('.d2h-file-side-diff:first').find("span.d2h-code-line-ctn").eq(i).html(currentLeftDiffWrapStr);
+            $('.d2h-file-side-diff:last').find("span.d2h-code-line-ctn").eq(i).html(currentRightDiffWrapStr);
+        } else {
+            currentRightDiffWrapStr = ((currentRightDiffWrapStr === '<br>') ? '' : currentRightDiffWrapStr) + '<br>&nbsp;'.repeat(brLeftCount - brRightCount);
+            $('.d2h-file-side-diff:first').find("span.d2h-code-line-ctn").eq(i).html(currentLeftDiffWrapStr);
+            $('.d2h-file-side-diff:last').find("span.d2h-code-line-ctn").eq(i).html(currentRightDiffWrapStr);
+        }
+
+    }
+}
