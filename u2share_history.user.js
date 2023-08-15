@@ -941,8 +941,6 @@ async function torrentInfoHistory() {
                             </td>
                         </tr>`);
 
-            if (await db.getItem('diff_switch')) $('#diff_draw, .diff_container').show();
-
             $(`td[class='rowhead nowrap']:contains('${lang['torrent_info']}')`).next('td').find('.no_border_wide:last')
                 .before(`<td id="torrent_ver" class="no_border_wide"></td>`)
                 .before(`<td id="torrent_piece_length" class="no_border_wide"></td>`);
@@ -958,12 +956,16 @@ async function torrentInfoHistory() {
                 $('#diff_draw, .diff_container').toggle();
                 if ($('#diffdescr').attr('class') === 'plus') {
                     $('#diffdescr').attr('class', 'minus');
-                    await db.setItem('diff_switch', false);
+                    await db.setItem('diff_switch', true);
                 } else {
                     $('#diffdescr').attr('class', 'plus');
-                    await db.setItem('diff_switch', true);
+                    await db.setItem('diff_switch', false);
                 }
             });
+
+            // 记录上次差异按钮打开状态
+            if (await db.getItem('diff_switch')) $('#diffdescr').closest('a').trigger('click');
+
             $('#codedescrcopy').click(function () {
                 const _val = $('#ctdescr').val();
                 navigator.clipboard.writeText(_val).then(() => {
@@ -1322,8 +1324,6 @@ async function torrentInfoHistoryReset() {
                 </td>
             </tr>`);
 
-    if (await db.getItem('diff_switch')) $('#diff_draw, .diff_container').show();
-
     $('#ctdescr').val(history_data[0].description_info);
     $('#codedescr').closest('a').click(function () {
         $('#cdescr').toggle();
@@ -1333,12 +1333,16 @@ async function torrentInfoHistoryReset() {
         $('#diff_draw, .diff_container').toggle();
         if ($('#diffdescr').attr('class') === 'plus') {
             $('#diffdescr').attr('class', 'minus');
-            await db.setItem('diff_switch', false);
+            await db.setItem('diff_switch', true);
         } else {
             $('#diffdescr').attr('class', 'plus');
-            await db.setItem('diff_switch', true);
+            await db.setItem('diff_switch', false);
         }
     });
+
+    // 记录上次差异按钮打开状态
+    if (await db.getItem('diff_switch')) $('#diffdescr').closest('a').trigger('click');
+
     $('#codedescrcopy').click(function () {
         const _val = $('#ctdescr').val();
         navigator.clipboard.writeText(_val).then(() => {
