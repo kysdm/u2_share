@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.8
+// @version      0.6.9
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -46,7 +46,7 @@ var lang, torrent_id, db, user_id, topicid, key, token;
 (async () => {
     // 初始化
     await loadExternalCssAsync("https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css");
-    addGlobalStyles(`.diff_container{display:flex;align-items:flex-start;justify-content:flex-start}.diff_cell{border:0;padding:0;margin-left:5px;flex:1}.draw_div{max-width:100%;min-height:15px;max-height:600px;margin:5px;outline:1px solid #0a0;overflow:auto;background-color:#fffafa}.d2h-cntx{background-color:#fffafa;border:0}.d2h-diff-tbody tr{position:relative}.d2h-wrapper{transform:translateZ(0)}.d2h-diff-table{position:relative}.d2h-code-side-linenumber{text-align:center;vertical-align:middle;width:3em;border-top:0;border-bottom:0;border-left:none;border-right:1px solid #eee;top:0;bottom:0;margin:1px}.d2h-file-side-diff{overflow-x:hidden}.d2h-code-line,.d2h-code-line-ctn{white-space:pre}.d2h-file-header{display:none}.d2h-files-diff{flex-wrap:wrap}.d2h-file-wrapper{margin-bottom:0;border:0}.d2h-code-side-line{width:calc(100% - 7em);padding:0 3.5em}.d2h-info{background-color:#ddf4ff;border:0}.d2h-del{background-color:#fee8e9;border-color:#e9aeae;border:0}.d2h-ins{background-color:#dfd;border-color:#b4e2b4;border:0}.d2h-code-side-emptyplaceholder,.d2h-emptyplaceholder{background-color:#f1f1f1;border-color:#e1e1e1}`)
+    addGlobalStyles(`.diff_container{display:flex;align-items:flex-start;justify-content:flex-start}.diff_cell{border:0;padding:0;margin-left:5px;flex:1}.draw_div{max-width:100%;min-height:15px;max-height:600px;margin:5px;outline:1px solid #0a0;overflow:auto;background-color:#fffafa}.d2h-cntx{background-color:#fffafa;border:0}.d2h-diff-tbody tr{position:relative}.d2h-wrapper{transform:translateZ(0)}.d2h-diff-table{position:relative;font-size:9pt}.d2h-code-side-linenumber{text-align:center;vertical-align:middle;width:3em;border-top:0;border-bottom:0;border-left:none;border-right:1px solid #eee;top:0;bottom:0;margin:1px}.d2h-file-side-diff{overflow-x:hidden}.d2h-code-line,.d2h-code-line-ctn{white-space:pre}.d2h-file-header{display:none}.d2h-files-diff{flex-wrap:wrap}.d2h-file-wrapper{margin-bottom:0;border:0}.d2h-code-side-line{width:calc(100% - 7em);padding:0 3.5em}.d2h-info{background-color:#ddf4ff;border:0}.d2h-del{background-color:#fee8e9;border-color:#e9aeae;border:0}.d2h-ins{background-color:#dfd;border-color:#b4e2b4;border:0}.d2h-code-side-emptyplaceholder,.d2h-emptyplaceholder{background-color:#f1f1f1;border-color:#e1e1e1}`)
     lang = new lang_init($('#locale_selection').val()); // 获取当前网页语言
     let em = /.*id=(?<tid>\d{3,5})/i.exec(location.search); if (em) torrent_id = em.groups.tid; else torrent_id = null; // 当前种子ID
     topicid = location.href.match(/topicid=(\d+)/i) || ['', '']; if (topicid[1] !== '') topicid = topicid[1];
@@ -2500,10 +2500,37 @@ Description:
 ${data.description_info}`;
 }
 
+function calculateTextWidth() {
+    const tempElement = document.createElement('span');
+    tempElement.style.fontFamily = 'Menlo,Consolas,monospace'
+    tempElement.style.fontSize = '9pt';
+    document.body.appendChild(tempElement);
+    // tempElement.textContent = '\u00A0'
+    tempElement.textContent = '中'
+    const cjk = tempElement.offsetWidth;
+    tempElement.textContent = 'E'
+    const eng = tempElement.offsetWidth;
+    document.body.removeChild(tempElement);
+
+    return { "cjk": cjk, "eng": eng }
+}
+
+function isEnglishCharacterOrPunctuation(character) {
+    const charCode = character.charCodeAt(0);
+    return (
+        (charCode >= 0x0041 && charCode <= 0x005A) ||  // 大写字母
+        (charCode >= 0x0061 && charCode <= 0x007A) ||  // 小写字母
+        (charCode >= 0x00A0 && charCode <= 0x00FF) ||  // 拉丁-1 补充
+        (charCode >= 0x0020 && charCode <= 0x007E)    // 常见标点符号和空格
+    );
+}
+
 function measureAndWrapText(str, max_length) {
     let newStr = '';
     let currentLength = 0;
     let lostHtmlTags = [];
+
+    const width = calculateTextWidth()
 
     for (var j = 0; j < str.length; j++) {
         const char = str[j];
@@ -2541,7 +2568,7 @@ function measureAndWrapText(str, max_length) {
 
         };
 
-        let count = countChineseAndJapaneseCharacters(char);
+        let count = isEnglishCharacterOrPunctuation(char) ? width.eng : width.cjk;
         if (currentLength + count <= max_length) {
             currentLength += count;
             newStr = newStr + char;
@@ -2584,7 +2611,8 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue) {
         configuration);
     // 获取表格现在的宽度
     $('#diff_draw').html('');
-    const maxtableLength = Math.floor(($('#diff_draw_unit').children().width() - 10) / 2 / 8);
+    const maxtableLength = Math.floor(($('#diff_draw_unit').children().width() / 2 - 70));
+
     // 渲染
     diff2htmlUi.draw();
 
