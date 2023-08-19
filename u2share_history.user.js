@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.6.9
+// @version      0.7.0
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -1008,14 +1008,31 @@ async function torrentInfoHistory() {
         drawDiffHistoryBbcode(history_data, leftValue, rightValue)
     });
 
-    if ($("#history_select2").find("option").length === 1) {
+    const $historySelect2 = $("#history_select2");
+    const $historySelect3 = $("#history_select3");
+    const firstOptionText = $historySelect2.find("option:eq(0)").text();
+    const historySelect2OptionsLength = $historySelect2.find("option").length;
+
+    if (historySelect2OptionsLength === 1) {
         // 就一个记录，无法进行差异处理
-        $('#diff_draw_unit,#diff_unit').hide();
+        $('#diff_draw_unit, #diff_unit').hide();
     } else {
-        // 默认比对最新记录和上一次记录
-        $("#history_select2 option:eq(1)").prop("selected", true);
-        $("#history_select2").trigger("change");  // 手动触发 change 事件
+        if (firstOptionText.substring(19, 22) === ' T ') {
+            // 管理员通过候选 此操作不可能对种子介绍有修改
+            if (historySelect2OptionsLength === 2) {
+                // 只存在两个记录，且两条记录完全一样
+                $('#diff_draw_unit, #diff_unit').hide();
+            } else {
+                $historySelect2.find("option:eq(2)").prop("selected", true);
+                $historySelect3.find("option:eq(1)").prop("selected", true);
+                $historySelect2.add($historySelect3).trigger("change");
+            }
+        } else {
+            $historySelect2.find("option:eq(1)").prop("selected", true);
+            $historySelect2.trigger("change");
+        }
     }
+
 
     // 草 为什么会这样呢 明明原来很整齐的
     $("#history_select").change(function () { // 监听菜单选择
