@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.0
+// @version      0.7.1
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -13,7 +13,6 @@
 // @require      https://unpkg.com/thenby@1.3.4/thenBy.min.js
 // @require      https://unpkg.com/diff@5.1.0/dist/diff.js
 // @require      https://cdn.jsdelivr.net/npm/diff2html@3.4.40/bundles/js/diff2html-ui-base.min.js
-// @require      https://cdn.jsdelivr.net/npm/diff2html@3.4.40/bundles/js/diff2html.min.js
 // @downloadURL  https://github.com/kysdm/u2_share/raw/main/u2share_history.user.js
 // @updateURL    https://github.com/kysdm/u2_share/raw/main/u2share_history.user.js
 // @license      Apache-2.0
@@ -2628,7 +2627,7 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue) {
         configuration);
     // 获取表格现在的宽度
     $('#diff_draw').html('');
-    const maxtableLength = Math.floor(($('#diff_draw_unit').children().width() / 2 - 70));
+    const maxtableLength = Math.ceil($('#diff_draw').width() / 2 - 70);
 
     // 渲染
     diff2htmlUi.draw();
