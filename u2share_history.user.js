@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.1
+// @version      0.7.2
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -12,7 +12,7 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // @require      https://unpkg.com/thenby@1.3.4/thenBy.min.js
 // @require      https://unpkg.com/diff@5.1.0/dist/diff.js
-// @require      https://cdn.jsdelivr.net/npm/diff2html@3.4.40/bundles/js/diff2html-ui-base.min.js
+// @require      https://cdn.jsdelivr.net/npm/diff2html@3.4.40/bundles/js/diff2html.min.js
 // @downloadURL  https://github.com/kysdm/u2_share/raw/main/u2share_history.user.js
 // @updateURL    https://github.com/kysdm/u2_share/raw/main/u2share_history.user.js
 // @license      Apache-2.0
@@ -44,8 +44,7 @@ var lang, torrent_id, db, user_id, topicid, key, token;
 
 (async () => {
     // 初始化
-    await loadExternalCssAsync("https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css");
-    addGlobalStyles(`.diff_container{display:flex;align-items:flex-start;justify-content:flex-start}.diff_cell{border:0;padding:0;margin-left:5px;flex:1}.draw_div{max-width:100%;min-height:15px;max-height:600px;margin:5px;outline:1px solid #0a0;overflow:auto;background-color:#fffafa}.d2h-cntx{background-color:#fffafa;border:0}.d2h-diff-tbody tr{position:relative}.d2h-wrapper{transform:translateZ(0)}.d2h-diff-table{position:relative;font-size:9pt}.d2h-code-side-linenumber{text-align:center;vertical-align:middle;width:3em;border-top:0;border-bottom:0;border-left:none;border-right:1px solid #eee;top:0;bottom:0;margin:1px}.d2h-file-side-diff{overflow-x:hidden}.d2h-code-line,.d2h-code-line-ctn{white-space:pre}.d2h-file-header{display:none}.d2h-files-diff{flex-wrap:wrap}.d2h-file-wrapper{margin-bottom:0;border:0}.d2h-code-side-line{width:calc(100% - 7em);padding:0 3.5em}.d2h-info{background-color:#ddf4ff;border:0}.d2h-del{background-color:#fee8e9;border-color:#e9aeae;border:0}.d2h-ins{background-color:#dfd;border-color:#b4e2b4;border:0}.d2h-code-side-emptyplaceholder,.d2h-emptyplaceholder{background-color:#f1f1f1;border-color:#e1e1e1}`)
+    addGlobalStyles(`.diff-container{display:flex;align-items:flex-start;justify-content:flex-start}.diff-cell{border:0;padding:0;margin-left:5px;flex:1}.draw-div{box-sizing:border-box;max-width:100%;min-height:15px;max-height:600px;margin:5px;overflow:auto;border-top:1px solid #bfbfbf;border-bottom:1px solid #bfbfbf}.diff-table{width:100%;border-collapse:collapse;box-sizing:border-box;table-layout:fixed;font-family:ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;font-size:12px;border-left:1px solid #bfbfbf;border-right:1px solid #bfbfbf;background-color:white}.diff-table del{text-decoration:none;background-color:#ff818266}.diff-table ins{text-decoration:none;background-color:#abf2bc}.diff-linenumber{text-align:right;vertical-align:top;width:3em;border:0;color:#6e7781;font-size:12px}.diff-linenumber-delete{background-color:#ffd7d5}.diff-linenumber-insert{background-color:#ccffd8}.diff-line-text-delete{background-color:#ffebe9}.diff-line-text-insert{background-color:#e6ffec}.diff-linenumber-empty,.diff-text-cell-empty{background-color:#d0d8e080}.diff-line-text{display:inline-block;white-space:pre-wrap;word-wrap:anywhere;box-sizing:border-box;width:93%;font-size:12px}.diff-line-prefix{background:0;word-wrap:normal;display:inline;font-size:12px;box-sizing:border-box}.diff-line-prefix-delete::before{content:"-";margin-left:8px;margin-right:8px;box-sizing:border-box;vertical-align:top}.diff-line-prefix-insert::before{content:"+";margin-left:8px;margin-right:8px;box-sizing:border-box;vertical-align:top}.diff-line-prefix-empty::before{content:" ";margin-left:8px;margin-right:8px;box-sizing:border-box;vertical-align:top}.diff-text-cell{width:calc((100% - 6em) / 2);white-space:pre;border-left:none;border-right:1px solid #bfbfbf;border-top:0;border-bottom:0;vertical-align:top}`);
     lang = new lang_init($('#locale_selection').val()); // 获取当前网页语言
     let em = /.*id=(?<tid>\d{3,5})/i.exec(location.search); if (em) torrent_id = em.groups.tid; else torrent_id = null; // 当前种子ID
     topicid = location.href.match(/topicid=(\d+)/i) || ['', '']; if (topicid[1] !== '') topicid = topicid[1];
@@ -928,15 +927,15 @@ async function torrentInfoHistory() {
                                 <img class="plus" src="pic/trans.gif" alt="Show/Hide" id="diffdescr" title="显示&nbsp;/&nbsp;隐藏"> 差异</span></a></td>
                             </td>
                             <td valign="top" align="left" class="no-top-bottom-border">
-                                <div class="diff_container" style="display: none;">
-                                    <div class="diff_cell">&nbsp;<select name="type" id="history_select2"></select></div>
-                                    <div class="diff_cell"><select name="type" id="history_select3"></select></div>
+                                <div class="diff-container" style="display: none;">
+                                    <div class="diff-cell">&nbsp;<select name="type" id="history_select2"></select></div>
+                                    <div class="diff-cell"><select name="type" id="history_select3"></select></div>
                                 </div>
                             </td>
                         </tr>
                         <tr id="diff_draw_unit">
                             <td valign="top" align="left" class="no-top-bottom-border">
-                                <div id="diff_draw" class="draw_div" style="display: none;"></div>
+                                <div id="diff_draw" class="draw-div" style="display: none;"></div>
                             </td>
                         </tr>`);
 
@@ -952,7 +951,7 @@ async function torrentInfoHistory() {
                 $('#codedescr').attr('class', $('#codedescr').attr('class') === 'plus' ? 'minus' : 'plus');
             });
             $('#diffdescr').closest('a').click(async function () {
-                $('#diff_draw, .diff_container').toggle();
+                $('#diff_draw, .diff-container').toggle();
                 if ($('#diffdescr').attr('class') === 'plus') {
                     $('#diffdescr').attr('class', 'minus');
                     await db.setItem('diff_switch', true);
@@ -1031,7 +1030,6 @@ async function torrentInfoHistory() {
             $historySelect2.trigger("change");
         }
     }
-
 
     // 草 为什么会这样呢 明明原来很整齐的
     $("#history_select").change(function () { // 监听菜单选择
@@ -1328,15 +1326,15 @@ async function torrentInfoHistoryReset() {
                     <img class="plus" src="pic/trans.gif" alt="Show/Hide" id="diffdescr" title="显示&nbsp;/&nbsp;隐藏"> 差异</span></a></td>
                 </td>
                 <td valign="top" align="left" class="no-top-bottom-border">
-                    <div class="diff_container" style="display: none;">
-                        <div class="diff_cell">&nbsp;<select name="type" id="history_select2"></select></div>
-                        <div class="diff_cell"><select name="type" id="history_select3"></select></div>
+                    <div class="diff-container" style="display: none;">
+                        <div class="diff-cell">&nbsp;<select name="type" id="history_select2"></select></div>
+                        <div class="diff-cell"><select name="type" id="history_select3"></select></div>
                     </div>
                 </td>
             </tr>
             <tr id="diff_draw_unit">
                 <td valign="top" align="left" class="no-top-bottom-border">
-                    <div id="diff_draw" class="draw_div" style="display: none;"></div>
+                    <div id="diff_draw" class="draw-div" style="display: none;"></div>
                 </td>
             </tr>`);
 
@@ -1346,7 +1344,7 @@ async function torrentInfoHistoryReset() {
         $('#codedescr').attr('class', $('#codedescr').attr('class') === 'plus' ? 'minus' : 'plus');
     });
     $('#diffdescr').closest('a').click(async function () {
-        $('#diff_draw, .diff_container').toggle();
+        $('#diff_draw, .diff-container').toggle();
         if ($('#diffdescr').attr('class') === 'plus') {
             $('#diffdescr').attr('class', 'minus');
             await db.setItem('diff_switch', true);
@@ -2488,19 +2486,6 @@ function addGlobalStyles(cssRules) {
     document.head.appendChild(styleElement);
 }
 
-function countChineseAndJapaneseCharacters(str) {
-    const chinesePattern = /[\u4e00-\u9fa5]/g;
-    const japanesePattern = /[\u3040-\u30FF\u31F0-\u31FF]/g;
-
-    const chineseMatches = str.match(chinesePattern);
-    const japaneseMatches = str.match(japanesePattern);
-
-    if (chineseMatches) { return chineseMatches.length * 3; }
-    else if (japaneseMatches) { return japaneseMatches.length * 2; }
-    else { return 1; }
-
-}
-
 function generateBbcode(data) {
     return `Title: ${data.title}
 
@@ -2516,88 +2501,116 @@ Description:
 ${data.description_info}`;
 }
 
-function calculateTextWidth() {
-    const tempElement = document.createElement('span');
-    tempElement.style.fontFamily = 'Menlo,Consolas,monospace'
-    tempElement.style.fontSize = '9pt';
-    document.body.appendChild(tempElement);
-    // tempElement.textContent = '\u00A0'
-    tempElement.textContent = '中'
-    const cjk = tempElement.offsetWidth;
-    tempElement.textContent = 'E'
-    const eng = tempElement.offsetWidth;
-    document.body.removeChild(tempElement);
-
-    return { "cjk": cjk, "eng": eng }
-}
-
-function isEnglishCharacterOrPunctuation(character) {
-    const charCode = character.charCodeAt(0);
-    return (
-        (charCode >= 0x0041 && charCode <= 0x005A) ||  // 大写字母
-        (charCode >= 0x0061 && charCode <= 0x007A) ||  // 小写字母
-        (charCode >= 0x00A0 && charCode <= 0x00FF) ||  // 拉丁-1 补充
-        (charCode >= 0x0020 && charCode <= 0x007E)    // 常见标点符号和空格
-    );
-}
-
-function measureAndWrapText(str, max_length) {
-    let newStr = '';
-    let currentLength = 0;
-    let lostHtmlTags = [];
-
-    const width = calculateTextWidth()
-
-    for (var j = 0; j < str.length; j++) {
-        const char = str[j];
-
-        if (char === '<') {
-            let tag = str.substring(j, j + 6)
-
-            if (tag.startsWith('<br>')) {
-                j += 3
-                newStr += '<br>'
-                continue
-            } else if (tag.startsWith('<ins>')) {
-                j += 4
-                newStr += '<ins>'
-                lostHtmlTags.push('</ins>')
-                continue
-            } else if (tag.startsWith('</ins>')) {
-                j += 5
-                newStr += '</ins>'
-                lostHtmlTags.splice(lostHtmlTags.indexOf('</ins>'), 1);
-                continue
-            } else if (tag.startsWith('<del>')) {
-                j += 4
-                newStr += '<del>'
-                lostHtmlTags.push('</del>')
-                continue
-            } else if (tag.startsWith('</del>')) {
-                j += 5
-                newStr += '</del>'
-                lostHtmlTags.splice(lostHtmlTags.indexOf('</del>'), 1);
-                continue
-            } else {
-                console.log(`未知标签: ${tag}`);
-            }
-
-        };
-
-        let count = isEnglishCharacterOrPunctuation(char) ? width.eng : width.cjk;
-        if (currentLength + count <= max_length) {
-            currentLength += count;
-            newStr = newStr + char;
-        } else {
-            currentLength = count;
-            newStr = newStr + lostHtmlTags.join('') + '<br>' + lostHtmlTags.join('').replace(/'\/'/g, '') + char;
-        }
-    }
-
-    return newStr;
-}
-
 function drawDiffHistoryBbcode(data, leftValue, rightValue) {
+    /* addGlobalStyles(`.diff-container{
+                        display: flex;
+                        align-items: flex-start;
+                        justify-content: flex-start;
+                    }
+                    .diff-cell{
+                        border: 0;
+                        padding: 0;
+                        margin-left: 5px;
+                        flex: 1;
+                    }
+                    .draw-div{
+                        box-sizing: border-box;
+                        max-width: 100%;
+                        min-height: 15px;
+                        max-height: 600px;
+                        margin: 5px;
+                        overflow: auto;
+                        border-top: 1px solid #bfbfbf;
+                        border-bottom: 1px solid #bfbfbf;
+                    }
+                    .diff-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        box-sizing: border-box;
+                        table-layout: fixed;
+                        font-family: ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;
+                        font-size: 12px;
+                        border-left: 1px solid #bfbfbf;
+                        border-right: 1px solid #bfbfbf;
+                        background-color: white;
+                    }
+                    .diff-table del {
+                        text-decoration: none;
+                        background-color: #ff818266;
+                    }
+                    .diff-table ins {
+                        text-decoration: none;
+                        background-color: #abf2bc;
+                    }
+                    .diff-linenumber {
+                        text-align: right;
+                        vertical-align: top;
+                        width: 3em;
+                        border: none;
+                        color: #6e7781;
+                        font-size: 12px;
+                    }
+                    .diff-linenumber-delete {
+                        background-color: #ffd7d5;
+                    }
+                    .diff-linenumber-insert {
+                        background-color: #ccffd8;
+                    }
+                    .diff-line-text-delete {
+                        background-color: #ffebe9;
+                    }
+                    .diff-line-text-insert {
+                        background-color: #e6ffec;
+                    }
+                    .diff-linenumber-empty, .diff-text-cell-empty {
+                        background-color: #d0d8e080;
+                    }
+                    .diff-line-text {
+                        display: inline-block;
+                        white-space: pre-wrap;
+                        word-wrap: anywhere;
+                        box-sizing: border-box;
+                        width: 93%;
+                        font-size: 12px;
+                    }
+                    .diff-line-prefix {
+                        background: none;
+                        word-wrap: normal;
+                        display: inline;
+                        font-size: 12px;
+                        box-sizing: border-box;
+                    }  
+                    .diff-line-prefix-delete::before {
+                        content: "-";
+                        margin-left: 8px;
+                        margin-right: 8px;
+                        box-sizing: border-box;
+                        vertical-align: top;
+                    }  
+                    .diff-line-prefix-insert::before {
+                        content: "+";
+                        margin-left: 8px;
+                        margin-right: 8px;
+                        box-sizing: border-box;
+                        vertical-align: top;
+                    }
+                    .diff-line-prefix-empty::before {
+                        content: " ";
+                        margin-left: 8px;
+                        margin-right: 8px;
+                        box-sizing: border-box;
+                        vertical-align: top;
+                    }
+                    .diff-text-cell {
+                        width: calc((100% - 6em) / 2);
+                        white-space: pre;
+                        border-left: none;
+                        border-right: 1px solid #bfbfbf;
+                        border-top: none;
+                        border-bottom: none;
+                        vertical-align: top;
+                    }`); */
+
     // 生成BBCODE内容
     for (let i = 0, len = data.length; i < len; i++) {
         if (data[i].self === leftValue) {
@@ -2605,6 +2618,23 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue) {
         } else if (data[i].self === rightValue) {
             var rightBbcode = generateBbcode(data[i]);
         }
+    }
+
+    if (leftBbcode === rightBbcode || typeof leftBbcode === 'undefined' || typeof rightBbcode === 'undefined') {
+        $('#diff_draw').html(`<table class="diff-table" style="height: 16px">
+            <tbody id="diff-tbody">
+            <tr style="background-color: #ddf4ff;">
+                <td class="diff-linenumber">
+                </td>
+                <td class="diff-text-cell" style="border-right: none; color: #6e7781;">
+                    <span>bbcode without changes</span>
+                </td>
+                <td class="diff-linenumber"></td>
+                <td class="diff-text-cell"></td>
+            </tr>
+            </tbody>
+        </table>`);
+        return;
     }
 
     const configuration = {
@@ -2620,58 +2650,96 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue) {
         wordWrap: true,
         stickyFileHeaders: false,
     };
-    // 生成布局
-    const diff2htmlUi = new Diff2HtmlUI(
-        document.getElementById('diff_draw'),
-        Diff.createTwoFilesPatch("a", "b", leftBbcode, rightBbcode),
-        configuration);
-    // 获取表格现在的宽度
-    $('#diff_draw').html('');
-    const maxtableLength = Math.ceil($('#diff_draw').width() / 2 - 70);
 
-    // 渲染
-    diff2htmlUi.draw();
+    let $diffHtml = $(Diff2Html.html(Diff.createTwoFilesPatch("a", "b", leftBbcode, rightBbcode), configuration));
+    let $diffTbody = $diffHtml.find('tbody.d2h-diff-tbody');
 
-    // 获取左右两列内的所有文本
-    let leftDiffStr = [];
-    let rightDiffStr = [];
-    $('.d2h-file-side-diff:first').find("span.d2h-code-line-ctn").each(function () { leftDiffStr.push($(this).html()); });
-    $('.d2h-file-side-diff:last').find("span.d2h-code-line-ctn").each(function () { rightDiffStr.push($(this).html()); });
+    const processTr = ($tr) => {
+        let list = [];
+        $tr.each(function () {
+            let obj;
+            if ($(this).find('td.d2h-code-side-linenumber.d2h-info').length == 1) {
+                // 行信息
+                const header = $(this).text().trim();
+                list.push({ "type": 'header', "content": header });
+            } else {
+                const number = $(this).find("td[class^='d2h-code-side-linenumber']").text().trim();
+                const prefix = $(this).find('span.d2h-code-line-prefix').text();
+                let content = $(this).find('span.d2h-code-line-ctn').html();
+                content = content === '<br>' ? '' : content;
+                const state = (prefix === '+') ? 'add' : ((prefix === '-') ? 'del' : 'no');
+                list.push({ "type": 'content', "content": content, "prefix": prefix, "line": number });
+            }
+        });
+        return list;
+    }
 
-    for (var i = 0; i < leftDiffStr.length; i++) {
-        // 当前处理的行中的内容
-        let currentLeftDiffStr = leftDiffStr[i];
-        let currentRightDiffStr = rightDiffStr[i];
+    let oldList = processTr($diffTbody.eq(0).children('tr'));
+    let newList = processTr($diffTbody.eq(1).children('tr'));
 
-        // 左边内容格式化后的结果
-        let currentLeftDiffWrapStr = measureAndWrapText(currentLeftDiffStr, maxtableLength);
+    let $html = $(`<table class="diff-table"><tbody id="diff-tbody"></tbody></table>`);
+    const $tbody = $html.find('#diff-tbody');
 
-        // 当左右两行一样时，可以只格式化一边的内容
-        if (currentLeftDiffStr === currentRightDiffStr) {
-            $('.d2h-file-side-diff:first').find("span.d2h-code-line-ctn").eq(i).html(currentLeftDiffWrapStr);
-            $('.d2h-file-side-diff:last').find("span.d2h-code-line-ctn").eq(i).html(currentLeftDiffWrapStr);
+    for (let index = 0; index < oldList.length; index++) {
+
+        if (oldList[index].type === 'header') {
+            $tbody.append(`<tr style="background-color: #ddf4ff;">`
+                + `<td class="diff-linenumber"></td><td class="diff-text-cell" style="border-right: none;"><span>${oldList[index].content}</span></td>`
+                + `<td class="diff-linenumber"></td><td class="diff-text-cell"></td>`
+                + `</tr>`);
             continue;
         }
 
-        // 右边内容格式化后的结果
-        let currentRightDiffWrapStr = measureAndWrapText(currentRightDiffStr, maxtableLength);
+        const oldPrefix = oldList[index].prefix;
+        const oldContent = oldList[index].content;
+        const oldLine = oldList[index].line;
+        const newPrefix = newList[index].prefix;
+        const newContent = newList[index].content;
+        const newLine = newList[index].line;
 
-        // 计算行中有多少换行符
-        let brLeftCount = (currentLeftDiffWrapStr === '<br>') ? 0 : (currentLeftDiffWrapStr.match(/<br>/g) || []).length;
-        let brRightCount = (currentRightDiffWrapStr === '<br>') ? 0 : (currentRightDiffWrapStr.match(/<br>/g) || []).length;
-
-        if (brLeftCount === brRightCount) {
-            $('.d2h-file-side-diff:first').find("span.d2h-code-line-ctn").eq(i).html(currentLeftDiffWrapStr);
-            $('.d2h-file-side-diff:last').find("span.d2h-code-line-ctn").eq(i).html(currentRightDiffWrapStr);
-        } else if (brLeftCount < brRightCount) {
-            currentLeftDiffWrapStr = ((currentLeftDiffWrapStr === '<br>') ? '' : currentLeftDiffWrapStr) + '<br>&nbsp;'.repeat(brRightCount - brLeftCount);
-            $('.d2h-file-side-diff:first').find("span.d2h-code-line-ctn").eq(i).html(currentLeftDiffWrapStr);
-            $('.d2h-file-side-diff:last').find("span.d2h-code-line-ctn").eq(i).html(currentRightDiffWrapStr);
-        } else {
-            currentRightDiffWrapStr = ((currentRightDiffWrapStr === '<br>') ? '' : currentRightDiffWrapStr) + '<br>&nbsp;'.repeat(brLeftCount - brRightCount);
-            $('.d2h-file-side-diff:first').find("span.d2h-code-line-ctn").eq(i).html(currentLeftDiffWrapStr);
-            $('.d2h-file-side-diff:last').find("span.d2h-code-line-ctn").eq(i).html(currentRightDiffWrapStr);
+        if (oldPrefix === ' ' && newPrefix === ' ') {
+            // 两边都没有修改
+            $tbody.append(`<tr>`
+                + `<td class="diff-linenumber">${oldLine}&nbsp;</td>`
+                + `<td class="diff-text-cell">`
+                + `<span class="diff-line-prefix diff-line-prefix-empty"></span><span class="diff-line-text">${oldContent}</span>`
+                + `</td>`
+                + `<td class="diff-linenumber">${newLine}&nbsp;</td>`
+                + `<td class="diff-text-cell">`
+                + `<span class="diff-line-prefix diff-line-prefix-empty"></span><span class="diff-line-text">${newContent}</span>`
+                + `</td>`
+                + `</tr>`);
+        } else if (oldPrefix === '-' && newPrefix === '+') {
+            $tbody.append(`<tr>`
+                + `<td class="diff-linenumber diff-linenumber-delete">${oldLine}&nbsp;</td>`
+                + `<td class="diff-text-cell diff-line-text-delete">`
+                + `<span class="diff-line-prefix diff-line-prefix-delete"><span class="diff-line-text">${oldContent}</span></span>`
+                + `</td>`
+                + `<td class="diff-linenumber diff-linenumber-insert">${newLine}&nbsp;</td>`
+                + `<td class="diff-text-cell diff-line-text-insert">`
+                + `<span class="diff-line-prefix diff-line-prefix-insert"><span class="diff-line-text">${newContent}</span></span>`
+                + `</td>`
+                + `</tr>`);
+        } else if (oldPrefix === '-' && newPrefix === ' ') {
+            $tbody.append(`<tr>`
+                + `<td class="diff-linenumber diff-linenumber-delete">${oldLine}&nbsp;</td>`
+                + `<td class="diff-text-cell diff-line-text-delete">`
+                + `<span class="diff-line-prefix diff-line-prefix-delete"><span class="diff-line-text">${oldContent}</span></span>`
+                + `</td>`
+                + `<td class="diff-linenumber diff-linenumber-empty"></td><td class="diff-text-cell diff-text-cell-empty"></td>`
+                + `</tr>`);
+        } else if (oldPrefix === ' ' && newPrefix === '+') {
+            $tbody.append(`<tr>`
+                + `<td class="diff-linenumber diff-linenumber-empty"></td>`
+                + `<td class="diff-text-cell diff-line-text-delete diff-text-cell-empty"></td>`
+                + `<td class="diff-linenumber diff-linenumber-insert">${newLine}&nbsp;</td>`
+                + `<td class="diff-text-cell diff-line-text-insert">`
+                + `<span class="diff-line-prefix diff-line-prefix-insert"><span class="diff-line-text">${newContent}</span></span>`
+                + `</td>`
+                + `</tr>`);
         }
 
     }
+
+    $('#diff_draw').html($html);
 }
