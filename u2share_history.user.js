@@ -1024,7 +1024,7 @@ async function torrentInfoHistory() {
             } else {
                 $historySelect2.find("option:eq(2)").prop("selected", true);
                 $historySelect3.find("option:eq(1)").prop("selected", true);
-                $historySelect2.add($historySelect3).trigger("change");
+                $historySelect2.trigger("change");
             }
         } else {
             $historySelect2.find("option:eq(1)").prop("selected", true);
