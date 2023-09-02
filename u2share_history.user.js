@@ -2621,19 +2621,19 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue) {
     }
 
     if (leftBbcode === rightBbcode || typeof leftBbcode === 'undefined' || typeof rightBbcode === 'undefined') {
-        $('#diff_draw').html(`<table class="diff-table" style="height: 16px">
+        $('#diff_draw').html(`<table class="diff-table">
             <tbody id="diff-tbody">
-            <tr style="background-color: #ddf4ff;">
-                <td class="diff-linenumber">
-                </td>
-                <td class="diff-text-cell" style="border-right: none; color: #6e7781;">
-                    <span>bbcode without changes</span>
-                </td>
-                <td class="diff-linenumber"></td>
-                <td class="diff-text-cell"></td>
-            </tr>
-            </tbody>
-        </table>`);
+                <tr style="background-color: #ddf4ff;">
+                    <td class="diff-linenumber">
+                    </td>
+                    <td class="diff-text-cell" style="border-right: none; color: #6e7781;">
+                        <span>bbcode without changes</span>
+                    </td>
+                    <td class="diff-linenumber"></td>
+                    <td class="diff-text-cell"></td>
+                </tr>
+                </tbody>
+            </table>`);
         return;
     }
 
