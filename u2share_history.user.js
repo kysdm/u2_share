@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.2
+// @version      0.7.3
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -44,7 +44,7 @@ var lang, torrent_id, db, user_id, topicid, key, token;
 
 (async () => {
     // 初始化
-    addGlobalStyles(`.diff-container{display:flex;align-items:flex-start;justify-content:flex-start}.diff-cell{border:0;padding:0;margin-left:5px;flex:1}.draw-div{box-sizing:border-box;max-width:100%;min-height:15px;max-height:600px;margin:5px;overflow:auto;border-top:1px solid #bfbfbf;border-bottom:1px solid #bfbfbf}.diff-table{width:100%;border-collapse:collapse;box-sizing:border-box;table-layout:fixed;font-family:ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;font-size:12px;border-left:1px solid #bfbfbf;border-right:1px solid #bfbfbf;background-color:white}.diff-table del{text-decoration:none;background-color:#ff818266}.diff-table ins{text-decoration:none;background-color:#abf2bc}.diff-linenumber{text-align:right;vertical-align:top;width:3em;border:0;color:#6e7781;font-size:12px}.diff-linenumber-delete{background-color:#ffd7d5}.diff-linenumber-insert{background-color:#ccffd8}.diff-line-text-delete{background-color:#ffebe9}.diff-line-text-insert{background-color:#e6ffec}.diff-linenumber-empty,.diff-text-cell-empty{background-color:#d0d8e080}.diff-line-text{display:inline-block;white-space:pre-wrap;word-wrap:anywhere;box-sizing:border-box;width:90%;font-size:12px}.diff-line-prefix{background:0;word-wrap:normal;display:inline;font-size:12px;box-sizing:border-box}.diff-line-prefix-delete::before{content:"-";margin-left:8px;margin-right:8px;box-sizing:border-box;vertical-align:top}.diff-line-prefix-insert::before{content:"+";margin-left:8px;margin-right:8px;box-sizing:border-box;vertical-align:top}.diff-line-prefix-empty::before{content:" ";margin-left:8px;margin-right:8px;box-sizing:border-box;vertical-align:top}.diff-text-cell{width:calc((100% - 6em) / 2);white-space:pre;border-left:none;border-right:1px solid #bfbfbf;border-top:0;border-bottom:0;vertical-align:top}`);
+    addGlobalStyles(`.diff-container{display:flex;align-items:flex-start;justify-content:flex-start}.diff-cell{border:0;padding:0;margin-left:5px;flex:1}.draw-div{box-sizing:border-box;max-width:100%;min-height:15px;max-height:600px;margin:5px;overflow:auto;border-top:1px solid #bfbfbf;border-bottom:1px solid #bfbfbf}.diff-table{width:100%;border-collapse:collapse;box-sizing:border-box;table-layout:fixed;font-family:ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;font-size:12px;border-left:1px solid #bfbfbf;border-right:1px solid #bfbfbf;background-color:white}.diff-table del{text-decoration:none;background-color:#ff818266}.diff-table ins{text-decoration:none;background-color:#abf2bc}.diff-linenumber{text-align:right;vertical-align:top;width:3em;border:0;color:#6e7781;font-size:12px}.diff-linenumber-delete{background-color:#ffd7d5}.diff-linenumber-insert{background-color:#ccffd8}.diff-line-text-delete{background-color:#ffebe9}.diff-line-text-insert{background-color:#e6ffec}.diff-linenumber-empty,.diff-text-cell-empty{background-color:#d0d8e080}.diff-line-text{display:inline-block;white-space:pre-wrap;word-wrap:anywhere;box-sizing:border-box;width:auto;font-size:12px}.diff-line-text{flex:24}.diff-line-prefix,.diff-line-prefix-delete,.diff-line-prefix-insert,.diff-line-prefix-empty{flex:1}.diff-line-prefix{background:0;word-wrap:break-word;display:inline;font-size:12px;box-sizing:border-box;vertical-align:top}.diff-line-prefix-delete::before{content:" - "}.diff-line-prefix-insert::before{content:" + "}.diff-line-prefix-empty::before{content:"   "}.diff-text-cell{display:flex;align-items:flex-start}.diff-text-cell,.diff-text-cell-empty{width:auto;white-space:pre;border-left:none;border-right:1px solid #bfbfbf;border-top:0;border-bottom:0;vertical-align:top}`);
     lang = new lang_init($('#locale_selection').val()); // 获取当前网页语言
     let em = /.*id=(?<tid>\d{3,5})/i.exec(location.search); if (em) torrent_id = em.groups.tid; else torrent_id = null; // 当前种子ID
     topicid = location.href.match(/topicid=(\d+)/i) || ['', '']; if (topicid[1] !== '') topicid = topicid[1];
@@ -2570,39 +2570,38 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue) {
                         white-space: pre-wrap;
                         word-wrap: anywhere;
                         box-sizing: border-box;
-                        width: 90%;
+                        width: auto;
                         font-size: 12px;
+                    }
+                    .diff-line-text {
+                        flex: 24;
+                    }
+                    .diff-line-prefix, .diff-line-prefix-delete, .diff-line-prefix-insert, .diff-line-prefix-empty {
+                        flex: 1;
                     }
                     .diff-line-prefix {
                         background: none;
-                        word-wrap: normal;
+                        word-wrap: break-word;
                         display: inline;
                         font-size: 12px;
                         box-sizing: border-box;
+                        vertical-align: top;
                     }  
                     .diff-line-prefix-delete::before {
-                        content: "-";
-                        margin-left: 8px;
-                        margin-right: 8px;
-                        box-sizing: border-box;
-                        vertical-align: top;
+                        content: " - ";
                     }  
                     .diff-line-prefix-insert::before {
-                        content: "+";
-                        margin-left: 8px;
-                        margin-right: 8px;
-                        box-sizing: border-box;
-                        vertical-align: top;
+                        content: " + ";
                     }
                     .diff-line-prefix-empty::before {
-                        content: " ";
-                        margin-left: 8px;
-                        margin-right: 8px;
-                        box-sizing: border-box;
-                        vertical-align: top;
+                        content: "   ";
                     }
                     .diff-text-cell {
-                        width: calc((100% - 6em) / 2);
+                        display: flex;
+                        align-items: flex-start;
+                    }
+                    .diff-text-cell, .diff-text-cell-empty {
+                        width: auto;
                         white-space: pre;
                         border-left: none;
                         border-right: 1px solid #bfbfbf;
@@ -2713,28 +2712,29 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue) {
             $tbody.append(`<tr>`
                 + `<td class="diff-linenumber diff-linenumber-delete">${oldLine}&nbsp;</td>`
                 + `<td class="diff-text-cell diff-line-text-delete">`
-                + `<span class="diff-line-prefix diff-line-prefix-delete"><span class="diff-line-text">${oldContent}</span></span>`
+                + `<span class="diff-line-prefix diff-line-prefix-delete"></span><span class="diff-line-text">${oldContent}</span>`
                 + `</td>`
                 + `<td class="diff-linenumber diff-linenumber-insert">${newLine}&nbsp;</td>`
                 + `<td class="diff-text-cell diff-line-text-insert">`
-                + `<span class="diff-line-prefix diff-line-prefix-insert"><span class="diff-line-text">${newContent}</span></span>`
+                + `<span class="diff-line-prefix diff-line-prefix-insert"></span><span class="diff-line-text">${newContent}</span>`
                 + `</td>`
                 + `</tr>`);
         } else if (oldPrefix === '-' && newPrefix === ' ') {
             $tbody.append(`<tr>`
                 + `<td class="diff-linenumber diff-linenumber-delete">${oldLine}&nbsp;</td>`
                 + `<td class="diff-text-cell diff-line-text-delete">`
-                + `<span class="diff-line-prefix diff-line-prefix-delete"><span class="diff-line-text">${oldContent}</span></span>`
+                + `<span class="diff-line-prefix diff-line-prefix-delete"></span><span class="diff-line-text">${oldContent}</span>`
                 + `</td>`
-                + `<td class="diff-linenumber diff-linenumber-empty"></td><td class="diff-text-cell diff-text-cell-empty"></td>`
+                + `<td class="diff-linenumber diff-linenumber-empty"></td>`
+                + `<td class="diff-text-cell-empty"></td>`
                 + `</tr>`);
         } else if (oldPrefix === ' ' && newPrefix === '+') {
             $tbody.append(`<tr>`
                 + `<td class="diff-linenumber diff-linenumber-empty"></td>`
-                + `<td class="diff-text-cell diff-line-text-delete diff-text-cell-empty"></td>`
+                + `<td class="diff-text-cell-empty"></td>`
                 + `<td class="diff-linenumber diff-linenumber-insert">${newLine}&nbsp;</td>`
                 + `<td class="diff-text-cell diff-line-text-insert">`
-                + `<span class="diff-line-prefix diff-line-prefix-insert"><span class="diff-line-text">${newContent}</span></span>`
+                + `<span class="diff-line-prefix diff-line-prefix-insert"></span><span class="diff-line-text">${newContent}</span>`
                 + `</td>`
                 + `</tr>`);
         }
