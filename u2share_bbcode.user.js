@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.0.9
+// @version      1.1.0
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -3105,7 +3105,7 @@ function SmileIT2(smile, form, text) {
                         jq('.embedded').hide();
                         jq('[name="progress"]').show();
                         // https://developer.mozilla.org/zh-CN/docs/Web/API/DataTransferItem/getAsFile
-                        file = items[i].getAsFile();
+                        const file = items[i].getAsFile();
                         if (file) {
                             jq('[name="progress-total"]').text(`1 / 1`); // 显示当前上传文件的序号
                             let f = await imgCompressor(file).catch(e => { window.alert(e) });
