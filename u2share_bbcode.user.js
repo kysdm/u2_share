@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.1.0
+// @version      1.1.1
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -3247,7 +3247,7 @@ function SmileIT2(smile, form, text) {
             this.root = {};
         }
 
-        insert(item, length) {
+        insert(item, length, path_length) {
             let current_node = this.root;
 
             for (let i = 0; i < item.length; i++) {
@@ -3275,7 +3275,7 @@ function SmileIT2(smile, form, text) {
                     continue;
                 }
 
-                let new_node = (i + 1 === item.length) ? { "type": "file", "length": length } : { "type": "directory", "children": {} };
+                let new_node = (i + 1 === item.length) ? { "type": "file", "length": length, "path_length": path_length } : { "type": "directory", "children": {} };
 
                 try {
                     current_node["children"][_item] = new_node;
@@ -3447,11 +3447,12 @@ function SmileIT2(smile, form, text) {
                     tree(children, i + 1);
                 }
                 else {
+                    const color = (j[key]['path_length'] > 230) ? 'color: red;' : '';
                     if (f_id === 0) {
                         // 单文件种子
-                        f_html = f_html + `<tr id="f_id_${f_id}"><td class="rowfollow">${space.repeat(i)}${key}</td><td class="rowfollow" align="right">${convert(j[key]['length'])}</td></tr>`;
+                        f_html = f_html + `<tr id="f_id_${f_id}" style="${color}"><td class="rowfollow">${space.repeat(i)}${key}</td><td class="rowfollow" align="right">${convert(j[key]['length'])}</td></tr>`;
                     } else {
-                        f_html = f_html + `<tr id="f_id_${f_id}" style="display: none;"><td class="rowfollow">${space.repeat(i)}${key}</td><td class="rowfollow" align="right">${convert(j[key]['length'])}</td></tr>`;
+                        f_html = f_html + `<tr id="f_id_${f_id}" style="display: none;${color}"><td class="rowfollow">${space.repeat(i)}${key}</td><td class="rowfollow" align="right">${convert(j[key]['length'])}</td></tr>`;
                     };
                     f_id++;
                 };
@@ -3532,11 +3533,11 @@ function SmileIT2(smile, form, text) {
                 fileCount = 1;
                 const _path = Object.keys(file_tree)[0];
                 const _length = file_tree[_path][""].length;
-                trie.insert([_path], _length);
                 piecesCount = Math.ceil(_length / piecesLength)
                 const currentPathUtf8Bytes = encoder.encode(_path).length;
                 maxPathUtf8Bytes = currentPathUtf8Bytes;
                 maxPathName = [_path];
+                trie.insert([_path], _length, currentPathUtf8Bytes);
             } else {
                 // 遍历v2的树结构，生成自定义的树结构
                 const traverseFileTree = (obj, depth = 0, path = '') => {
@@ -3544,10 +3545,10 @@ function SmileIT2(smile, form, text) {
                     for (let key in obj) {
                         if (typeof obj[key] === 'object') {
                             if (key === '') {
-                                trie.insert(path.split('/'), obj[key].length);
                                 fileCount++;
                                 piecesCount += Math.ceil(obj[key].length / piecesLength);
                                 const currentPathUtf8Bytes = encoder.encode(path).length;
+                                trie.insert(path.split('/'), obj[key].length, currentPathUtf8Bytes);
                                 if (maxPathUtf8Bytes < currentPathUtf8Bytes) {
                                     maxPathUtf8Bytes = currentPathUtf8Bytes;
                                     maxPathName = [path];
@@ -3570,8 +3571,8 @@ function SmileIT2(smile, form, text) {
                 fileCount = 1;
                 const length = decodedData.info.length;
                 torrentSize = length;
-                trie.insert([torrentName], length);
                 const currentPathUtf8Bytes = encoder.encode(torrentName).length;
+                trie.insert([torrentName], length, currentPathUtf8Bytes);
                 maxPathUtf8Bytes = currentPathUtf8Bytes;
                 maxPathName = [torrentName];
             } else {
@@ -3590,8 +3591,8 @@ function SmileIT2(smile, form, text) {
                                 newPaths.push(pahtDecode);
                             };
                         };
-                        trie.insert(newPaths, length);
                         const currentPathUtf8Bytes = encoder.encode(currentPath).length;
+                        trie.insert(newPaths, length, currentPathUtf8Bytes);
                         if (maxPathUtf8Bytes < currentPathUtf8Bytes) {
                             maxPathUtf8Bytes = currentPathUtf8Bytes;
                             maxPathName = [currentPath];
@@ -3613,7 +3614,6 @@ function SmileIT2(smile, form, text) {
         if (piecesCount > 10000) warnStr.push('区块数量超过1W');
         if (maxPathUtf8Bytes > 230) warnStr.push('路径长度超过230字节');
         jq('#torrentinfo3').html(warnStr.join(' | '));
-
         putFileTree(trie.root);
     }
 
