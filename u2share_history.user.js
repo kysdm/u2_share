@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.5
+// @version      0.7.6
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -2458,7 +2458,7 @@ const objectKeys = Object.keys || function (obj) {
 };
 
 function convertBytesToAutoUnit(bytes) {
-    var units = ['B', 'KB', 'MB'];
+    var units = ['B', 'KiB', 'MiB'];
     var unitIndex = 0;
 
     while (bytes >= 1024 && unitIndex < units.length - 1) {
