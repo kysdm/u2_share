@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.6
+// @version      0.7.7
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -408,7 +408,7 @@ function forumCommentHistoryReset() {
         </table>`
 
                     if (counts[x.pid] > 1) {
-                        console.log('有编辑记录 直接添加下拉菜单');
+                        // console.log('有编辑记录 直接添加下拉菜单');
                         // 插入下拉菜单基本框架
                         if ($(`#history_comment${x.pid}_select`).length === 0) {
                             $('#comments').append(bbcode_html); // 先插入整体框架
@@ -801,7 +801,7 @@ function torrentCommentHistory() {
                                 $(`[id="cid${cid}"]`).parent().before(bbcode_html); // 先插入整体框架
 
                                 if (counts[x.cid] > 1) {
-                                    console.log('有编辑记录 直接添加下拉菜单');
+                                    // console.log('有编辑记录 直接添加下拉菜单');
                                     // 插入下拉菜单基本框架
                                     if ($(`#history_comment${x.cid}_select`).length === 0) {
                                         console.log('添加下拉菜单基本框架');
@@ -998,12 +998,6 @@ async function torrentInfoHistory() {
             + "</option>");
     };
 
-    $("#history_select2, #history_select3").change(function () {
-        const leftValue = Number($("#history_select2").val());
-        const rightValue = Number($("#history_select3").val());
-        drawDiffHistoryBbcode(history_data, leftValue, rightValue)
-    });
-
     // 草 为什么会这样呢 明明原来很整齐的
     $("#history_select").change(function () { // 监听菜单选择
         let self = Number($(this).val());
@@ -1051,29 +1045,39 @@ async function torrentInfoHistory() {
         };
     });
 
+    $("#history_select2, #history_select3").change(function () {
+        const leftValue = Number($("#history_select2").val());
+        const rightValue = Number($("#history_select3").val());
+        drawDiffHistoryBbcode(history_data, leftValue, rightValue)
+    });
+
     const $historySelect2 = $("#history_select2");
     const $historySelect3 = $("#history_select3");
-    const firstOptionText = $historySelect2.find("option:eq(0)").text();
+    // const firstOptionText = $historySelect2.find("option:eq(0)").text();
     const historySelect2OptionsLength = $historySelect2.find("option").length;
 
     if (historySelect2OptionsLength === 1) {
         // 就一个记录，无法进行差异处理
         $('#diff_draw_unit, #diff_unit').hide();
     } else {
-        if (firstOptionText.substring(19, 22) === ' T ') {
-            // 管理员通过候选 此操作不可能对种子介绍有修改
-            if (historySelect2OptionsLength === 2) {
-                // 只存在两个记录，且两条记录完全一样
-                $('#diff_draw_unit, #diff_unit').hide();
-            } else {
-                $historySelect2.find("option:eq(2)").prop("selected", true);
-                $historySelect3.find("option:eq(1)").prop("selected", true);
+        let rightValue = 0;
+        let leftValue = 1;
+        let flagBreak = false;
+
+        while (leftValue < historySelect2OptionsLength) {
+            if (preCheckBbcodeDiscrepancy(history_data, leftValue, rightValue) === true) {
+                $historySelect3.find("option").eq(rightValue).prop("selected", true);
+                $historySelect2.find("option").eq(leftValue).prop("selected", true);
                 $historySelect2.trigger("change");
+                flagBreak = true;
+                break;
             }
-        } else {
-            $historySelect2.find("option:eq(1)").prop("selected", true);
-            $historySelect2.trigger("change");
+            rightValue++;
+            leftValue++;
         }
+
+        if (!flagBreak) $('#diff_draw_unit, #diff_unit').hide();
+
     }
 
     $("#history_select option:first").remove(); // 删除加载等待一栏
@@ -1179,7 +1183,7 @@ function torrentCommentHistoryReset() {
                                     </table>`;
 
                             if (counts[x.cid] > 1) {
-                                console.log('有编辑记录 直接添加下拉菜单');
+                                // console.log('有编辑记录 直接添加下拉菜单');
                                 // 插入下拉菜单基本框架
                                 if ($(`#history_comment${x.cid}_select`).length === 0) {
                                     $('#comments').append(bbcode_html); // 先插入整体框架
@@ -1552,13 +1556,33 @@ async function torrentInfoHistoryReset() {
         drawDiffHistoryBbcode(history_data, leftValue, rightValue)
     });
 
-    if ($("#history_select2").find("option").length === 1) {
+    const $historySelect2 = $("#history_select2");
+    const $historySelect3 = $("#history_select3");
+    // const firstOptionText = $historySelect2.find("option:eq(0)").text();
+    const historySelect2OptionsLength = $historySelect2.find("option").length;
+
+    if (historySelect2OptionsLength === 1) {
         // 就一个记录，无法进行差异处理
-        $('#diff_draw_unit,#diff_unit').hide();
+        $('#diff_draw_unit, #diff_unit').hide();
     } else {
-        // 默认比对最新记录和上一次记录
-        $("#history_select2 option:eq(1)").prop("selected", true);
-        $("#history_select2").trigger("change");  // 手动触发 change 事件
+        let rightValue = 0;
+        let leftValue = 1;
+        let flagBreak = false;
+
+        while (leftValue < historySelect2OptionsLength) {
+            if (preCheckBbcodeDiscrepancy(history_data, leftValue, rightValue) === true) {
+                $historySelect3.find("option").eq(rightValue).prop("selected", true);
+                $historySelect2.find("option").eq(leftValue).prop("selected", true);
+                $historySelect2.trigger("change");
+                flagBreak = true;
+                break;
+            }
+            rightValue++;
+            leftValue++;
+        }
+
+        if (!flagBreak) $('#diff_draw_unit, #diff_unit').hide();
+
     }
 
     $("#history_select").change(function () { // 监听菜单选择
@@ -2485,6 +2509,13 @@ function addGlobalStyles(cssRules) {
     const styleElement = document.createElement('style');
     styleElement.appendChild(document.createTextNode(cssRules));
     document.head.appendChild(styleElement);
+}
+
+function preCheckBbcodeDiscrepancy(data, left, right) {
+    // 预检测两边BBCODE是否存在差异
+    let leftBbcode = generateBbcode(data[left]);
+    let rightBbcode = generateBbcode(data[right]);
+    return !(leftBbcode === rightBbcode || typeof leftBbcode === 'undefined' || typeof rightBbcode === 'undefined');
 }
 
 function generateBbcode(data) {
