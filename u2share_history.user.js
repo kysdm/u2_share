@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.7
+// @version      0.7.8
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -44,7 +44,7 @@ var lang, torrent_id, db, user_id, topicid, key, token;
 
 (async () => {
     // 初始化
-    addGlobalStyles(`.diff-container{display:flex;align-items:flex-start;justify-content:flex-start}.diff-cell{border:0;padding:0;margin-left:5px;flex:1}.draw-div{box-sizing:border-box;max-width:100%;min-height:15px;max-height:600px;margin:5px;overflow:auto;border-top:1px solid #bfbfbf;border-bottom:1px solid #bfbfbf}.diff-table{width:100%;border-left:1px solid #bfbfbf;border-right:1px solid #bfbfbf;background-color:white}.diff-table table,.diff-table table td{background-color:transparent;border:0;vertical-align:top}.diff-table,.diff-table table{border-collapse:collapse;box-sizing:border-box;table-layout:fixed;font-family:ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;font-size:12px}.diff-table del{text-decoration:none;background-color:#ff818266}.diff-table ins{text-decoration:none;background-color:#abf2bc}.diff-linenumber{text-align:right;vertical-align:top;width:3em;border:0;color:#6e7781;font-size:12px}.diff-linenumber-delete{background-color:#ffd7d5}.diff-linenumber-insert{background-color:#ccffd8}.diff-line-text-delete{background-color:#ffebe9}.diff-line-text-insert{background-color:#e6ffec}.diff-linenumber-empty,.diff-text-cell-empty{background-color:#d0d8e080}.diff-line-text{display:inline-block;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;box-sizing:border-box;width:auto;font-size:12px}.diff-line-prefix{background:0;word-wrap:break-word;display:inline;font-size:12px;box-sizing:border-box;vertical-align:top}.diff-line-prefix-delete::before{content:" - "}.diff-line-prefix-insert::before{content:" + "}.diff-line-prefix-empty::before{content:"   "}.diff-text-cell,.diff-text-cell-empty{width:auto;white-space:pre;border-left:none;border-right:1px solid #bfbfbf;border-top:0;border-bottom:0}`);
+    addGlobalStyles(`.diff-container{display:flex;align-items:flex-start;justify-content:flex-start;}.diff-cell{border:none;padding:0;margin-left:5px;flex:1;}.draw-div{box-sizing:border-box;max-width:100%;min-height:15px;max-height:600px;margin:5px;overflow:auto;border-top:1px solid #bfbfbf;border-bottom:1px solid #bfbfbf;}.diff-table{width:100%;border-left:1px solid #bfbfbf;border-right:1px solid #bfbfbf;background-color:white;}.diff-table table,.diff-table table td{background-color:transparent;border:none;vertical-align:top;}.diff-table,.diff-table table{border-collapse:collapse;box-sizing:border-box;table-layout:fixed;font-family:ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;font-size:12px;}.diff-table tbody{vertical-align:top;}.diff-table del{text-decoration:none;background-color:#ff818266;}.diff-table ins{text-decoration:none;background-color:#abf2bc;}.diff-linenumber{text-align:right;vertical-align:top;width:3em;border:none;color:#6e7781;font-size:12px;}.diff-linenumber-delete{background-color:#ffd7d5;}.diff-linenumber-insert{background-color:#ccffd8;}.diff-line-text-delete{background-color:#ffebe9;}.diff-line-text-insert{background-color:#e6ffec;}.diff-linenumber-empty,.diff-text-cell-empty{background-color:#d0d8e080;}.diff-line-text{display:inline-block;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;box-sizing:border-box;width:auto;font-size:12px;}.diff-line-prefix{background:none;word-wrap:break-word;display:inline;font-size:12px;box-sizing:border-box;vertical-align:top;}.diff-line-prefix-delete::before{content:" - ";}.diff-line-prefix-insert::before{content:" + ";}.diff-line-prefix-empty::before{content:"   ";}.diff-text-cell,.diff-text-cell-empty{width:auto;white-space:pre;border-left:none;border-right:1px solid #bfbfbf;border-top:none;border-bottom:none;}`);
     lang = new lang_init($('#locale_selection').val()); // 获取当前网页语言
     let em = /.*id=(?<tid>\d{3,5})/i.exec(location.search); if (em) torrent_id = em.groups.tid; else torrent_id = null; // 当前种子ID
     topicid = location.href.match(/topicid=(\d+)/i) || ['', '']; if (topicid[1] !== '') topicid = topicid[1];
@@ -2572,6 +2572,9 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue) {
                         table-layout: fixed;
                         font-family: ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;
                         font-size: 12px;
+                    }
+                    .diff-table tbody {
+                        vertical-align: top;
                     }
                     .diff-table del {
                         text-decoration: none;
