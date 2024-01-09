@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.1.1
+// @version      1.1.3
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -617,6 +617,7 @@ GreasyFork 地址
 
                         const request = new XMLHttpRequest();
                         request.open("POST", "takeupload.php");
+                        request.timeout = 5000; // 超时时间 单位毫秒
                         request.onload = function () {
                             if (request.status >= 200 && request.status < 300) {
                                 resolve({
@@ -635,6 +636,12 @@ GreasyFork 地址
                             reject({
                                 status: request.status,
                                 statusText: request.statusText
+                            });
+                        };
+                        request.ontimeout = function () {
+                            reject({
+                                status: 408,
+                                statusText: "Request timed out"
                             });
                         };
                         request.send(formdata);
