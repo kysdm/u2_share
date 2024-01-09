@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.8
+// @version      0.7.9
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -413,7 +413,7 @@ function forumCommentHistoryReset() {
                         if ($(`#history_comment${x.pid}_select`).length === 0) {
                             $('#comments').append(bbcode_html); // 先插入整体框架
                             console.log('添加下拉菜单基本框架');
-                            $(`[id="pid${x.pid}"]`).find('td:last').before(`<td class="embedded nowrap" width="1%"><select name="type" id="history_comment${x.pid}_select" style="margin-top: 1px;"></select>&nbsp;&nbsp;</td>`);
+                            $(`[id="pid${x.pid}"]`).find('td:last').before(`<td class="embedded nowrap" width="1%"><a href="javascript:void(0)" class="diff_comment_button_close" style="display:none;">关闭对比</a><a href="javascript:void(0)" class="diff_comment_button_open">差异对比</a>&nbsp;&nbsp;<select name="type" id="history_comment${x.pid}_select" style="margin-top: 1px;"></select>&nbsp;&nbsp;</td>`);
 
                         };
                         // 向下拉菜单写入信息
@@ -425,6 +425,8 @@ function forumCommentHistoryReset() {
                         $('#comments').append(bbcode_html);
                     };
                 });
+
+                diffHistoryCommentBbcode(__comment, 'forum');
 
                 $("[id^=history_comment]").change(function () { // 监听菜单选择
                     let self = $(this).val();
@@ -510,7 +512,7 @@ async function forumCommentHistory() {
                         if (x.pid == pid) {
                             del_tag = 0;  // 标记网页上有对应的PID
                             if (counts[pid] > 1) {
-                                if ($(`#history_comment${pid}_select`).length === 0) $(this).find('td:last').before(`<td class="embedded nowrap" width="1%"><select name="type" id="history_comment${x.pid}_select" style="margin-top: 1px;"></select>&nbsp;&nbsp;</td>`);
+                                if ($(`#history_comment${pid}_select`).length === 0) $(this).find('td:last').before(`<td class="embedded nowrap" width="1%"><a href="javascript:void(0)" class="diff_comment_button_close" style="display:none;">关闭对比</a><a href="javascript:void(0)" class="diff_comment_button_open">差异对比</a>&nbsp;&nbsp;<select name="type" id="history_comment${x.pid}_select" style="margin-top: 1px;"></select>&nbsp;&nbsp;</td>`);
                                 $(`#history_comment${pid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
                                 ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
                                 ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
@@ -610,6 +612,8 @@ async function forumCommentHistory() {
                     };
                 });
 
+                diffHistoryCommentBbcode(__comment, 'forum');
+
                 $("[id^=history_comment]").change(function () { // 监听菜单选择
                     let self = $(this).val();
                     for (let i = 0, len = __comment.length; i < len; i++) {
@@ -639,6 +643,7 @@ async function forumCommentHistory() {
         },
     });
 };
+
 
 function torrentCommentHistory() {
     $.ajax({
@@ -686,7 +691,7 @@ function torrentCommentHistory() {
                         if (x.cid == cid) {
                             del_tag = 0; // 标记网页上有对应的CID
                             if (x.cid == cid && counts[cid] > 1) {
-                                if ($(`#history_comment${cid}_select`).length === 0) $(this).find('td:last').before(`<td class="embedded nowrap" width="1%"><select name="type" id="history_comment${cid}_select" ></select>&nbsp;&nbsp;</td>`);
+                                if ($(`#history_comment${cid}_select`).length === 0) $(this).find('td:last').before(`<td class="embedded nowrap" width="1%"><a href="javascript:void(0)" class="diff_comment_button_close" style="display:none;">关闭对比</a><a href="javascript:void(0)" class="diff_comment_button_open">差异对比</a>&nbsp;&nbsp;<select name="type" id="history_comment${cid}_select" ></select>&nbsp;&nbsp;</td>`);
                                 $(`#history_comment${cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
                         ${(() => { return x.action === 'edit' ? ' E' : x.action === 'reply' ? ' R' : ' N' })()}
                         ${(() => { return x.username === null && x.userid === null ? lang['anonymous_user'] : ` ${x.username}(${x.userid})` })()}
@@ -821,6 +826,8 @@ function torrentCommentHistory() {
                     };
 
                 });
+
+                diffHistoryCommentBbcode(__comment, 'torrent');
 
                 $("[id^=history_comment]").change(function () { // 监听菜单选择
                     let self = $(this).val();
@@ -1048,7 +1055,7 @@ async function torrentInfoHistory() {
     $("#history_select2, #history_select3").change(function () {
         const leftValue = Number($("#history_select2").val());
         const rightValue = Number($("#history_select3").val());
-        drawDiffHistoryBbcode(history_data, leftValue, rightValue)
+        drawDiffHistoryBbcode(history_data, leftValue, rightValue, 'torrent', $('#diff_draw'))
     });
 
     const $historySelect2 = $("#history_select2");
@@ -1188,11 +1195,7 @@ function torrentCommentHistoryReset() {
                                 if ($(`#history_comment${x.cid}_select`).length === 0) {
                                     $('#comments').append(bbcode_html); // 先插入整体框架
                                     console.log('添加下拉菜单基本框架');
-                                    $(`[id="cid${x.cid}"]`).find('[class="embedded nowrap"]').before(`<div id="hsty" style="position: relative;">
-                                                                                                    <div id="history_comment" style="position: absolute; right:10px; margin-top: -2px;">
-                                                                                                    <select name="type" id="history_comment${x.cid}_select">
-                                                                                                    </div>
-                                                                                                    </div>`);
+                                    $(`[id="cid${x.cid}"]`).find('[class="embedded nowrap"]').before(`<td class="embedded nowrap" width="1%"><a href="javascript:void(0)" class="diff_comment_button_close" style="display:none;">关闭对比</a><a href="javascript:void(0)" class="diff_comment_button_open">差异对比</a>&nbsp;&nbsp;<select name="type" id="history_comment${x.cid}_select" ></select>&nbsp;&nbsp;</td>`);
                                 };
                                 // 向下拉菜单写入信息
                                 $(`#history_comment${x.cid}_select`).append(`<option value="${x.self}">${x.edit_time.replace('T', ' ')}
@@ -1203,6 +1206,8 @@ function torrentCommentHistoryReset() {
                                 $('#comments').append(bbcode_html);
                             };
                         });
+
+                        diffHistoryCommentBbcode(__comment, 'torrent');
 
                         $("[id^=history_comment]").change(function () { // 监听菜单选择
                             let self = $(this).val();
@@ -1553,7 +1558,7 @@ async function torrentInfoHistoryReset() {
     $("#history_select2, #history_select3").change(function () {
         const leftValue = Number($("#history_select2").val());
         const rightValue = Number($("#history_select3").val());
-        drawDiffHistoryBbcode(history_data, leftValue, rightValue)
+        drawDiffHistoryBbcode(history_data, leftValue, rightValue, 'torrent', $('#diff_draw'))
     });
 
     const $historySelect2 = $("#history_select2");
@@ -2511,6 +2516,115 @@ function addGlobalStyles(cssRules) {
     document.head.appendChild(styleElement);
 }
 
+function diffHistoryCommentBbcode(comments, type) {
+    const elementId = type === 'torrent' ? '[id^=cid]' : '[id^=pid]';
+    console.log(elementId);
+
+    $('.diff_comment_button_close').click(function () {
+        $(this).hide();
+        $(this).next().show();
+
+        type === 'torrent' ? $(this).parents(elementId).parent().next().find('[class="rowfollow"]:last').show() : $(this).parents(elementId).parent().next().find('.post-body').parent().show();
+        // if (type === 'torrents') {
+        //     $(this).parents(elementId).parent().next().find('[class="rowfollow"]:last').show();
+        // } else {
+        //     $(this).parents(elementId).parent().next().find('.post-body').parent().show();
+        // }
+
+        $(this).parents(elementId).parent().next().find('.diff_comment_body').hide();
+    })
+
+    $('.diff_comment_button_open').click(function () {
+        $(this).hide();
+        $(this).prev().show();
+
+        const options = $(this).next().html();
+
+        const post = type === 'torrent' ? $(this).parents('[id^=cid]').parent().next().find('[class="rowfollow"]:last') : $(this).parents(elementId).parent().next().find('.post-body').parent();  // 文字部分
+        // if (type === 'torrents') {
+        //     post = $(this).parents('[id^=cid]').parent().next().find('[class="rowfollow"]:last');  // 文字部分
+        // } else {
+        //     post = $(this).parents(elementId).parent().next().find('.post-body').parent();  // 文字部分
+        // }
+
+        post.hide()
+
+        if ($(this).parents(elementId).parent().next().find('.draw-div').length !== 0) {
+            // 已插入过的
+            $(this).parents(elementId).parent().next().find('.diff_comment_body').show();
+            return;
+        }
+
+        post.after(`<td class="diff_comment_body" valign="top">
+                        <table style="width: 100%; height: 100%; border-collapse: collapse; border: none; background-color: transparent;">
+                            <tr>
+                                <td valign="top" style="border: none;">
+                                    <div class="diff-container" style="">
+                                        <div class="diff-cell">&nbsp;<select name="type" class="diff_comment_left_select">${options}</select></div>
+                                        <div class="diff-cell"><select name="type" class="diff_comment_right_select">${options}</select></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td valign="top" style="border: none;">
+                                    <div class="draw-div"></div>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>`);
+
+        const leftSelect = $(this).parents(elementId).parent().next().find('.diff_comment_left_select');
+        const rightSelect = $(this).parents(elementId).parent().next().find('.diff_comment_right_select');
+        const drawElement = $(this).parents(elementId).parent().next().find('.draw-div');
+
+        leftSelect.add(rightSelect).change(function () {
+            const leftValue = Number(leftSelect.val());
+            const rightValue = Number(rightSelect.val());
+            console.log(`${leftValue} | ${rightValue}`);
+            drawDiffHistoryBbcode(comments, leftValue, rightValue, 'comment', drawElement);
+        });
+
+        let leftEq = 1;
+        let rightValue = Number(rightSelect.find('option:eq(0)').val());
+        var optionCount = rightSelect.find('option').length;
+        let leftBbcode, rightBbcode;
+        let flagBreak = false;
+
+        while (leftEq < optionCount) {
+            let leftValue = Number(leftSelect.find(`option:eq(${leftEq})`).val());
+
+            for (let i = 0, len = comments.length; i < len; i++) {
+                if (comments[i].self === leftValue) {
+                    leftBbcode = comments[i].bbcode;
+                } else if (comments[i].self === rightValue) {
+                    rightBbcode = comments[i].bbcode;
+                }
+
+                if (leftBbcode !== undefined && leftBbcode !== "" && rightBbcode !== undefined && rightBbcode !== "") break;
+
+            }
+
+            if (leftBbcode !== rightBbcode) {
+                leftSelect.find(`option:eq(${leftEq})`).prop("selected", true);
+                leftSelect.trigger("change");
+                flagBreak = true;
+                break;
+            }
+            leftBbcode = '';
+            leftEq++;
+        }
+
+        if (!flagBreak) {
+            // 如果修改记录的BBCODE都一样
+            leftSelect.find(`option:eq(1)`).prop("selected", true);
+            rightSelect.find(`option:eq(0)`).prop("selected", true);
+            leftSelect.trigger("change");
+        }
+
+    });
+
+}
+
 function preCheckBbcodeDiscrepancy(data, left, right) {
     // 预检测两边BBCODE是否存在差异
     let leftBbcode = generateBbcode(data[left]);
@@ -2533,7 +2647,7 @@ Description:
 ${data.description_info}`;
 }
 
-function drawDiffHistoryBbcode(data, leftValue, rightValue) {
+function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
     /* addGlobalStyles(`.diff-container{
                         display: flex;
                         align-items: flex-start;
@@ -2645,14 +2759,14 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue) {
     // 生成BBCODE内容
     for (let i = 0, len = data.length; i < len; i++) {
         if (data[i].self === leftValue) {
-            var leftBbcode = generateBbcode(data[i]);
+            var leftBbcode = type === 'torrent' ? generateBbcode(data[i]) : data[i].bbcode;
         } else if (data[i].self === rightValue) {
-            var rightBbcode = generateBbcode(data[i]);
+            var rightBbcode = type === 'torrent' ? generateBbcode(data[i]) : data[i].bbcode;
         }
     }
 
     if (leftBbcode === rightBbcode || typeof leftBbcode === 'undefined' || typeof rightBbcode === 'undefined') {
-        $('#diff_draw').html(`<table class="diff-table">
+        drawElement.html(`<table class="diff-table">
             <tbody id="diff-tbody">
                 <tr style="background-color: #ddf4ff;">
                     <td class="diff-linenumber">
@@ -2773,5 +2887,5 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue) {
 
     }
 
-    $('#diff_draw').html($html);
+    drawElement.html($html);
 }
