@@ -2518,18 +2518,12 @@ function addGlobalStyles(cssRules) {
 
 function diffHistoryCommentBbcode(comments, type) {
     const elementId = type === 'torrent' ? '[id^=cid]' : '[id^=pid]';
-    console.log(elementId);
 
     $('.diff_comment_button_close').click(function () {
         $(this).hide();
         $(this).next().show();
 
         type === 'torrent' ? $(this).parents(elementId).parent().next().find('[class="rowfollow"]:last').show() : $(this).parents(elementId).parent().next().find('.post-body').parent().show();
-        // if (type === 'torrents') {
-        //     $(this).parents(elementId).parent().next().find('[class="rowfollow"]:last').show();
-        // } else {
-        //     $(this).parents(elementId).parent().next().find('.post-body').parent().show();
-        // }
 
         $(this).parents(elementId).parent().next().find('.diff_comment_body').hide();
     })
@@ -2539,13 +2533,7 @@ function diffHistoryCommentBbcode(comments, type) {
         $(this).prev().show();
 
         const options = $(this).next().html();
-
-        const post = type === 'torrent' ? $(this).parents('[id^=cid]').parent().next().find('[class="rowfollow"]:last') : $(this).parents(elementId).parent().next().find('.post-body').parent();  // 文字部分
-        // if (type === 'torrents') {
-        //     post = $(this).parents('[id^=cid]').parent().next().find('[class="rowfollow"]:last');  // 文字部分
-        // } else {
-        //     post = $(this).parents(elementId).parent().next().find('.post-body').parent();  // 文字部分
-        // }
+        const post = type === 'torrent' ? $(this).parents(elementId).parent().next().find('[class="rowfollow"]:last') : $(this).parents(elementId).parent().next().find('.post-body').parent();  // 文字部分
 
         post.hide()
 
