@@ -66,7 +66,7 @@ function FolderSelected(files) {
     return folderName;
 }
 
-console.log('本地模式');
+// console.log('本地模式');
 
 function FileSelected(files) {
     singleFile = files[0];
