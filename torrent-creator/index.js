@@ -58,18 +58,15 @@ var singleFile = null;
 var totalSize;
 
 function FolderSelected(files) {
-    let folderName = (files[0].webkitRelativePath).split("/")[0];
-    allFiles = [];
-    totalSize = 0;
-    for (let i = 0; i < files.length; ++i) {
-        if (files[i].name === 'Thumbs.db') continue; // 强制排除缩略图缓存文件
-        // console.log(files[i]);
-        allFiles.push(files[i]);
-        totalSize += files[i].size;
-    };
-    singleFile = null;
+    const excludedFiles = ['Thumbs.db', '.DS_Store', 'desktop.ini'];
+    const folderName = files[0]?.webkitRelativePath?.split("/")[0];
+    allFiles = files.filter(file => !excludedFiles.includes(file.name));
+    totalSize = allFiles.reduce((size, file) => size + file.size, 0);
+    console.log(allFiles);
     return folderName;
-};
+}
+
+console.log('本地模式');
 
 function FileSelected(files) {
     singleFile = files[0];

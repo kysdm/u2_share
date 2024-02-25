@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.1.3
+// @version      1.1.4
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -315,7 +315,7 @@ GreasyFork 地址
 </tr>
 `);
 
-            await loadScript('https://userscript.kysdm.com/js/torrent-creator.js?v=1.0')
+            await loadScript('https://userscript.kysdm.com/js/torrent-creator.js?v=1.1')
 
             jq('.progress').css({
                 'width': '99%',
