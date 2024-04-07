@@ -7,6 +7,8 @@
 // @grant        none
 // @match        *://u2.dmhy.org/torrents.php*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
+// @downloadURL  https://gist.githubusercontent.com/kysdm/0083eacdad63a4cb15c6d14088b8d89c/raw
+// @updateURL    https://gist.githubusercontent.com/kysdm/0083eacdad63a4cb15c6d14088b8d89c/raw
 // @icon         https://u2.dmhy.org/favicon.ico
 // ==/UserScript==
 
