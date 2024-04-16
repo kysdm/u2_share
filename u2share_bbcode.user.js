@@ -223,7 +223,7 @@ GreasyFork 地址
                 let api = await getApi(token, uid, tid);
                 if (api.msg !== 'success') { window.alert(`API获取发生错误\n\n${api.msg}`); console.log(api); return; }
 
-                let info = api.data.info;
+                let info = api.data.history;
 
                 if (Object.keys(info).length === 0) { window.alert('API没有此种子数据'); return; }
 
@@ -3665,7 +3665,7 @@ function SmileIT2(smile, form, text) {
             // https://www.w3school.com.cn/jquery/ajax_ajax.asp
             jq.ajax({
                 type: 'get',
-                url: 'https://u2.kysdm.com/api/v1/torrent_info?token=' + token + '&uid=' + uid + '&torrent=' + tid,
+                url: 'https://u2.kysdm.com/api/v1/history?token=' + token + '&uid=' + uid + '&torrent=' + tid,
                 contentType: 'application/json',
                 dataType: 'json',
                 cache: true,
