@@ -223,19 +223,19 @@ GreasyFork 地址
                 let api = await getApi(token, uid, tid);
                 if (api.msg !== 'success') { window.alert(`API获取发生错误\n\n${api.msg}`); console.log(api); return; }
 
-                let info = api.data.history;
+                let torrent = api.data.torrents;
 
-                if (Object.keys(info).length === 0) { window.alert('API没有此种子数据'); return; }
+                if (Object.keys(torrent).length === 0) { window.alert('API没有此种子数据'); return; }
 
                 jq("#compose input[id]").map(function () {
                     // 预先清空所有字段
                     if (this.id.endsWith("-input") || this.id === 'poster') jq(`#${this.id}`).val('');
-                    jq('#custom_title').val(info[0].title)
-                    jq('[name="small_descr"]').val(info[0].subtitle);
-                    jq('[name="anidburl"]').val(info[0].anidb === null ? '' : `https://anidb.net/anime/${info[0].anidb}`);
-                    jq('#browsecat').val(browsecat_options[info[0]['category']]);
+                    jq('#custom_title').val(torrent[0].title)
+                    jq('[name="small_descr"]').val(torrent[0].subtitle);
+                    jq('[name="anidburl"]').val(torrent[0].anidb === null ? '' : `https://anidb.net/anime/${torrent[0].anidb}`);
+                    jq('#browsecat').val(browsecat_options[torrent[0]['category']]);
                     document.getElementById('browsecat').dispatchEvent(new Event('change')); // 手动触发列表更改事件
-                    jq('.bbcode').val(info[0].description_info);
+                    jq('.bbcode').val(torrent[0].description_info);
                     jq('[class^="torrent-info-input"]').trigger("input"); // 手动触发标题更改
                     jq('.bbcode').trigger("input"); // 手动触发bbcode更改
                 });
@@ -3665,7 +3665,7 @@ function SmileIT2(smile, form, text) {
             // https://www.w3school.com.cn/jquery/ajax_ajax.asp
             jq.ajax({
                 type: 'get',
-                url: 'https://u2.kysdm.com/api/v1/history?token=' + token + '&uid=' + uid + '&torrent=' + tid,
+                url: 'https://u2.kysdm.com/api/v1/torrent_info?token=' + token + '&uid=' + uid + '&torrent_id=' + tid,
                 contentType: 'application/json',
                 dataType: 'json',
                 cache: true,
