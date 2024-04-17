@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.7.9
+// @version      0.8.0
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -2090,7 +2090,7 @@ function getapi() {
         // https://www.w3school.com.cn/jquery/ajax_ajax.asp
         $.ajax({
             type: 'get',
-            url: 'https://u2.kysdm.com/api/v1/history?token=' + token + '&maximum=50&uid=' + user_id + '&torrent=' + torrent_id,
+            url: 'https://u2.kysdm.com/api/v1/history?token=' + token + '&maximum=50&uid=' + user_id + '&torrent_id=' + torrent_id,
             contentType: 'application/json',
             dataType: 'json',
             cache: true,
