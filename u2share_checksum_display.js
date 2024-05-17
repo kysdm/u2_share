@@ -57,7 +57,7 @@
                 doc.append(`<style>.checksum { 
                     font-family: ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;
                     text-align: center;
-                    color: gba(128, 128, 128);
+                    color: rgb(128, 128, 128);
                     border-left: none;
                     border-right: none;
                 }</style>`);
