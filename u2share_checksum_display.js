@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2显示文件校验和
 // @namespace    U2显示文件校验和
-// @version      0.0.3
+// @version      0.0.4
 // @description  为文件列表添加校验和信息
 // @author       kysdm
 // @match        *://u2.dmhy.org/details.php?id=*
@@ -57,7 +57,7 @@
                 doc.append(`<style>.checksum { 
                     font-family: ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;
                     text-align: center;
-                    color: rgba(128, 128, 128, 0.5);;
+                    color: gba(128, 128, 128);
                     border-left: none;
                     border-right: none;
                 }</style>`);
