@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         U2显示文件校验和
 // @namespace    U2显示文件校验和
-// @version      0.0.2
+// @version      0.0.3
 // @description  为文件列表添加校验和信息
 // @author       kysdm
 // @match        *://u2.dmhy.org/details.php?id=*
 // @grant        none
 // @license      MIT
+// @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://unpkg.com/xhook@1.6.2/dist/xhook.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // ==/UserScript==
