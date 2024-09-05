@@ -7,6 +7,8 @@
 // @match        *://u2.dmhy.org/offers.php?*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
+// @downloadURL  https://gist.githubusercontent.com/kysdm/23e9247f2c31ac6a7f0ba4b09aa93ae6/raw
+// @updateURL    https://gist.githubusercontent.com/kysdm/23e9247f2c31ac6a7f0ba4b09aa93ae6/raw
 // ==/UserScript==
 
 'use strict';
