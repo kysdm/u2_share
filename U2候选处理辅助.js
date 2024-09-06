@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.7
+// @version      0.0.8
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -55,7 +55,7 @@
         } else {
             sizeApiData.data.torrents.forEach(({ torrent_id: torrentId }) => {
                 if (String(torrentId) === tid) return; // 跳过与自身 ID 相同的种子
-                log(`体积相同: <a href="https://u2.dmhy.org/details.php?id=${torrentId}&hit=1" target="_blank">#${torrentId}</a>`);
+                log(`体积相同 → <a href="https://u2.dmhy.org/details.php?id=${torrentId}&hit=1" target="_blank">#${torrentId}</a>`);
             });
         }
 
