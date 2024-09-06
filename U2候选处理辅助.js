@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.3
+// @version      0.0.4
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -72,6 +72,7 @@
 
 })();
 
+
 function log(newContent) {
     const logContainer = $('#mod_check');
 
@@ -82,6 +83,7 @@ function log(newContent) {
         ? newContent
         : `<br>${newContent}`);
 }
+
 
 function check(directory, currentPath = '') {
     // 垃圾文件夹的名称
@@ -96,6 +98,12 @@ function check(directory, currentPath = '') {
     // 可疑文件后缀名
     const suspiciousFileExtensions = [".txt"];
 
+    // 必须存在的 BDMV 文件和目录
+    const bdmvStructure = {
+        files: ["index.bdmv", "MovieObject.bdmv"],
+        directories: ["BACKUP", "CLIPINF", "PLAYLIST", "STREAM"]
+    };
+
     // 遍历目录中的每个子项
     for (const [key, item] of Object.entries(directory)) {
         const lowerKey = key.toLowerCase(); // 将文件名或文件夹名转为小写
@@ -106,6 +114,13 @@ function check(directory, currentPath = '') {
             if (junkFolders.has(lowerKey)) {
                 log(`垃圾文件夹 ${fullPath}`); // 输出垃圾文件夹的绝对路径
             }
+
+            // 检测是否为 BDMV 文件夹
+            if (lowerKey === "bdmv") {
+                // log(`检测到 BDMV 文件夹 ${fullPath}`);
+                checkBDMV(item.children, fullPath, bdmvStructure); // 检测 BDMV 文件夹是否有缺失
+            }
+
             check(item.children, fullPath); // 递归检查子目录
         }
         // 如果是文件
@@ -129,6 +144,116 @@ function check(directory, currentPath = '') {
             }
         }
     }
+}
+
+
+function checkBDMV(directory, currentPath, structure) {
+    // console.log(directory, currentPath, structure);
+
+    const presentFiles = new Set(Object.keys(directory).map(key => key.toLowerCase()));
+
+    // 检测必需的文件是否缺失
+    structure.files.forEach(file => {
+        if (!presentFiles.has(file.toLowerCase())) {
+            log(`BDMV 缺失文件 ${currentPath}/${file}`);
+        }
+    });
+
+    // 检测必需的子目录是否缺失
+    structure.directories.forEach(dir => {
+        if (!presentFiles.has(dir.toLowerCase())) {
+            log(`BDMV 缺失目录 ${currentPath}/${dir}`);
+        }
+    });
+
+    // 检测 BACKUP 目录是否存在
+    if (presentFiles.has('backup')) {
+        // log(`检测到 BACKUP 目录 ${currentPath}/BACKUP`);
+
+        // 检查 BACKUP 目录结构是否与主目录一致
+        const backupDirectory = directory['BACKUP'].children;
+        checkBackup(backupDirectory, directory);  // 比较 BACKUP 目录与主 BDMV 目录
+    }
+
+    // 检测 STREAM 和 CLIPINF 目录
+    if (presentFiles.has('stream') && presentFiles.has('clipinf')) {
+        // log(`检测到 STREAM 和 CLIPINF 目录 ${currentPath}/STREAM 和 ${currentPath}/CLIPINF`);
+
+        const streamDirectory = directory['STREAM'].children;
+        const clipinfDirectory = directory['CLIPINF'].children;
+
+        // 调用 checkClipInfo 函数，检测 STREAM 和 CLIPINF 文件的对应关系
+        checkClipInfo(streamDirectory, clipinfDirectory, currentPath);
+    }
+}
+
+
+// 检查 BACKUP 目录和主 BDMV 目录是否一致
+function checkBackup(backupDirectory, mainDirectory) {
+    // 必须备份的文件和文件夹
+    const requiredBackupItems = {
+        files: ['index.bdmv', 'MovieObject.bdmv'],
+        directories: ['CLIPINF', 'PLAYLIST']
+    };
+
+    // 检查必需备份的文件
+    requiredBackupItems.files.forEach(file => {
+        const mainFileExists = mainDirectory[file];
+        const backupFileExists = backupDirectory[file];  // 假设文件名不区分大小写
+        if (!backupFileExists && mainFileExists) {
+            log(`BACKUP 缺失文件: ${file}`);
+        }
+    });
+
+    // 检查必需备份的文件夹并比较文件
+    requiredBackupItems.directories.forEach(dir => {
+        const mainSubDir = mainDirectory[dir];
+        const backupSubDir = backupDirectory[dir];  // 假设目录名不区分大小写
+        if (!backupSubDir && mainSubDir) {
+            log(`BACKUP 缺失目录: ${dir}`);
+        } else if (backupSubDir && mainSubDir) {
+            // 比较文件夹中的文件 (.clpi / .mpls)
+            compareFilesInDirectory(backupSubDir.children, mainSubDir.children, dir);
+        }
+    });
+}
+
+
+// 比较主目录和 BACKUP 目录中的文件
+function compareFilesInDirectory(backupFiles, mainFiles, dirName) {
+    const mainFileSet = new Set(Object.keys(mainFiles).map(key => key));
+    const backupFileSet = new Set(Object.keys(backupFiles).map(key => key));
+
+    mainFileSet.forEach(file => {
+        if (!backupFileSet.has(file)) {
+            log(`BACKUP 缺失文件: ${dirName}/${file}`);
+        }
+    });
+}
+
+
+// 检测 .clpi 文件是否与 .m2ts 文件对应
+function checkClipInfo(streamDirectory, clipinfDirectory, currentPath) {
+    const m2tsFiles = Object.keys(streamDirectory)
+        .filter(key => key.toLowerCase().endsWith('.m2ts'))
+        .map(key => key.toLowerCase().replace('.m2ts', ''));
+
+    const clpiFiles = Object.keys(clipinfDirectory)
+        .filter(key => key.toLowerCase().endsWith('.clpi'))
+        .map(key => key.toLowerCase().replace('.clpi', ''));
+
+    // 比对两个文件夹的文件
+    m2tsFiles.forEach(file => {
+        if (!clpiFiles.includes(file)) {
+            log(`缺少对应的 CLIPINF 文件: ${currentPath}/CLIPINF/${file}.clpi`);
+        }
+    });
+
+    clpiFiles.forEach(file => {
+        if (!m2tsFiles.includes(file)) {
+            log(`缺少对应的 STREAM 文件: ${currentPath}/STREAM/${file}.m2ts`);
+        }
+    });
 }
 
 
