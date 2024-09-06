@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.4
+// @version      0.0.5
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -173,6 +173,8 @@ function checkBDMV(directory, currentPath, structure) {
         // 检查 BACKUP 目录结构是否与主目录一致
         const backupDirectory = directory['BACKUP'].children;
         checkBackup(backupDirectory, directory);  // 比较 BACKUP 目录与主 BDMV 目录
+    } else {
+        log(`BDMV 缺失 BACKUP 目录 ${currentPath}/BACKUP`);
     }
 
     // 检测 STREAM 和 CLIPINF 目录
@@ -199,7 +201,7 @@ function checkBackup(backupDirectory, mainDirectory) {
     // 检查必需备份的文件
     requiredBackupItems.files.forEach(file => {
         const mainFileExists = mainDirectory[file];
-        const backupFileExists = backupDirectory[file];  // 假设文件名不区分大小写
+        const backupFileExists = backupDirectory[file];
         if (!backupFileExists && mainFileExists) {
             log(`BACKUP 缺失文件: ${file}`);
         }
@@ -208,11 +210,11 @@ function checkBackup(backupDirectory, mainDirectory) {
     // 检查必需备份的文件夹并比较文件
     requiredBackupItems.directories.forEach(dir => {
         const mainSubDir = mainDirectory[dir];
-        const backupSubDir = backupDirectory[dir];  // 假设目录名不区分大小写
+        const backupSubDir = backupDirectory[dir];
         if (!backupSubDir && mainSubDir) {
             log(`BACKUP 缺失目录: ${dir}`);
         } else if (backupSubDir && mainSubDir) {
-            // 比较文件夹中的文件 (.clpi / .mpls)
+            // 比较文件夹中的文件 (.clpi / .m2ts)
             compareFilesInDirectory(backupSubDir.children, mainSubDir.children, dir);
         }
     });
@@ -227,6 +229,12 @@ function compareFilesInDirectory(backupFiles, mainFiles, dirName) {
     mainFileSet.forEach(file => {
         if (!backupFileSet.has(file)) {
             log(`BACKUP 缺失文件: ${dirName}/${file}`);
+        }
+    });
+
+    backupFileSet.forEach(file => {
+        if (!mainFileSet.has(file)) {
+            log(`BACKUP 多余文件: ${dirName}/${file}`);
         }
     });
 }
