@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.6
+// @version      0.0.7
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -203,7 +203,7 @@ function checkBackup(backupDirectory, mainDirectory, currentPath) {
         const mainFileExists = mainDirectory[file];
         const backupFileExists = backupDirectory[file];
         if (!backupFileExists && mainFileExists) {
-            log(`BDMV/BACKUP 缺失文件 → ${currentPath}/${file}`);
+            log(`BDMV/BACKUP 缺失文件 → ${currentPath}/BACKUP/${file}`);
         }
     });
 
@@ -212,7 +212,7 @@ function checkBackup(backupDirectory, mainDirectory, currentPath) {
         const mainSubDir = mainDirectory[dir];
         const backupSubDir = backupDirectory[dir];
         if (!backupSubDir && mainSubDir) {
-            log(`BDMV/BACKUP 缺失目录 → ${currentPath}/${dir}`);
+            log(`BDMV/BACKUP 缺失目录 → ${currentPath}/BACKUP/${dir}`);
         } else if (backupSubDir && mainSubDir) {
             // 比较文件夹中的文件 (.clpi / .m2ts)
             compareFilesInDirectory(backupSubDir.children, mainSubDir.children, currentPath);
@@ -228,13 +228,13 @@ function compareFilesInDirectory(backupFiles, mainFiles, currentPath) {
 
     mainFileSet.forEach(file => {
         if (!backupFileSet.has(file)) {
-            log(`BDNV/BACKUP 缺失文件 → ${currentPath}/${file}`);
+            log(`BDMV/BACKUP 缺失文件 → ${currentPath}/BACKUP/${file}`);
         }
     });
 
     backupFileSet.forEach(file => {
         if (!mainFileSet.has(file)) {
-            log(`BDMV/BACKUP 多余文件 → ${currentPath}/${file}`);
+            log(`BDMV/BACKUP 多余文件 → ${currentPath}/BACKUP/${file}`);
         }
     });
 }
