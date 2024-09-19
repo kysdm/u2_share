@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.8
+// @version      0.0.9
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -202,6 +202,7 @@ function checkBackup(backupDirectory, mainDirectory, currentPath) {
     requiredBackupItems.files.forEach(file => {
         const mainFileExists = mainDirectory[file];
         const backupFileExists = backupDirectory[file];
+
         if (!backupFileExists && mainFileExists) {
             log(`BDMV/BACKUP 缺失文件 → ${currentPath}/BACKUP/${file}`);
         }
@@ -211,6 +212,7 @@ function checkBackup(backupDirectory, mainDirectory, currentPath) {
     requiredBackupItems.directories.forEach(dir => {
         const mainSubDir = mainDirectory[dir];
         const backupSubDir = backupDirectory[dir];
+
         if (!backupSubDir && mainSubDir) {
             log(`BDMV/BACKUP 缺失目录 → ${currentPath}/BACKUP/${dir}`);
         } else if (backupSubDir && mainSubDir) {
@@ -223,12 +225,20 @@ function checkBackup(backupDirectory, mainDirectory, currentPath) {
 
 // 比较主目录和 BACKUP 目录中的文件
 function compareFilesInDirectory(backupFiles, mainFiles, currentPath) {
-    const mainFileSet = new Set(Object.keys(mainFiles).map(key => key));
-    const backupFileSet = new Set(Object.keys(backupFiles).map(key => key));
+    const mainFileSet = new Set(Object.keys(mainFiles));
+    const backupFileSet = new Set(Object.keys(backupFiles));
 
     mainFileSet.forEach(file => {
-        if (!backupFileSet.has(file)) {
+        const mainFile = mainFiles[file];
+        const backupFile = backupFiles[file];
+
+        if (!backupFile) {
             log(`BDMV/BACKUP 缺失文件 → ${currentPath}/BACKUP/${file}`);
+        } else {
+            // 检查文件大小是否不同
+            if (mainFile.length !== backupFile.length) {
+                log(`BDMV/BACKUP 文件大小不匹配 → ${currentPath}/BACKUP/${file}`);
+            }
         }
     });
 
