@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.0
+// @version      0.1.1
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -236,11 +236,11 @@ function compareFilesInDirectory(backupFiles, mainFiles, currentPath) {
         const backupFile = backupFiles[file];
 
         if (!backupFile) {
-            log(`BDMV/BACKUP 缺失文件 → ${currentPath}/BACKUP/${file}`);
+            log(`BDMV/BACKUP 缺失文件 → ${currentPath}/${file}`);
         } else {
             // 检查文件大小是否不同
             if (mainFile.length !== backupFile.length) {
-                log(`BDMV/BACKUP 文件大小不匹配 → ${currentPath}/BACKUP/${file}`);
+                log(`BDMV/BACKUP 文件大小不匹配 → ${currentPath}/${file}`);
             }
         }
     });
