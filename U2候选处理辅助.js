@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.9
+// @version      0.1.0
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -212,12 +212,15 @@ function checkBackup(backupDirectory, mainDirectory, currentPath) {
     requiredBackupItems.directories.forEach(dir => {
         const mainSubDir = mainDirectory[dir];
         const backupSubDir = backupDirectory[dir];
+        const innerPath = `${currentPath}/BACKUP/${dir}`;
 
         if (!backupSubDir && mainSubDir) {
-            log(`BDMV/BACKUP 缺失目录 → ${currentPath}/BACKUP/${dir}`);
+            log(`BDMV/BACKUP 缺失目录 → ${innerPath}`);
         } else if (backupSubDir && mainSubDir) {
             // 比较文件夹中的文件 (.clpi / .m2ts)
-            compareFilesInDirectory(backupSubDir.children, mainSubDir.children, currentPath);
+          //  console.log(backupSubDir, mainSubDir)
+          //  console.log(currentPath, dir)
+            compareFilesInDirectory(backupSubDir.children, mainSubDir.children, innerPath);
         }
     });
 }
