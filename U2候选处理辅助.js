@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.1
+// @version      0.1.2
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -89,7 +89,7 @@ function log(newContent) {
 
 function check(directory, currentPath = '') {
     // 垃圾文件夹的名称
-    const junkFolders = new Set(["makemkv", "any!", "xrvl"]);
+    const junkFolders = new Set(["makemkv", "any!", "xrvl", "fab!"]);
 
     // 垃圾文件的完整名称
     const junkFiles = new Set([".ds_store", "thumbs.db", "disc.inf"]);
@@ -195,7 +195,7 @@ function checkBackup(backupDirectory, mainDirectory, currentPath) {
     // 必须备份的文件和文件夹
     const requiredBackupItems = {
         files: ['index.bdmv', 'MovieObject.bdmv'],
-        directories: ['CLIPINF', 'PLAYLIST']
+        directories: ['CLIPINF', 'PLAYLIST', 'JAR']
     };
 
     // 检查必需备份的文件
@@ -218,8 +218,6 @@ function checkBackup(backupDirectory, mainDirectory, currentPath) {
             log(`BDMV/BACKUP 缺失目录 → ${innerPath}`);
         } else if (backupSubDir && mainSubDir) {
             // 比较文件夹中的文件 (.clpi / .m2ts)
-          //  console.log(backupSubDir, mainSubDir)
-          //  console.log(currentPath, dir)
             compareFilesInDirectory(backupSubDir.children, mainSubDir.children, innerPath);
         }
     });
