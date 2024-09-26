@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.2
+// @version      0.1.3
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -195,7 +195,7 @@ function checkBackup(backupDirectory, mainDirectory, currentPath) {
     // 必须备份的文件和文件夹
     const requiredBackupItems = {
         files: ['index.bdmv', 'MovieObject.bdmv'],
-        directories: ['CLIPINF', 'PLAYLIST', 'JAR']
+        directories: ['CLIPINF', 'PLAYLIST']
     };
 
     // 检查必需备份的文件
