@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.3
+// @version      0.1.4
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -95,7 +95,7 @@ function check(directory, currentPath = '') {
     const junkFiles = new Set([".ds_store", "thumbs.db", "disc.inf"]);
 
     // 垃圾文件后缀名
-    const junkFileExtensions = [".m3u8", ".m3u", ".lwi", ".bat", ".md5", ".nfo"];
+    const junkFileExtensions = [".m3u8", ".m3u", ".lwi", ".bat", ".md5", ".nfo", ".accurip"];
 
     // 可疑文件后缀名
     const suspiciousFileExtensions = [".txt"];
