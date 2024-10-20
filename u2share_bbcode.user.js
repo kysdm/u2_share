@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.1.6
+// @version      1.1.7
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -54,7 +54,7 @@ GreasyFork 地址
 
     // DB
     const db = localforage.createInstance({ name: "bbcodejs" });
-    let attachmap_db = localforage.createInstance({ name: "attachmap" });
+    const attachmap_db = localforage.createInstance({ name: "attachmap" });
     const history_db = localforage.createInstance({ name: "history" });
 
     // 现存BBCODE元素
@@ -1057,7 +1057,8 @@ GreasyFork 地址
                 if (/<br>/.test(hash)) { return addTempCode(`[attach]`) + hash + addTempCode('[/attach]'); };
                 if (!hash) { console.log('内部为空'); return addTempCode(args[0]); }; // attach 标签内为空时
                 if (!/^\w{32}$/.test(hash)) { return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${hash} 无效。</div>`; }; // attach 标签内hash不符合要求
-                return await db.getItem(hash).then(async (value) => {
+
+                return await attachmap_db.getItem(hash).then(async (value) => {
                     if (value !== null && value.attach_id) {
                         // console.log('数据已存在');
                         if (value.attach_type === 'img') {
@@ -1110,7 +1111,7 @@ GreasyFork 地址
                                             "attach_time": attach_info_obj ? attach_info_obj.groups.time : ''
                                         };
                                         // 写入数据库
-                                        await db.setItem(hash, attach);
+                                        await attachmap_db.setItem(hash, attach);
                                         resolve('<div class="attach">'
                                             + `<img alt="other" src="pic/attachicons/common.gif">&nbsp;&nbsp;`
                                             + `<a href="${attach.attach_url}" target="_blank" id="attach${attach.attach_id}">${attach.attach_name}</a>`
@@ -1137,13 +1138,13 @@ GreasyFork 地址
                                                 // console.log('没有触发缩图');
                                                 attach.attach_thumb = 0;
                                                 resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
-                                                await db.setItem(hash, attach);
+                                                await attachmap_db.setItem(hash, attach);
                                                 return;
                                             } else if (value.attach_thumb === 1) {
                                                 // console.log('触发缩图');
                                                 attach.attach_thumb = 1;
                                                 resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
-                                                await db.setItem(hash, attach);
+                                                await attachmap_db.setItem(hash, attach);
                                                 return;
                                             };
                                         };
@@ -1158,14 +1159,14 @@ GreasyFork 地址
                                             // console.log('url检测 不存在缩图');
                                             attach.attach_thumb = 0;
                                             resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}" onclick="Previewurl('${attach.attach_url}')">`);
-                                            await db.setItem(hash, attach);
+                                            await attachmap_db.setItem(hash, attach);
                                             return;
                                         } else if (thumb === true) {
                                             // 存在缩图
                                             // console.log('url检测 存在缩图');
                                             attach.attach_thumb = 1;
                                             resolve(`<img id="attach${attach.attach_id}" alt="${attach.attach_name}" src="${attach.attach_url}.thumb.jpg" onclick="Previewurl('${attach.attach_url}')">`);
-                                            await db.setItem(hash, attach);
+                                            await attachmap_db.setItem(hash, attach);
                                             return;
                                         };
                                     }
@@ -1182,7 +1183,7 @@ GreasyFork 地址
                                                 "attach_size": '',
                                                 "attach_time": getDateString()
                                             };
-                                            await db.setItem(hash, attach);
+                                            await attachmap_db.setItem(hash, attach);
                                         } else { console.log('附件未知错误: ' + d); };
                                         resolve(`<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`);
                                     };
@@ -3046,7 +3047,7 @@ function SmileIT2(smile, form, text) {
         jq(`#bigimg`).click(async function () {
             let em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);
             if (!em) return;  // 没有找到id直接返回 
-            await attach2Img(em.groups.id, window.parent.document)
+            await attach2Img(em.groups.id, window.parent.document);
         });
 
         // mediainfo
