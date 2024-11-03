@@ -153,8 +153,7 @@ function check(directory, currentPath = '') {
             if (matches) {
                 // 将不可见字符转换为 Unicode 转义序列
                 const unicodeChars = matches.map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', ');
-
-                log(`不可见字符 → ${unicodeChars} -> ${fullPath}`);
+                log(`不可见字符 → ${unicodeChars} - ${fullPath}`);
             }
         }
     }
