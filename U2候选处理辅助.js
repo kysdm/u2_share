@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.1.5
+// @version      0.1.6
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -106,6 +106,9 @@ function check(directory, currentPath = '') {
         directories: ["BACKUP", "CLIPINF", "PLAYLIST", "STREAM"]
     };
 
+    // 不可见字符
+    const invisibleCharPattern = /[\u0000-\u001F\u007F\u200B-\u200F\u2028-\u202F\uFEFF\u200E]/g;
+
     // 遍历目录中的每个子项
     for (const [key, item] of Object.entries(directory)) {
         const lowerKey = key.toLowerCase(); // 将文件名或文件夹名转为小写
@@ -143,6 +146,15 @@ function check(directory, currentPath = '') {
             // 检查是否是可疑文件后缀
             else if (suspiciousFileExtensions.some(ext => lowerKey.endsWith(ext))) {
                 log(`可疑文件 → ${fullPath}`); // 输出可疑文件的绝对路径
+            }
+
+            // 检查是否存在不可见字符
+            const matches = fullPath.match(invisibleCharPattern);
+            if (matches) {
+                // 将不可见字符转换为 Unicode 转义序列
+                const unicodeChars = matches.map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', ');
+
+                log(`不可见字符 → ${unicodeChars} -> ${fullPath}`);
             }
         }
     }
