@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.1.7
+// @version      1.1.8
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -2572,7 +2572,14 @@ function SmileIT2(smile, form, text) {
             }, "p.sda1.dev": {
                 "size": 5,
                 "extensions": "jpeg,jpg,png,gif,bmp,webp"
+            }, "p.sda1.dev.proxy": {
+                "size": 5,
+                "extensions": "jpeg,jpg,png,gif,bmp,webp"
             }, "sm.ms": {
+                "size": 5,
+                "extensions": "jpeg,jpg,png,gif,bmp,webp",
+                "auth": true
+            }, "sm.ms.proxy": {
                 "size": 5,
                 "extensions": "jpeg,jpg,png,gif,bmp,webp",
                 "auth": true
@@ -2589,7 +2596,9 @@ function SmileIT2(smile, form, text) {
         jq('.embedded').append(`<select class="med codebuttons" style="width: auto; min-width: 160px; margin-left: 10px; margin-right: 10px;"></select>`);
         jq('select').append(`<option title="${upload_extensions_limit}" value="u2.dmhy.org">U2 [${upload_size_limit}MB] (配额 ${upload_qty_limit})</option>`);
         jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="p.sda1.dev">流浪图床 [5MB]</option>`)
+        jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="p.sda1.dev.proxy">流浪图床(代理) [5MB]</option>`)
         jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="sm.ms">SM.MS [5MB]</option>`)
+        jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="sm.ms.proxy">SM.MS(代理) [5MB]</option>`)
 
         jq('#files').change(function () {
             const emfile = jq('#files')[0];
@@ -2614,7 +2623,7 @@ function SmileIT2(smile, form, text) {
         jq('#upload_auth').click(async function () {
             // 填入图床需要的鉴权信息
             const website = jq('select').val();
-            const auth = window.prompt(`注意: 脚本不会为输入值进行校验！\n\n请输入 [${website}] 图床需要的鉴权信息:`);
+            const auth = window.prompt(`注意: 脚本不会为输入值进行校验！\n\nToken: https://sm.ms/home/apitoken\n\n请输入 [${website}] 图床需要的鉴权信息:`);
             if (auth === null || auth.length === 0) return;
             await db.setItem('image_host_website_auth_' + website, auth);
         });
@@ -2790,8 +2799,22 @@ function SmileIT2(smile, form, text) {
                     return await upload1(file, attach_thumb, website_size, website_extensions);
                 case 'p.sda1.dev':
                     return await upload3(file, website_size, website_extensions);
+                case 'p.sda1.dev.proxy':
+                    return await upload3Proxy(file, website_size, website_extensions);
                 case 'sm.ms':
-                    return await upload4(file, website_size, website_extensions, auth);
+                    if (auth) {
+                        return await upload4(file, website_size, website_extensions, auth);
+                    } else {
+                        window.alert(`请先设置图床的鉴权信息\nhttps://sm.ms/home/apitoken`);
+                        return;
+                    }
+                case 'sm.ms.proxy':
+                    if (auth) {
+                        return await upload4Proxy(file, website_size, website_extensions, auth);
+                    } else {
+                        window.alert(`请先设置图床的鉴权信息\nhttps://sm.ms/home/apitoken`);
+                        return;
+                    }
                 default:
                     break;
             };
@@ -3019,8 +3042,136 @@ function SmileIT2(smile, form, text) {
 
         };
 
+        const upload3Proxy = (file, max_size, extensions) => {
+            // p.sda1.dev binary
+            return new Promise(async (resolve, reject) => {
+                console.log('p.sda1.dev binary TEST')
+                if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
+                if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
+
+                async function fileToBlob(file) {
+                    // 为兼容Violentmonkey加的转换，Tampermonkey 打开binary后可直传file
+                    const reader = new FileReader();
+                    reader.readAsArrayBuffer(file);
+                    await new Promise(resolve => reader.onload = resolve);
+                    return new Blob([reader.result], { type: file.type });
+                };
+
+                const blob = await fileToBlob(file);
+                const xhr = new XMLHttpRequest();
+
+                xhr.open("POST", `https://u2.kysdm.com/proxy/sda1?filename=${encodeURIComponent(file.name.replace(/#/g, '_'))}`, true);
+                xhr.setRequestHeader("Content-Type", file.type);
+                // 显式设置不携带 cookies
+                xhr.withCredentials = false;
+
+                // 上传进度监听
+                xhr.upload.addEventListener("progress", (e) => {
+                    if (e.lengthComputable) {
+                        const progressRate = ((e.loaded / e.total) * 100).toFixed(2) + '%';
+                        jq('.progress > div').css('width', progressRate); // 更新进度条
+                        jq('[name="progress-percent"]').text(`${e.loaded} / ${e.total} | ${progressRate}`);
+                        jq('[name="progress-name"]').text(file.name);
+                    }
+                });
+
+                // 上传完成或出错
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            console.log(response);
+                            resolve(response.data.url);
+                        } else {
+                            uploadErrorHandling(response.message);
+                            reject(response.message);
+                        }
+                    } else {
+                        uploadErrorHandling(xhr.statusText);
+                        reject(xhr.statusText);
+                    }
+
+                    // 重置进度条
+                    jq('.progress > div').css('width', '0%');
+                };
+
+                xhr.onerror = (e) => {
+                    uploadErrorHandling(e);
+                    reject(e);
+                };
+
+                // 发送 Blob 数据
+                xhr.send(blob);
+
+            });
+
+        };
+
+        const upload4Proxy = (file, max_size, extensions, auth) => {
+            // sm.ms
+            return new Promise((resolve, reject) => {
+
+                if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
+                if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
+
+                const formData = new FormData();
+                formData.append('smfile', file);
+
+                const xhr = new XMLHttpRequest();
+                xhr.open("POST", `https://u2.kysdm.com/proxy/smms`, true);
+                // 设置 Authorization 头
+                xhr.setRequestHeader("Authorization", auth);
+                // 显式设置不携带 cookies
+                xhr.withCredentials = false;
+
+                // 上传进度监听
+                xhr.upload.addEventListener("progress", (e) => {
+                    if (e.lengthComputable) {
+                        const progressRate = ((e.loaded / e.total) * 100).toFixed(2) + '%';
+                        jq('.progress > div').css('width', progressRate); // 更新进度条
+                        jq('[name="progress-percent"]').text(`${e.loaded} / ${e.total} | ${progressRate}`);
+                        jq('[name="progress-name"]').text(file.name);
+                    }
+                });
+
+                // 上传完成或出错
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.code === "success") {
+                            console.log(response);
+                            resolve(response.data.url);
+                        }
+                        else if (response.code === "image_repeated") {
+                            console.warn('图像重复上传: ' + file.name)
+                            console.log(response);
+                            resolve(response.images);
+                        } else {
+                            uploadErrorHandling(response.message);
+                            reject(response.message);
+                        }
+                    } else {
+                        uploadErrorHandling(xhr.statusText);
+                        reject(xhr.statusText);
+                    }
+
+                    // 重置进度条
+                    jq('.progress > div').css('width', '0%');
+                };
+
+                xhr.onerror = (e) => {
+                    uploadErrorHandling(e);
+                    reject(e);
+                };
+
+                // 发送 FormData 数据
+                xhr.send(formData);
+            });
+
+        };
+
         // 图片压缩格式
-        jq('input[name="submit"]').after(`<input id="default_image_compress_format" title="设置压缩后的图片格式" style="font-size:11px;margin-right:3px" type="button" value="${((format) => { return format ? format : 'JPEG'; })(await db.getItem('default_image_compress_format'))}">`);
+        jq('input[name="submit"]').after(`<input id="default_image_compress_format" title="设置压缩后的图片格式" style="font-size:11px;margin-right:3px" type="button" value="${((format) => { return format ? format : 'WEBP'; })(await db.getItem('default_image_compress_format'))}">`);
         jq(`#default_image_compress_format`).click(async function () {
             await db.getItem('default_image_compress_format').then(async format => {
                 if (format === 'WEBP') {
