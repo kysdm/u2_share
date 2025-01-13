@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.0
+// @version      0.2.1
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -21,6 +21,7 @@
 // https://u2.dmhy.org/offers.php?id=59308&off_details=1
 // https://u2.dmhy.org/offers.php?id=59911&off_details=1
 // https://u2.dmhy.org/offers.php?id=59985&off_details=1
+// https://u2.dmhy.org/details.php?id=60091&hit=1
 
 'use strict';
 
@@ -84,9 +85,13 @@ const logger = new Logger();
         if (sizeApiData.msg !== 'success') {
             logger.addLog('API SIZE 获取失败');
         } else {
-            sizeApiData.data.torrents.forEach(({ torrent_id: _torrentId }) => {
+            console.log(sizeApiData.data.torrents);
+
+            sizeApiData.data.torrents.forEach(({ torrent_id: _torrentId, banned: _banned, deleted: _deleted }) => {
                 if (String(_torrentId) === torrentId) return; // 跳过与自身 ID 相同的种子
-                logger.addLog(`体积相同 → <a href="https://u2.dmhy.org/details.php?id=${_torrentId}&hit=1" target="_blank">#${_torrentId}</a>`);
+                let ban_status = _banned ? ' (屏蔽)' : '';
+                let del_status = _deleted ? ' (删除)' : '';
+                logger.addLog(`体积相同 → <a href="https://u2.dmhy.org/details.php?id=${_torrentId}&hit=1" target="_blank">#${_torrentId}${ban_status}${del_status}</a>`);
             });
         }
 
