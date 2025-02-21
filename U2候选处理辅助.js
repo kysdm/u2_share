@@ -76,8 +76,6 @@ const logger = new Logger();
 
     const historyData = apiData.data.history;
     const torrent = historyData[0];
-    console.log(torrent);
-
     const { torrent_tree: torrentTree, torrent_size: torrentSize, torrent_piece_length: torrentPieceLength } = torrent;
 
     if (torrentPieceLength > 16 * 1024 * 1024) {
@@ -219,6 +217,7 @@ function check(directory) {
                     const fileExtension = lowerKey.split('.').pop();
                     if (fileExtension.length < 1 || fileExtension.length > 5) {
                         logger.addLog(`扩展名长度异常 → ${fullPath}`); // 输出扩展名长度异常的文件路径
+                        // dvb.fontindex
                     }
                 }
 
