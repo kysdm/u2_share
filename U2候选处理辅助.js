@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.1
+// @version      0.2.2
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -22,6 +22,7 @@
 // https://u2.dmhy.org/offers.php?id=59911&off_details=1
 // https://u2.dmhy.org/offers.php?id=59985&off_details=1
 // https://u2.dmhy.org/details.php?id=60091&hit=1
+// https://u2.dmhy.org/offers.php?id=60537&off_details=1
 
 'use strict';
 
@@ -75,7 +76,14 @@ const logger = new Logger();
 
     const historyData = apiData.data.history;
     const torrent = historyData[0];
-    const { torrent_tree: torrentTree, torrent_size: torrentSize } = torrent;
+    console.log(torrent);
+
+    const { torrent_tree: torrentTree, torrent_size: torrentSize, torrent_piece_length: torrentPieceLength } = torrent;
+
+    if (torrentPieceLength > 16 * 1024 * 1024) {
+        logger.addLog(`区块过大  → ${torrentPieceLength / (1024 * 1024)}MB`);
+        // 可以加入通过种子体积判断是否超过允许区块大小，但是大种子太少了，鸽了
+    }
 
     if (isNaN(torrentSize)) {
         logger.addLog('API 种子体积获取失败');
@@ -118,10 +126,10 @@ function check(directory) {
     // 垃圾文件的完整名称
     const junkFiles = new Set([".ds_store", "thumbs.db", "disc.inf"]);
 
-    // 垃圾文件后缀名
+    // 垃圾文件扩展名
     const junkFileExtensions = new Set([".m3u8", ".m3u", ".lwi", ".bat", ".md5", ".nfo", ".accurip", ".miniso"]);
 
-    // 可疑文件后缀名
+    // 可疑文件扩展名
     const suspiciousFileExtensions = new Set([".txt"]);
 
     // 必须存在的 BDMV 文件和目录
@@ -201,6 +209,19 @@ function check(directory) {
                 else if (suspiciousFileExtensions.has("." + lowerKey.split('.').pop())) {
                     logger.addLog(`可疑文件 → ${fullPath}`); // 输出可疑文件的绝对路径
                 }
+
+                // 检查文件是否有扩展名
+                const hasExtension = lowerKey.includes('.');
+                if (!hasExtension) {
+                    logger.addLog(`缺少扩展名 → ${fullPath}`); // 输出缺少扩展名的文件路径
+                } else {
+                    // 获取扩展名并检查其长度
+                    const fileExtension = lowerKey.split('.').pop();
+                    if (fileExtension.length < 1 || fileExtension.length > 5) {
+                        logger.addLog(`扩展名长度异常 → ${fullPath}`); // 输出扩展名长度异常的文件路径
+                    }
+                }
+
             }
         }
     }
