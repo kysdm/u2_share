@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.2
+// @version      0.2.3
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -91,7 +91,7 @@ const logger = new Logger();
         if (sizeApiData.msg !== 'success') {
             logger.addLog('API SIZE 获取失败');
         } else {
-            console.log(sizeApiData.data.torrents);
+            // console.log(sizeApiData.data.torrents);
 
             sizeApiData.data.torrents.forEach(({ torrent_id: _torrentId, banned: _banned, deleted: _deleted }) => {
                 if (String(_torrentId) === torrentId) return; // 跳过与自身 ID 相同的种子
@@ -103,7 +103,7 @@ const logger = new Logger();
 
     }
 
-    console.log(torrentTree);
+    // console.log(torrentTree);
     check(torrentTree);
     logger.addLog('完成');
 
@@ -117,6 +117,48 @@ const logger = new Logger();
 })();
 
 
+/**
+ * 在判断可疑文件中跳过合法文件
+ * 
+ * 有效的文件路径规则存储在一个数组中，每个规则包含：
+ * - type: 匹配类型，"include" 表示只要路径中包含指定字符串即可，
+ *                  "endsWith" 表示路径必须以指定字符串结尾。
+ * - value: 要匹配的路径字符串。
+ * 
+ * @param {string} fullPath - 文件的完整路径。
+ * @returns {boolean} 如果路径匹配，则返回 true；否则返回 false。
+ */
+const isValidPath = (fullPath) => {
+    // https://u2.dmhy.org/details.php?id=60438&hit=1
+    // https://u2.dmhy.org/details.php?id=60528&hit=1
+    // https://u2.dmhy.org/offers.php?id=60554&off_details=1
+
+    const validPathRules = [
+        { type: "endsWith", value: "/BDMV/META/DL/bdmt_eng.xml" },  // 不太清楚会有多少，如何实在太多就用 include 吧
+        { type: "endsWith", value: "/BDMV/META/DL/bdmt_jpn.xml" },
+        { type: "endsWith", value: "/BDMV/JAR/00000/map.txt" },
+        { type: "endsWith", value: "/BACKUP/JAR/00000/map.txt" },
+        { type: "endsWith", value: "/BDMV/AUXDATA/bdtmdlist.xml" },
+        { type: "endsWith", value: "/BDMV/AUXDATA/_dsa_version_" }
+    ];
+
+    for (const rule of validPathRules) {
+        if (rule.type === "include" && fullPath.includes(rule.value)) {
+            return true;
+        }
+        if (rule.type === "endsWith" && fullPath.endsWith(rule.value)) {
+            return true;
+        }
+    }
+};
+
+
+const getFileExtension = (filePath) => {
+    const ext = filePath.split('.').pop().toLowerCase();
+    return ext === filePath ? '' : ext; // 如果没有扩展名，则返回空字符串
+}
+
+
 function check(directory) {
     // 垃圾文件夹的名称
     const junkFolders = new Set(["makemkv", "any!", "xrvl", "fab!"]);
@@ -128,7 +170,7 @@ function check(directory) {
     const junkFileExtensions = new Set([".m3u8", ".m3u", ".lwi", ".bat", ".md5", ".nfo", ".accurip", ".miniso"]);
 
     // 可疑文件扩展名
-    const suspiciousFileExtensions = new Set([".txt"]);
+    const suspiciousFileExtensions = new Set([".txt", ".xml"]);
 
     // 必须存在的 BDMV 文件和目录
     const bdmvStructure = {
@@ -178,49 +220,45 @@ function check(directory) {
                 if (junkFolders.has(lowerKey)) {
                     logger.addLog(`垃圾文件夹 → ${fullPath}`); // 输出垃圾文件夹的绝对路径
                 }
-
                 // 检测是否为 BDMV 文件夹
-                if (lowerKey === "bdmv") {
+                else if (lowerKey === "bdmv") {
                     // 检测 BDMV 文件夹是否有缺失
                     checkBDMV(item.children, fullPath, bdmvStructure);
                 }
-
                 // 将子目录压入栈中
                 stack.push({ directory: item.children, currentPath: fullPath });
             }
             // 如果是文件
             else if (item.type === "file") {
+                const ext = getFileExtension(lowerKey);
+                const isValidExt = ext.length > 0 && ext.length <= 5;  // 扩展名长度检查
+
                 // 如果文件大小为 0
                 if (item.length === 0) {
                     logger.addLog(`空文件 → ${fullPath}`); // 输出空文件的绝对路径
                 }
-
-                // 检查是否是垃圾文件（通过完整名称匹配）
-                if (junkFiles.has(lowerKey)) {
-                    logger.addLog(`垃圾文件 → ${fullPath}`); // 输出垃圾文件的绝对路径
-                }
-                // 检查是否是垃圾文件后缀
-                else if (junkFileExtensions.has("." + lowerKey.split('.').pop())) {
-                    logger.addLog(`垃圾文件 → ${fullPath}`); // 输出带垃圾后缀的文件路径
-                }
-                // 检查是否是可疑文件后缀
-                else if (suspiciousFileExtensions.has("." + lowerKey.split('.').pop())) {
-                    logger.addLog(`可疑文件 → ${fullPath}`); // 输出可疑文件的绝对路径
-                }
-
-                // 检查文件是否有扩展名
-                const hasExtension = lowerKey.includes('.');
-                if (!hasExtension) {
-                    logger.addLog(`缺少扩展名 → ${fullPath}`); // 输出缺少扩展名的文件路径
-                } else {
-                    // 获取扩展名并检查其长度
-                    const fileExtension = lowerKey.split('.').pop();
-                    if (fileExtension.length < 1 || fileExtension.length > 5) {
+                else if (!isValidPath(fullPath)) {
+                    // 检查是否是垃圾文件（通过完整名称匹配）
+                    if (junkFiles.has(lowerKey)) {
+                        logger.addLog(`垃圾文件 → ${fullPath}`); // 输出垃圾文件的绝对路径
+                    }
+                    // 检查是否是垃圾文件后缀
+                    else if (junkFileExtensions.has("." + ext)) {
+                        logger.addLog(`垃圾文件 → ${fullPath}`); // 输出带垃圾后缀的文件路径
+                    }
+                    // 检查是否是可疑文件后缀
+                    else if (suspiciousFileExtensions.has("." + ext)) {
+                        logger.addLog(`可疑文件 → ${fullPath}`); // 输出可疑文件的绝对路径
+                    }
+                    // 检查扩展名是否合法
+                    else if (ext.length < 1) {
+                        logger.addLog(`缺少扩展名 → ${fullPath}`);
+                    }
+                    // 扩展名长度检查
+                    else if (!isValidExt) {
                         logger.addLog(`扩展名长度异常 → ${fullPath}`); // 输出扩展名长度异常的文件路径
-                        // dvb.fontindex
                     }
                 }
-
             }
         }
     }
