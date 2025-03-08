@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.5
+// @version      0.2.6
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -227,6 +227,7 @@ function check(directory) {
             if (item.type === "directory") {
                 if (junkFolders.has(lowerKey)) {
                     logger.addLog(`垃圾文件夹 → ${fullPath}`); // 输出垃圾文件夹的绝对路径
+                    continue;  // 如果是垃圾文件夹，那么内部的文件都没用
                 }
                 // 检测是否为 BDMV 文件夹
                 else if (lowerKey === "bdmv") {
