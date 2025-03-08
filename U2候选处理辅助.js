@@ -136,7 +136,7 @@ const pathBasedRules = [
     { pattern: /\/BDMV\/META\/DL\/$/, allowedFileNames: /bdmt_(eng|jpn|deu|fra|ita|nld|spa)\.xml|[^\/]+\.jpg/ },
     { pattern: /\/BDMV(\/BACKUP)?\/$/, allowedFileNames: /(MovieObject|index)\.bdmv/ },
     { pattern: /\/scans?\/$/i, allowedFileNames: /[^\/]+\.(bmp|tif|png|jpg|webp)$/i },
-    { pattern: /^\/(?:[^\/]+\/){0,3}[^\/]+$/, allowedFileNames: /[^\/]+\.(iso|mds|mkv|ts|mp4|rar|pdf|png|jpg|bmp|tif|flac|wav|cue|log)$/i },  // 0-3层文件夹
+    { pattern: /^\/(?:[^\/]+\/){0,5}$/, allowedFileNames: /[^\/]+\.(iso|mds|mkv|ts|mp4|rar|pdf|png|jpg|bmp|tif|flac|wav|cue|log)$/i },  // 0-5层文件夹
 ];
 
 function isFileNameValidForPath(filePath, fileName) {
