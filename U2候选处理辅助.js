@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.6
+// @version      0.2.7
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -135,7 +135,7 @@ const pathBasedRules = [
     { pattern: /\/BDMV(\/BACKUP)?\/JAR\/00000\/$/, allowedFileNames: /(main\.0\.aca|main\.1\.png|map\.txt)/ },
     { pattern: /\/BDMV\/META\/DL\/$/, allowedFileNames: /bdmt_(eng|jpn|deu|fra|ita|nld|spa)\.xml|[^\/]+\.jpg/ },
     { pattern: /\/BDMV(\/BACKUP)?\/$/, allowedFileNames: /(MovieObject|index)\.bdmv/ },
-    { pattern: /\/scans?\/$/i, allowedFileNames: /[^\/]+\.(bmp|tif|png|jpg|webp)$/i },
+    { pattern: /\/scans?(?:[^\/]+\/){1,5}$/i, allowedFileNames: /[^\/]+\.(bmp|tif|png|jpg|webp|jxl)$/i },  // 确保扫描文件夹中只包含图片文件
     { pattern: /^\/(?:[^\/]+\/){0,5}$/, allowedFileNames: /[^\/]+\.(iso|mds|mkv|ts|mp4|rar|pdf|png|jpg|bmp|tif|flac|wav|cue|log)$/i },  // 0-5层文件夹
 ];
 
@@ -143,10 +143,11 @@ function isFileNameValidForPath(filePath, fileName) {
     const rule = pathBasedRules.find(rule => rule.pattern.test(getDirectoryFromPath(filePath, fileName)));
     if (rule) {
         if (rule.allowedFileNames.test(fileName)) {
-            console.log(`${rule.allowedFileNames} || ${fileName} || ${filePath}`);
+            console.debug({ filePath, ...rule });
             return true;
         }
     }
+    console.warn({ filePath, pattern: null, allowedFileNames: null });
     return false;
 }
 
