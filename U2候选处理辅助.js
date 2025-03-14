@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.7
+// @version      0.2.8
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -124,17 +124,18 @@ const getFileExtension = (filePath) => {
 
 
 const pathBasedRules = [
-    { pattern: /\/CERTIFICATE(\/BACKUP)?\/$/, allowedFileNames: /id\.bdmv/ },
-    { pattern: /\/BDMV\/AUXDATA\/$/, allowedFileNames: /(dvb.fontindex|_dsa_version_|bdtmdlist\.xml|sound\.bdmv|\d{5}\.otf)/ },
-    { pattern: /\/BDMV\/STREAM\/$/, allowedFileNames: /\d{5}\.m2ts/ },
+    { pattern: /\/CERTIFICATE(\/BACKUP)?\/$/, allowedFileNames: /^id\.bdmv$/ },
+    { pattern: /\/BDMV\/AUXDATA\/$/, allowedFileNames: /^(dvb.fontindex|_dsa_version_|bdtmdlist\.xml|sound\.bdmv|\d{5}\.otf)$/ },
+    { pattern: /\/BDMV\/STREAM\/$/, allowedFileNames: /^\d{5}\.m2ts$/ },
     // { pattern: /\/BDMV\/JAR\/\d{5}\/\d{7}\/(quiz|messages|main|keyboard|itrack|forms|cv|comm)\/$/, allowedFileNames: /.+\.png/ },  // https://u2.dmhy.org/offers.php?id=59743&off_details=1 示例不够多，不确定是否符合蓝光标准
-    { pattern: /\/BDMV(\/BACKUP)?\/JAR\/$/, allowedFileNames: /\d{5}\.jar/ },
-    { pattern: /\/BDMV(\/BACKUP)?\/BDJO\/$/, allowedFileNames: /\d{5}\.bdjo/ },
-    { pattern: /\/BDMV(\/BACKUP)?\/PLAYLIST\/$/, allowedFileNames: /\d{5}\.mpls/ },
-    { pattern: /\/BDMV(\/BACKUP)?\/CLIPINF\/$/, allowedFileNames: /\d{5}\.clpi/ },
-    { pattern: /\/BDMV(\/BACKUP)?\/JAR\/00000\/$/, allowedFileNames: /(main\.0\.aca|main\.1\.png|map\.txt)/ },
-    { pattern: /\/BDMV\/META\/DL\/$/, allowedFileNames: /bdmt_(eng|jpn|deu|fra|ita|nld|spa)\.xml|[^\/]+\.jpg/ },
-    { pattern: /\/BDMV(\/BACKUP)?\/$/, allowedFileNames: /(MovieObject|index)\.bdmv/ },
+    { pattern: /\/BDMV(\/BACKUP)?\/JAR\/$/, allowedFileNames: /^\d{5}\.jar$/ },
+    { pattern: /\/BDMV(\/BACKUP)?\/BDJO\/$/, allowedFileNames: /^\d{5}\.bdjo$/ },
+    { pattern: /\/BDMV(\/BACKUP)?\/PLAYLIST\/$/, allowedFileNames: /^\d{5}\.mpls$/ },
+    { pattern: /\/BDMV(\/BACKUP)?\/CLIPINF\/$/, allowedFileNames: /^\d{5}\.clpi$/ },
+    { pattern: /\/BDMV(\/BACKUP)?\/JAR\/00000\/$/, allowedFileNames: /^(main\.0\.aca|main\.1\.png|map\.txt)$/ },
+    { pattern: /\/BDMV\/META\/DL\/$/, allowedFileNames: /^bdmt_(eng|jpn|deu|fra|ita|nld|spa)\.xml$|^[^\/]+\.jpg$|^(discinfo|disclib|titleinfo)\.xsd$/ },
+    { pattern: /\/BDMV(\/BACKUP)?\/$/, allowedFileNames: /^(MovieObject|index)\.bdmv$/ },
+    { pattern: /\/VIDEO_TS\/$/, allowedFileNames: /^(VIDEO_TS|VTS_\d{2}_\d)\.(BUP|IFO|VOB)$/ },
     { pattern: /\/scans?(?:[^\/]+\/){1,5}$/i, allowedFileNames: /[^\/]+\.(bmp|tif|png|jpg|webp|jxl)$/i },  // 确保扫描文件夹中只包含图片文件
     { pattern: /^\/(?:[^\/]+\/){0,5}$/, allowedFileNames: /[^\/]+\.(iso|mds|mkv|ts|mp4|rar|pdf|png|jpg|bmp|tif|flac|wav|cue|log)$/i },  // 0-5层文件夹
 ];
