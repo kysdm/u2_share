@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.2.9
+// @version      0.3.0
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
 // @match        *://u2.dmhy.org/details.php?*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
-// @downloadURL  https://gist.githubusercontent.com/kysdm/23e9247f2c31ac6a7f0ba4b09aa93ae6/raw
-// @updateURL    https://gist.githubusercontent.com/kysdm/23e9247f2c31ac6a7f0ba4b09aa93ae6/raw
+// @downloadURL  https://scriptcat.org/scripts/code/3079/U2%E5%80%99%E9%80%89%E5%A4%84%E7%90%86%E8%BE%85%E5%8A%A9.user.js
+// @updateURL    https://scriptcat.org/scripts/code/3079/U2%E5%80%99%E9%80%89%E5%A4%84%E7%90%86%E8%BE%85%E5%8A%A9.user.js
 // ==/UserScript==
 
 // 可用作测试的种子
