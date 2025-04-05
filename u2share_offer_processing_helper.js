@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.0
+// @version      0.3.1
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -124,10 +124,10 @@ const getFileExtension = (filePath) => {
 
 
 const pathBasedRules = [
-    { pattern: /\/CERTIFICATE(\/BACKUP)?\/$/, allowedFileNames: /^id\.bdmv$|^app\.discroot\.crt/ },
+    { pattern: /\/CERTIFICATE(\/BACKUP)?\/$/, allowedFileNames: /^id\.bdmv$|^(app|bu)\.discroot\.crt$|^online\.crl$|^online\.crt$|^online\.sig$/ },
     { pattern: /\/BDMV\/AUXDATA\/$/, allowedFileNames: /^(dvb.fontindex|_dsa_version_|bdtmdlist\.xml|sound\.bdmv|\d{5}\.otf)$/ },
     { pattern: /\/BDMV\/STREAM\/$/, allowedFileNames: /^\d{5}\.m2ts$/ },
-    { pattern: /\/BDMV(\/BACKUP)?\/JAR\/\d{5}\/$/, allowedFileNames: /^.+\.(png|txt|csv|xml|aca)$|^startup\.properties$/ },
+    { pattern: /\/BDMV(\/BACKUP)?\/JAR\/\d{5}\/$/, allowedFileNames: /^.+\.(png|txt|csv|xml|aca)$|^startup\.properties$|^bluray_project\.bin$/ },
     { pattern: /\/BDMV(\/BACKUP)?\/JAR\/$/, allowedFileNames: /^\d{5}\.jar$/ },
     { pattern: /\/BDMV(\/BACKUP)?\/BDJO\/$/, allowedFileNames: /^\d{5}\.bdjo$/ },
     { pattern: /\/BDMV(\/BACKUP)?\/PLAYLIST\/$/, allowedFileNames: /^\d{5}\.mpls$/ },
