@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.1
+// @version      0.3.2
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -47,7 +47,8 @@ class Logger {
 const logger = new Logger();
 
 (async () => {
-    let torrentId = /.*id=(?<torrentId>\d{3,5})/i.exec(location.search)?.groups?.torrentId || null; // 当前种子ID
+    const torrentId = getTorrentId(); // 当前种子ID
+    if (!torrentId) return;
 
     let userId = $('#info_block').find('a:first').attr('href').match(/\.php\?id=(\d{3,5})/i)?.[1] || ''; // 当前用户ID
     const db = localforage.createInstance({ name: "history" });  // API 数据库
@@ -116,6 +117,25 @@ const logger = new Logger();
 
 })();
 
+
+function getTorrentId() {
+    const params = new URLSearchParams(location.search);
+
+    // 如果是评论页面，则不处理
+    if (params.has('cmtpage')) {
+        return null;
+    }
+
+    // 获取 torrent_id 参数
+    const id = params.get('id');
+
+    // 判断 id 是否为3到5位数字
+    if (id && /^\d{3,5}$/.test(id)) {
+        return id;
+    }
+
+    return null;
+}
 
 const getFileExtension = (filePath) => {
     const ext = filePath.split('.').pop().toLowerCase();
