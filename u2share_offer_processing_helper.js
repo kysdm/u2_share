@@ -23,6 +23,7 @@
 // https://u2.dmhy.org/offers.php?id=59985&off_details=1
 // https://u2.dmhy.org/details.php?id=60091&hit=1
 // https://u2.dmhy.org/offers.php?id=60537&off_details=1
+// https://u2.dmhy.org/details.php?id=60981 - 55cde51dafb8eb6a72adfc3034ba6d7507bfe27d
 
 'use strict';
 
@@ -200,7 +201,7 @@ function check(directory) {
     const junkFileExtensions = new Set([".m3u8", ".m3u", ".lwi", ".bat", ".md5", ".nfo", ".accurip", ".miniso"]);
 
     // 可疑文件扩展名 <总感觉会漏，还是维护白名单吧>
-    const suspiciousFileExtensions = new Set([".txt", ".xml"]);
+    // const suspiciousFileExtensions = new Set([".txt", ".xml"]);
 
     // 必须存在的 BDMV 文件和目录
     const bdmvStructure = {
