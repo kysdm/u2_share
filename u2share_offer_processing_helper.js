@@ -211,6 +211,9 @@ function check(directory) {
     // 不可见字符
     const invisibleCharPattern = /[\u0000-\u001F\u007F\u200B-\u200F\u2028-\u202F\uFEFF\u200E]/g;
 
+    // 日文变音符号
+    const japaneseDiacriticPattern = /[\u3099-\u309c]/g;
+
     // Windows 系统中不允许的字符
     const invalidCharsPattern = /[<>:"/\\|?*]/g;
 
@@ -243,6 +246,14 @@ function check(directory) {
                 const unicodeChars = Array.from(new Set(invisibleCharMatches))
                     .map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', '); // 去重并转换为 Unicode
                 logger.addLog(`不可见字符 → ${unicodeChars} - ${fullPath}`);
+            }
+
+            // 检查是否存在日文变音符号
+            const japaneseDiacriticMatches = key.match(japaneseDiacriticPattern);
+            if (japaneseDiacriticMatches) {
+                const unicodeChars = Array.from(new Set(japaneseDiacriticMatches))
+                    .map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', '); // 去重并转换为 Unicode
+                logger.addLog(`日文变音符号 → ${unicodeChars} - ${fullPath}`);
             }
 
             // 如果是目录，则将目录压入栈中
