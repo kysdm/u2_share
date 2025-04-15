@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.2
+// @version      0.3.3
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -148,7 +148,7 @@ const pathBasedRules = [
     { pattern: /\/CERTIFICATE(\/BACKUP)?\/$/, allowedFileNames: /^id\.bdmv$|^(app|bu)\.discroot\.crt$|^online\.crl$|^online\.crt$|^online\.sig$/ },
     { pattern: /\/BDMV\/AUXDATA\/$/, allowedFileNames: /^(dvb.fontindex|_dsa_version_|bdtmdlist\.xml|sound\.bdmv|\d{5}\.otf)$/ },
     { pattern: /\/BDMV\/STREAM\/$/, allowedFileNames: /^\d{5}\.m2ts$/ },
-    { pattern: /\/BDMV(\/BACKUP)?\/JAR\/\d{5}\/$/, allowedFileNames: /^.+\.(png|txt|csv|xml|aca)$|^startup\.properties$|^bluray_project\.bin$/ },
+    { pattern: /\/BDMV(\/BACKUP)?\/JAR\/\d{5}\//, allowedFileNames: /^.+\.(png|txt|csv|xml|aca)$|^startup\.properties$|^bluray_project\.bin$/ },
     { pattern: /\/BDMV(\/BACKUP)?\/JAR\/$/, allowedFileNames: /^\d{5}\.jar$/ },
     { pattern: /\/BDMV(\/BACKUP)?\/BDJO\/$/, allowedFileNames: /^\d{5}\.bdjo$/ },
     { pattern: /\/BDMV(\/BACKUP)?\/PLAYLIST\/$/, allowedFileNames: /^\d{5}\.mpls$/ },
@@ -158,7 +158,7 @@ const pathBasedRules = [
     { pattern: /\/BDMV(\/BACKUP)?\/$/, allowedFileNames: /^(MovieObject|index)\.bdmv$/ },
     { pattern: /\/VIDEO_TS\/$/, allowedFileNames: /^(VIDEO_TS|VTS_\d{2}_\d)\.(BUP|IFO|VOB)$/ },
     { pattern: /\/scans?(?:[^\/]+\/){1,5}$/i, allowedFileNames: /[^\/]+\.(bmp|tif|png|jpg|webp|jxl)$/i },  // 确保扫描文件夹中只包含图片文件
-    { pattern: /^\/(?:[^\/]+\/){0,5}$/, allowedFileNames: /[^\/]+\.(iso|mds|mkv|ts|mp4|rar|pdf|png|jpg|bmp|tif|flac|wav|cue|log)$/i },  // 0-5层文件夹
+    { pattern: /^\/(?:[^\/]+\/){0,5}$/, allowedFileNames: /[^\/]+\.(iso|mds|mkv|ts|mp4|png|jpg|bmp|webp|tif|flac|wav|cue|log)$/i },  // 0-5层文件夹
 ];
 
 function isFileNameValidForPath(filePath, fileName) {
