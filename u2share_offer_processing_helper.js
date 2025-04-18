@@ -294,9 +294,9 @@ function check(directory) {
                         logger.addLog(`缺少扩展名 → ${fullPath}`);
                     }
                     // 扩展名长度检查
-                    else if (!isValidExt) {
-                        logger.addLog(`扩展名长度异常 → ${fullPath}`); // 输出扩展名长度异常的文件路径
-                    }
+                    // else if (!isValidExt) {
+                    //     logger.addLog(`扩展名长度异常 → ${fullPath}`); // 输出扩展名长度异常的文件路径
+                    // }
                     // // 检查是否是可疑文件后缀
                     // else if (!allowedFileExtensions.has("." + ext)) {
                     //     logger.addLog(`可疑文件 → ${fullPath}`); // 输出可疑文件的绝对路径
