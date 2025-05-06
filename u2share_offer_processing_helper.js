@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.5
+// @version      0.3.6
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -24,6 +24,7 @@
 // https://u2.dmhy.org/details.php?id=60091&hit=1
 // https://u2.dmhy.org/offers.php?id=60537&off_details=1
 // https://u2.dmhy.org/details.php?id=60981 - 55cde51dafb8eb6a72adfc3034ba6d7507bfe27d
+// https://u2.dmhy.org/details.php?id=29446&hit=1
 
 'use strict';
 
@@ -189,6 +190,22 @@ function getDirectoryFromPath(absolutePath, fileName) {
     return null;
 }
 
+function hasNestedBDMV(directory) {
+    // 查找当前目录树中是否存在嵌套的 BDMV 文件夹
+    for (const [name, item] of Object.entries(directory)) {
+        if (item.type === "directory") {
+            if (name.toLowerCase() === "bdmv") {
+                // 发现更深层的 BDMV，立刻返回 true
+                return true;
+            }
+            // 否则继续在子目录里查找
+            if (hasNestedBDMV(item.children)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 
 function check(directory) {
     // 垃圾文件夹的名称
@@ -264,7 +281,7 @@ function check(directory) {
                     continue;  // 如果是垃圾文件夹，那么内部的文件都没用
                 }
                 // 检测是否为 BDMV 文件夹
-                else if (lowerKey === "bdmv") {
+                else if (lowerKey === "bdmv" && !hasNestedBDMV(item.children)) {
                     // 检测 BDMV 文件夹是否有缺失
                     checkBDMV(item.children, fullPath, bdmvStructure);
                 }
