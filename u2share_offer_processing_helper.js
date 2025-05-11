@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.6
+// @version      0.3.7
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -24,7 +24,7 @@
 // https://u2.dmhy.org/details.php?id=60091&hit=1
 // https://u2.dmhy.org/offers.php?id=60537&off_details=1
 // https://u2.dmhy.org/details.php?id=60981 - 55cde51dafb8eb6a72adfc3034ba6d7507bfe27d
-// https://u2.dmhy.org/details.php?id=29446&hit=1
+// https://u2.dmhy.org/details.php?id=29446&hit=1 - 79021415017f7a4302fa59705f9e355952b41ad4
 
 'use strict';
 
@@ -159,7 +159,7 @@ const pathBasedRules = [
     { pattern: /\/BDMV(\/BACKUP)?\/$/, allowedFileNames: /^(MovieObject|index)\.bdmv$/ },
     { pattern: /\/VIDEO_TS\/$/, allowedFileNames: /^(VIDEO_TS|VTS_\d{2}_\d)\.(BUP|IFO|VOB)$/ },
     { pattern: /\/scans?(?:[^\/]+\/){1,5}$/i, allowedFileNames: /[^\/]+\.(bmp|tif|tiff|png|jpg|webp|jxl)$/i },  // 确保扫描文件夹中只包含图片文件
-    { pattern: /^\/(?:[^\/]+\/){0,5}$/, allowedFileNames: /[^\/]+\.(iso|mds|mkv|ts|mp4|png|jpg|bmp|webp|tif|tiff|flac|wav|aiff|cue|log)$/i },  // 0-5层文件夹
+    { pattern: /^\/(?:[^\/]+\/){0,5}$/, allowedFileNames: /[^\/]+\.(iso|mds|mkv|ts|mp4|png|jpg|bmp|webp|tif|tiff|flac|wav|aiff|m4a|cue|log)$/i },  // 0-5层文件夹
 ];
 
 function isFileNameValidForPath(filePath, fileName) {
