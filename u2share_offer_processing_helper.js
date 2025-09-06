@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.7
+// @version      0.3.8
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -108,10 +108,14 @@ const logger = new Logger();
 
     // console.log(torrentTree);
     check(torrentTree);
+    // 检查 BDMV 与 BDMV/BACKUP 目录下的文件是否相同
+    await handleTorrentChecksum(userId, token, torrentId);
+
     logger.addLog('完成');
 
     logger.renderLogs('mod_check');
 
+    // 移除候选种子标题超链接
     const aTag = document.querySelector("#top a");
     const textInsideATag = aTag.textContent;
     const newTextElement = document.createTextNode(textInsideATag);
@@ -455,14 +459,97 @@ function checkClipInfo(streamDirectory, clipinfDirectory, currentPath) {
 }
 
 
-async function fetchApi(endpoint, params) {
+/**
+ * 比较 BDMV 中 BACKUP 文件夹与外部主文件的哈希值
+ * @param {Array} fileList - 文件信息数组，每个元素包含 hash 和 path 属性
+ * @returns {Array} - 不匹配的 backup 文件路径数组
+ */
+function getMismatchedBdmvBackups(fileList) {
+    const bdmvGroups = {};
+
+    // 按 BDMV 根路径分组
+    for (const { path, hash } of fileList) {
+        const bdmvIndex = path.indexOf("/BDMV/");
+        if (bdmvIndex === -1) continue;
+
+        const rootPath = path.substring(0, bdmvIndex);
+        (bdmvGroups[rootPath] ||= []).push({ path, hash });
+    }
+
+    const mismatched = [];
+
+    for (const files of Object.values(bdmvGroups)) {
+        // 建立主文件映射
+        const mainFiles = Object.fromEntries(
+            files
+                .filter(f => !f.path.includes("/BACKUP/"))
+                .map(f => [f.path, f.hash])
+        );
+
+        // 检查 BACKUP 文件
+        for (const { path, hash } of files) {
+            if (!path.includes("/BACKUP/")) continue;
+
+            const mainPath = path.replace("/BACKUP/", "/");
+            const mainHash = mainFiles[mainPath];
+
+            if (mainHash !== hash) {
+                mismatched.push(path);
+            }
+        }
+    }
+
+    return mismatched;
+}
+
+
+async function handleTorrentChecksum(userId, token, torrentId) {
+    const apiData = await fetchApi(
+        "torrent_checksum",
+        { token, uid: userId, torrent_id: torrentId },
+        "POST"
+    );
+
+    if (apiData.msg !== "success") {
+        logger.addLog("API 获取 SHA256 信息失败");
+        return;
+    }
+
+    const torrentList = apiData?.data?.torrent || [];
+    if (torrentList.length === 0) {
+        logger.addLog("API 未找到 SHA256 信息");
+        return;
+    }
+
+    const files = torrentList[0]?.torrent_files_info?.files || [];
+    if (files.length === 0) {
+        // 一般不可能发生这个，有 files 字段一定有哈希信息
+        logger.addLog("API 文件 SHA256 信息为空");
+        return;
+    }
+
+    const badFiles = getMismatchedBdmvBackups(files);
+    badFiles.forEach(file => logger.addLog(`文件错误 (BDMV/BACKUP) → ${file}`));
+}
+
+
+async function fetchApi(endpoint, params = {}, method = 'GET') {
     try {
-        const queryString = new URLSearchParams(params).toString();
-        const response = await fetch(`https://u2.kysdm.com/api/v1/${endpoint}?${queryString}`, {
-            method: 'GET',
+        let url = `https://u2.kysdm.com/api/v1/${endpoint}`;
+        let options = {
+            method,
             headers: { 'Content-Type': 'application/json' },
             cache: 'no-cache'
-        });
+        };
+
+        if (method.toUpperCase() === 'GET') {
+            const queryString = new URLSearchParams(params).toString();
+            if (queryString) url += `?${queryString}`;
+        } else {
+            options.body = JSON.stringify(params);
+        }
+
+        const response = await fetch(url, options);
 
         if (!response.ok) {
             logger.addLog(`API 请求失败 → ${endpoint}: HTTP ${response.status}`);
