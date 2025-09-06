@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.8
+// @version      0.3.9
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -61,6 +61,14 @@ const logger = new Logger();
         return;
     }
 
+    // 移除候选种子标题超链接
+    const aTag = document.querySelector("#top a");
+    if (aTag) {
+        const textInsideATag = aTag.textContent;
+        const newTextElement = document.createTextNode(textInsideATag);
+        aTag.replaceWith(newTextElement);
+    }
+
     const newRow = `
     <tr>
         <td class="rowhead nowrap" valign="top" align="right">检查</td>
@@ -114,12 +122,6 @@ const logger = new Logger();
     logger.addLog('完成');
 
     logger.renderLogs('mod_check');
-
-    // 移除候选种子标题超链接
-    const aTag = document.querySelector("#top a");
-    const textInsideATag = aTag.textContent;
-    const newTextElement = document.createTextNode(textInsideATag);
-    aTag.replaceWith(newTextElement);
 
 })();
 
