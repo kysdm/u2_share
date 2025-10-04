@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.3.9
+// @version      0.4.0
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -25,6 +25,7 @@
 // https://u2.dmhy.org/offers.php?id=60537&off_details=1
 // https://u2.dmhy.org/details.php?id=60981 - 55cde51dafb8eb6a72adfc3034ba6d7507bfe27d
 // https://u2.dmhy.org/details.php?id=29446&hit=1 - 79021415017f7a4302fa59705f9e355952b41ad4
+// https://u2.dmhy.org/details.php?id=43720 - m2ts 体积错误
 
 'use strict';
 
@@ -371,9 +372,23 @@ function checkBDMV(directory, currentPath, structure) {
 
         // 调用 checkClipInfo 函数，检测 STREAM 和 CLIPINF 文件的对应关系
         checkClipInfo(streamDirectory, clipinfDirectory, currentPath);
+
+        // 检测 M2TS 文件体积
+        checkStreamFileSize(streamDirectory, currentPath);
     }
 }
 
+// 检测 M2TS 文件体积是否为 192 的倍数
+function checkStreamFileSize(streamDirectory, currentPath) {
+    for (const [name, file] of Object.entries(streamDirectory)) {
+        if (name.toLowerCase().endsWith('.m2ts')) {
+            const size = file.length;
+            if (size % 192 !== 0) {
+                logger.addLog(`体积非 192 的倍数 (余${size % 192}) → ${currentPath}/STREAM/${name}`);
+            }
+        }
+    }
+}
 
 // 检查 BACKUP 目录和主 BDMV 目录是否一致
 function checkBackup(backupDirectory, mainDirectory, currentPath) {
