@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.1.8
+// @version      1.1.9
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -62,9 +62,11 @@ GreasyFork 地址
         if (jq('.bbcode').length === 0) return;  // 判断页面是否存在 bbcode 输入框
         new init();
         const url = location.href.match(/u2\.dmhy\.org\/(upload|forums|comment|contactstaff|sendmessage|edit)\.php/i);
-        if (url === null) return;
-        await syncScroll('#bbcodejs_tbody', url[1], '.bbcode', '#bbcode2');
-        if (url[1] === 'upload') { await autoSaveUpload(); } else { await autoSaveMessage('#bbcodejs_tbody', '.bbcode', '#qr', url[1], '#compose'); }
+        const isStaffbox = /u2\.dmhy\.org\/staffbox\.php.*[?&]action=answermessage/i.test(location.href);
+        if (!url && !isStaffbox) return;
+        const page = url ? url[1] : 'staffbox';
+        await syncScroll('#bbcodejs_tbody', page, '.bbcode', '#bbcode2');
+        if (page === 'upload') { await autoSaveUpload(); } else { await autoSaveMessage('#bbcodejs_tbody', '.bbcode', '#qr', page, '#compose'); }
 
         jq('.bbcode').parents("tr:eq(1)").after('<tr><td id="preview_bbcode" class="rowhead nowrap" valign="top" style="padding: 3px" align="right">' + lang['preview']
             + '</td><td class="rowfollow"><table width="100%" cellspacing="0" cellpadding="5" border="0" ><tbody><tr><td  align="left" colspan="2">'
