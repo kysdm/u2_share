@@ -579,7 +579,7 @@ function SetupSha1WithoutWorkers() {
         });
     }
     let script = document.createElement("script");
-    script.src = "https://userscript.kysdm.com/js/sha1.js";
+    script.src = "https://userscript.kysdm.com/js/sha1.js?v=1.0";
     script.onload = function () {
         sha1ScriptLoaded = true;
         waitingResolvers.forEach(function (resolve) { return resolve(); });
@@ -603,7 +603,7 @@ function SetupSha1WithoutWorkers() {
 (async () => {
     const sha1_js = () => {
         return new Promise((resolve, reject) => {
-            fetch('https://userscript.kysdm.com/js/sha1.js',
+            fetch('https://userscript.kysdm.com/js/sha1.js?v=1.0',
                 {
                     headers: {
                         'Content-Type': 'application/javascript',
