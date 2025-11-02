@@ -1,89 +1,117 @@
 "use strict";
 // uglifyjs index.js -c -m -o index.min.js
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = function (d, b) {
-        extendStatics = Object.setPrototypeOf ||
-            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
-        return extendStatics(d, b);
-    };
-    return function (d, b) {
-        if (typeof b !== "function" && b !== null)
-            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function () { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function () { return this; }), g;
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (g && (g = 0, op[0] && (_ = 0)), _) try {
-            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [op[0] & 2, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
+
+
+var DOMUtils = {
+    // 查询单个元素
+    query: function (selector) {
+        return document.querySelector(selector);
+    },
+    // 查询所有元素
+    queryAll: function (selector) {
+        return document.querySelectorAll(selector);
+    },
+    // 设置元素文本
+    setText: function (selector, text) {
+        var elements = this.queryAll(selector);
+        for (var i = 0; i < elements.length; i++) {
+            elements[i].textContent = text;
+        }
+    },
+    // 设置元素 CSS 样式
+    setStyle: function (selector, property, value) {
+        var elements = this.queryAll(selector);
+        for (var i = 0; i < elements.length; i++) {
+            elements[i].style[property] = value;
+        }
+    },
+    // 设置元素属性
+    setAttr: function (selector, attr, value) {
+        var elements = this.queryAll(selector);
+        for (var i = 0; i < elements.length; i++) {
+            if (attr in elements[i]) {
+                elements[i][attr] = value;
+            } else {
+                elements[i].setAttribute(attr, value);
             }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+        }
+    },
+    // 淡出动画（简化版）
+    fadeOut: function (selector, duration) {
+        var elements = this.queryAll(selector);
+        duration = duration || 300;
+        var stepTime = 16; // 约 60fps
+        var steps = Math.ceil(duration / stepTime);
+
+        for (var i = 0; i < elements.length; i++) {
+            (function (element) {
+                var initialOpacity = parseFloat(window.getComputedStyle(element).opacity) || 1;
+                var opacityStep = initialOpacity / steps;
+                var currentStep = 0;
+
+                var fadeInterval = setInterval(function () {
+                    currentStep++;
+                    var newOpacity = initialOpacity - (opacityStep * currentStep);
+                    element.style.opacity = Math.max(0, newOpacity);
+
+                    if (currentStep >= steps) {
+                        element.style.opacity = '0';
+                        element.style.display = 'none';
+                        clearInterval(fadeInterval);
+                    }
+                }, stepTime);
+            })(elements[i]);
+        }
     }
 };
 
+var AppState = (function () {
+    var state = {
+        allFiles: [],
+        singleFile: null,
+        totalSize: 0,
+        torrentChanged: false,
+        trackersOverlayVisible: false,
+        creationFinished: false,
+        blockSize: 16 * 1024 * 1024, // 种子区块大小
+        torrentObject: null
+    };
 
-var allFiles = [];
-var singleFile = null;
-var totalSize;
+    return {
+        get: function (key) {
+            return state[key];
+        },
+        set: function (key, value) {
+            state[key] = value;
+        },
+        reset: function () {
+            state.allFiles = [];
+            state.singleFile = null;
+            state.totalSize = 0;
+            state.torrentChanged = false;
+            state.torrentObject = null;
+        }
+    };
+})();
 
-function FolderSelected(files) {
+function folderSelected(files) {
     const excludedFiles = ['Thumbs.db', '.DS_Store', 'desktop.ini'];
     const folderName = files[0]?.webkitRelativePath?.split("/")[0];
-    allFiles = files.filter(file => !excludedFiles.includes(file.name));
-    totalSize = allFiles.reduce((size, file) => size + file.size, 0);
-    console.log(allFiles);
+    AppState.set('allFiles', [...files].filter(file => !excludedFiles.includes(file.name)));
+    AppState.set('totalSize', AppState.get('allFiles').reduce((size, file) => size + file.size, 0));
+    console.log(AppState.get('allFiles'));
     return folderName;
 }
 
-// console.log('本地模式');
-
-function FileSelected(files) {
-    singleFile = files[0];
-    let fileName = singleFile.name;
-    totalSize = singleFile.size;
-    allFiles = null;
+function fileSelected(files) {
+    AppState.set('singleFile', files[0]);
+    let fileName = AppState.get('singleFile').name;
+    AppState.set('totalSize', AppState.get('singleFile').size);
+    AppState.set('allFiles', null);
     return fileName;
 };
 
-var torrentChanged = false;
-var trackersOverlayVisible = false;
-// var creationInProgress = false;
-var creationFinished = false;
-var blockSize = 16 * 1024 * 1024; // 种子区块大小
-var torrentObject = null;
-
-function SetTorrentData(f_name) {
+function setTorrentData(f_name) {
     let torrentName = f_name.trim();
     // console.log(torrentName);
     if (torrentName === "") {
@@ -96,10 +124,11 @@ function SetTorrentData(f_name) {
     };
     if (torrentName.length > 255) {
         window.alert("Torrent name cannot be longer than 255 characters");
-        // errorTextDiv.style.display = "";
         return false;
     };
 
+    let torrentObject = AppState.get('torrentObject');
+    let blockSize = AppState.get('blockSize');
     let infoObject = (torrentObject && torrentObject["info"]) || { name: "", pieces: "", "piece length": 0 };
     torrentObject = { "info": infoObject };
     torrentObject["announce"] = 'https://daydream.dmhy.best/announce';
@@ -110,32 +139,32 @@ function SetTorrentData(f_name) {
     infoObject["name"] = torrentName;  // 种子名称
     infoObject["piece length"] = blockSize;  // 区块大小 默认16M
     infoObject["source"] = ''; // 来源
+    AppState.set('torrentObject', torrentObject);
     return true;
 };
 
-async function CreateTorrentFile(emfile) {
-    let f_name = FileSelected(emfile);
-    if (!SetTorrentData(f_name) || !torrentObject) return;
-    torrentChanged = false;
+async function createTorrentFile(emfile) {
+    let f_name = fileSelected(emfile);
+    if (!setTorrentData(f_name) || !AppState.get('torrentObject')) return;
+    AppState.set('torrentChanged', false);
     // creationInProgress = true;
-    creationFinished = false;
-    await CreateFromFile(torrentObject);
+    AppState.set('creationFinished', false);
+    await createFromFile(AppState.get('torrentObject'));
 };
 
-async function CreateTorrentFolder(emfile) {
-    let f_name = FolderSelected(emfile);
-    if (!SetTorrentData(f_name) || !torrentObject) return;
-    torrentChanged = false;
+async function createTorrentFolder(emfile) {
+    let f_name = folderSelected(emfile);
+    if (!setTorrentData(f_name) || !AppState.get('torrentObject')) return;
+    AppState.set('torrentChanged', false);
     // creationInProgress = true;
-    creationFinished = false;
-    await CreateFromFolder(torrentObject);
+    AppState.set('creationFinished', false);
+    await createFromFolder(AppState.get('torrentObject'));
 };
 
-// var blobUrl;
-// var torrent_blob; // 种子文件
-async function Finished() {
+async function finished() {
     const db = localforage.createInstance({ name: "bbcodejs" });
-    creationFinished = true;
+    AppState.set('creationFinished', true);
+    let torrentObject = AppState.get('torrentObject');
     if (!torrentObject || !torrentObject.info) return;
     let pieceBytes = torrentObject.info["pieces"];
     let pieceStr = "";
@@ -144,12 +173,12 @@ async function Finished() {
     let blob = new Blob([new Uint8Array(Bencode.EncodeToBytes(torrentObject))], { type: "application/octet-stream" });
     await db.setItem(`upload_autoSaveMessageTorrentBlob`, blob)
     await db.setItem(`upload_autoSaveMessageTorrentName`, torrentObject.info.name);
-    $('.progress > div').css('width', "100%");  // 整体进度
-    $('[name="progress-total"]').text('100%');
-    $('[name="progress-name"]').text('Done.');
-    $('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止按钮
-    $('#torrent_download,#torrent_clean').attr('disabled', false);  // 解除按钮禁用
-    $('[name="progress"]').fadeOut(3000);  // 渐出进度一栏
+    DOMUtils.setStyle('.progress > div', 'width', "100%");  // 整体进度
+    DOMUtils.setText('[name="progress-total"]', '100%');
+    DOMUtils.setText('[name="progress-name"]', 'Done.');
+    DOMUtils.setAttr('#upload_torrent,#upload_file,#upload_folder,#torrent_create', 'disabled', true);  // 禁止按钮
+    DOMUtils.setAttr('#torrent_download,#torrent_clean', 'disabled', false);  // 解除按钮禁用
+    DOMUtils.fadeOut('[name="progress"]', 3000);  // 渐出进度一栏
 };
 
 function limitPromisePool(tasks, limit) {
@@ -176,18 +205,18 @@ function limitPromisePool(tasks, limit) {
     });
 };
 
-const CreateFromFile = (obj) => {
+const createFromFile = (obj) => {
     return new Promise((resolve) => {
         let infoObject = obj.info;
         let chunkSize = infoObject["piece length"];
-        let file = singleFile;
+        let file = AppState.get('singleFile');
         let fileSize = file.size;
         let readChunkSize = 16 * 1024 * 1024;
+        let blockSize = AppState.get('blockSize');
         let blocksPerChunk = readChunkSize / blockSize;
         let maxBlockCount = Math.ceil(fileSize / blockSize);
         let pieces = new Uint8Array(20 * maxBlockCount);
         infoObject["length"] = fileSize;
-        // let bytesReadSoFar = 0;
         let bytesProcessedSoFar = 0;  // 已经处理的块数量
 
         function readAndProcessChunk(chunk, index) {
@@ -205,10 +234,10 @@ const CreateFromFile = (obj) => {
                         pieces.set(result, index * blocksPerChunk * 20);
                         bytesProcessedSoFar += byteCount;
                         let percent = bytesProcessedSoFar / fileSize * 100;
-                        $('.progress > div').css('width', percent + "%")  // 整体进度
-                        $('[name="progress-name"]').text(file.name);
-                        $('[name="progress-percent"]').text(bytesProcessedSoFar + ' / ' + fileSize);
-                        $('[name="progress-total"]').text(percent.toFixed(2) + '%');
+                        DOMUtils.setStyle('.progress > div', 'width', percent + "%")  // 整体进度
+                        DOMUtils.setText('[name="progress-name"]', file.name);
+                        DOMUtils.setText('[name="progress-percent"]', bytesProcessedSoFar + ' / ' + fileSize);
+                        DOMUtils.setText('[name="progress-total"]', percent.toFixed(2) + '%');
                         bytes = null;
                         resolve(index);
                     });
@@ -233,18 +262,20 @@ const CreateFromFile = (obj) => {
 
         limitPromisePool(run(), maxWorkerCount).then(async () => {
             infoObject["pieces"] = Array.from(pieces);
-            await Finished();
-            $('[name="progress-name"]').text('Done.');
+            await finished();
+            DOMUtils.setText('[name="progress-name"]', 'Done.');
             resolve();
         }).catch(error => {
-            Failed(singleFile && singleFile.name, error);
+            let singleFile = AppState.get('singleFile');
+            failed(singleFile && singleFile.name, error);
         });
 
     });
 };
 
-const CreateFromFolder = async (obj) => {
+const createFromFolder = async (obj) => {
     return new Promise(async (resolve) => {
+        let allFiles = AppState.get('allFiles');
         if (!allFiles || !obj.info) return;
         let infoObject = obj.info;
         let chunkSize = infoObject["piece length"];
@@ -254,6 +285,7 @@ const CreateFromFolder = async (obj) => {
         let currentChunk = new Uint8Array(readChunkSize);
         let currentChunkDataIndex = 0;
         let chunkIndex = 0;  // 写入pieces时的切片索引值
+        let blockSize = AppState.get('blockSize');
         let blocksPerChunk = readChunkSize / blockSize;
         let totalSize = 0;  // 总体积
         let fileInfos = [];
@@ -312,9 +344,9 @@ const CreateFromFolder = async (obj) => {
                             if (waitingForWorkers) { waitingForWorkers = false; run(); };
                             bytesProcessedSoFar += readChunkSize;
                             let percent = bytesProcessedSoFar / totalSize * 100;
-                            $('.progress > div').css('width', percent + "%")  // 整体进度
-                            $('[name="progress-total"]').text(percent.toFixed(2) + '%');
-                            await MaybeFinished();
+                            DOMUtils.setStyle('.progress > div', 'width', percent + "%")  // 整体进度
+                            DOMUtils.setText('[name="progress-total"]', percent.toFixed(2) + '%');
+                            await maybeFinished();
                             resolve()
                         });
                         // set the remaining data
@@ -337,21 +369,20 @@ const CreateFromFolder = async (obj) => {
                                 sha1({ data: currentChunk, blockSize: chunkSize, readChunkSize: currentChunkDataIndex }).then(async function (result) {
                                     processedBlockCount += blocksPerChunk;
                                     pieces.set(result, chunkIndex * blocksPerChunk * 20);
-                                    await MaybeFinished();
+                                    await maybeFinished();
                                     resolve()
                                 });
                             } else {
-                                await MaybeFinished();
+                                await maybeFinished();
                                 resolve()
                             };
-                            // console.log("All files read");
                         } else {
                             // some files are still left
                             currentFile = files[fileIndex];
                             fileSize = currentFile.size;
                             readStartIndex = 0;
-                            $('[name="progress-name"]').text(currentFile.name);
-                            $('[name="progress-percent"]').text((fileIndex + 1) + ' / ' + allFiles.length);
+                            DOMUtils.setText('[name="progress-name"]', currentFile.name);
+                            DOMUtils.setText('[name="progress-percent"]', (fileIndex + 1) + ' / ' + allFiles.length);
                             run();
                         };
                     };
@@ -359,24 +390,23 @@ const CreateFromFolder = async (obj) => {
             };
 
             reader.onerror = function () {
-                Failed(currentFile.name, fr.error);
+                failed(currentFile.name, fr.error);
             };
 
         };
 
-        async function MaybeFinished() {
+        async function maybeFinished() {
             if (processedBlockCount >= totalBlockCount) {
                 infoObject["pieces"] = Array.from(pieces);
-                $('[name="progress-percent"]').text(allFiles.length + ' / ' + allFiles.length);
-                await Finished();
+                DOMUtils.setText('[name="progress-percent"]', allFiles.length + ' / ' + allFiles.length);
+                await finished();
                 resolve(1);
             };
         };
 
-        $('[name="progress-name"]').text(currentFile.name);
-        // $('[name="progress-percent"]').text('132644 / ' + totalSize);
-        $('[name="progress-percent"]').text('1 / ' + allFiles.length);
-        $('[name="progress-total"]').text('0%');
+        DOMUtils.setText('[name="progress-name"]', currentFile.name);
+        DOMUtils.setText('[name="progress-percent"]', '1 / ' + allFiles.length);
+        DOMUtils.setText('[name="progress-total"]', '0%');
 
         run();
 
@@ -384,7 +414,7 @@ const CreateFromFolder = async (obj) => {
 
 };
 
-function Failed(fileName, err) {
+function failed(fileName, err) {
     var errorText = fileName ? ("Failed to read file: " + fileName) : "Error reading file";
     if (err) {
         errorText += "\nReason: " + err.message + " (" + err.name + ")";
@@ -436,11 +466,9 @@ function toByteArray(str) {
         ret.push(str.charCodeAt(i));
     return ret;
 }
-var BencodeObject = /** @class */ (function () {
-    function BencodeObject() {
-    }
-    BencodeObject.prototype.encode = function (_array) { };
-    BencodeObject.prototype.getBencodeObject = function (obj) {
+class BencodeObject {
+    encode(_array) { }
+    getBencodeObject(obj) {
         if (obj === null || obj === undefined)
             return null;
         switch (typeof obj) {
@@ -457,30 +485,27 @@ var BencodeObject = /** @class */ (function () {
                 }
         }
         return null;
-    };
-    return BencodeObject;
-}());
-var BencodeDict = /** @class */ (function (_super) {
-    __extends(BencodeDict, _super);
-    function BencodeDict(obj) {
-        let _this = _super.call(this) || this;
-        _this.data = {};
-        for (let key in obj) {
-            let bencodeObj = _this.getBencodeObject(obj[key]);
-            if (bencodeObj)
-                _this.data[key] = bencodeObj;
-        }
-        return _this;
     }
-    BencodeDict.prototype.encodeBinaryString = function (array, str) {
+}
+class BencodeDict extends BencodeObject {
+    constructor(obj) {
+        super();
+        this.data = {};
+        for (let key in obj) {
+            let bencodeObj = this.getBencodeObject(obj[key]);
+            if (bencodeObj)
+                this.data[key] = bencodeObj;
+        }
+    }
+    encodeBinaryString(array, str) {
         let bytesCount = str.length;
         array.push.apply(array, toByteArray(bytesCount.toString()));
         array.push(":".charCodeAt(0));
         let strBytes = toByteArray(str);
         for (let i = 0; i < strBytes.length; ++i)
             array.push(strBytes[i]);
-    };
-    BencodeDict.prototype.encode = function (array) {
+    }
+    encode(array) {
         array.push("d".charCodeAt(0));
         let sortedKeys = Object.keys(this.data).sort();
         for (let i = 0; i < sortedKeys.length; ++i) {
@@ -496,58 +521,48 @@ var BencodeDict = /** @class */ (function (_super) {
             }
         }
         array.push("e".charCodeAt(0));
-    };
-    return BencodeDict;
-}(BencodeObject));
-var BencodeList = /** @class */ (function (_super) {
-    __extends(BencodeList, _super);
-    function BencodeList(list) {
-        let _this = _super.call(this) || this;
-        _this.data = [];
-        for (let i = 0; i < list.length; ++i) {
-            let bencodeObj = _this.getBencodeObject(list[i]);
-            if (bencodeObj)
-                _this.data.push(bencodeObj);
-        }
-        return _this;
     }
-    BencodeList.prototype.encode = function (array) {
+}
+class BencodeList extends BencodeObject {
+    constructor(list) {
+        super();
+        this.data = [];
+        for (let i = 0; i < list.length; ++i) {
+            let bencodeObj = this.getBencodeObject(list[i]);
+            if (bencodeObj)
+                this.data.push(bencodeObj);
+        }
+    }
+    encode(array) {
         array.push("l".charCodeAt(0));
         for (let i = 0; i < this.data.length; ++i)
             this.data[i].encode(array);
         array.push("e".charCodeAt(0));
-    };
-    return BencodeList;
-}(BencodeObject));
-var BencodeString = /** @class */ (function (_super) {
-    __extends(BencodeString, _super);
-    function BencodeString(value) {
-        let _this = _super.call(this) || this;
-        _this.value = value;
-        return _this;
     }
-    BencodeString.prototype.encode = function (array) {
+}
+class BencodeString extends BencodeObject {
+    constructor(value) {
+        super();
+        this.value = value;
+    }
+    encode(array) {
         let bytesCount = stringByteCount(this.value);
         array.push.apply(array, toByteArray(bytesCount.toString()));
         array.push(":".charCodeAt(0));
         array.push.apply(array, toUTF8Array(this.value));
-    };
-    return BencodeString;
-}(BencodeObject));
-var BencodeInt = /** @class */ (function (_super) {
-    __extends(BencodeInt, _super);
-    function BencodeInt(value) {
-        let _this = _super.call(this) || this;
-        _this.value = value;
-        return _this;
     }
-    BencodeInt.prototype.encode = function (array) {
+}
+class BencodeInt extends BencodeObject {
+    constructor(value) {
+        super();
+        this.value = value;
+    }
+    encode(array) {
         array.push("i".charCodeAt(0));
         array.push.apply(array, toUTF8Array(this.value.toString()));
         array.push("e".charCodeAt(0));
-    };
-    return BencodeInt;
-}(BencodeObject));
+    }
+}
 
 var Bencode = {
     EncodeToBytes: function (obj) {
@@ -560,50 +575,119 @@ var Bencode = {
 var sha1;
 // workers
 var maxWorkerCount = Math.min(navigator.hardwareConcurrency || 1, 8); // use 8 workers at max, reading from disk will be the slowest anyways
-function SetupSha1WithoutWorkers() {
+
+// Worker 管理器
+var WorkerManager = (function () {
+    var workers = [];
+    var busyWorkers = new Set();
+    var waitingTasks = [];
+    var sha1_js_url = null;
+    var isActive = false;
+
+    return {
+        init: function (url) {
+            sha1_js_url = url;
+            isActive = true;
+            if (location.protocol === "https:" || location.protocol === "http:") {
+                try {
+                    for (let i = 0; i < maxWorkerCount; ++i) {
+                        workers.push(new Worker(sha1_js_url));
+                    }
+                } catch (e) {
+                    console.log('添加线程发生错误: ' + e);
+                    return false;
+                }
+            } else {
+                return false;
+            }
+            return true;
+        },
+        enqueueTask: function (data, callback) {
+            if (!isActive) {
+                callback(new Error('Worker manager is not active'));
+                return;
+            }
+            let selectedWorker = null;
+            let selectedIndex;
+            for (let i = 0; i < workers.length; ++i) {
+                if (!busyWorkers.has(i)) {
+                    selectedWorker = workers[i];
+                    selectedIndex = i;
+                    busyWorkers.add(i);
+                    break;
+                };
+            };
+            if (!selectedWorker) {
+                waitingTasks.push({ data: data, callback: callback });
+                return;
+            };
+            selectedWorker.postMessage(data, [data.data.buffer]);
+            selectedWorker.onmessage = function (ev) {
+                busyWorkers.delete(selectedIndex);
+                if (waitingTasks.length !== 0) {
+                    let task = waitingTasks.shift();
+                    if (task)
+                        this.enqueueTask(task.data, task.callback);
+                };
+                callback(ev.data);
+            }.bind(this);
+        },
+        cleanup: function () {
+            isActive = false;
+            // 终止所有 Workers
+            for (let i = 0; i < workers.length; ++i) {
+                try {
+                    workers[i].terminate();
+                } catch (e) {
+                    console.warn('终止 Worker 时出错:', e);
+                }
+            }
+            // 清理引用
+            workers = [];
+            busyWorkers.clear();
+            waitingTasks = [];
+            // 清理 Blob URL
+            if (sha1_js_url) {
+                try {
+                    URL.revokeObjectURL(sha1_js_url);
+                } catch (e) {
+                    console.warn('清理 Blob URL 时出错:', e);
+                }
+                sha1_js_url = null;
+            }
+        },
+        isActive: function () {
+            return isActive;
+        }
+    };
+})();
+
+function setupSha1WithoutWorkers() {
     let sha1ScriptLoaded = false;
     let waitingResolvers = [];
-    function EnsureSha1ScriptLoaded() {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        if (!!sha1ScriptLoaded) return [3 /*break*/, 2];
-                        return [4 /*yield*/, new Promise(function (resolve) { return waitingResolvers.push(resolve); })];
-                    case 1:
-                        _a.sent();
-                        _a.label = 2;
-                    case 2: return [2 /*return*/];
-                }
-            });
-        });
+    async function ensureSha1ScriptLoaded() {
+        if (!sha1ScriptLoaded) {
+            await new Promise(function (resolve) { return waitingResolvers.push(resolve); });
+        }
     }
     let script = document.createElement("script");
-    script.src = "https://userscript.kysdm.com/js/sha1.js?v=1.0";
+    script.src = "https://userscript.kysdm.com/js/sha1.js?v=1.1";
     script.onload = function () {
         sha1ScriptLoaded = true;
         waitingResolvers.forEach(function (resolve) { return resolve(); });
         waitingResolvers.length = 0;
     };
     document.body.appendChild(script);
-    sha1 = function (data) {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, EnsureSha1ScriptLoaded()];
-                    case 1:
-                        _a.sent();
-                        return [2 /*return*/, ProcessSha1Data(data)];
-                }
-            });
-        });
+    sha1 = async function (data) {
+        await ensureSha1ScriptLoaded();
+        return ProcessSha1Data(data);
     };
 };
 
 (async () => {
     const sha1_js = () => {
         return new Promise((resolve, reject) => {
-            fetch('https://userscript.kysdm.com/js/sha1.js?v=1.0',
+            fetch('https://userscript.kysdm.com/js/sha1.js?v=1.1',
                 {
                     headers: {
                         'Content-Type': 'application/javascript',
@@ -631,56 +715,15 @@ function SetupSha1WithoutWorkers() {
     };
     const sha1_js_url = await sha1_js();
     // console.log(sha1_js_url);
-    let workers = [];
-    let workersAvailable = true;
-    if (location.protocol === "https:" || location.protocol === "http:") {
-        try {
-            for (let i = 0; i < maxWorkerCount; ++i) {
-                workers.push(new Worker(sha1_js_url));
-            }
-        } catch (e) {
-            console.log('添加线程发生错误: ' + e);
-            workersAvailable = false;
-        }
-    }
-    else {
-        // workers are only available when using http/https
-        workersAvailable = false;
-    }
+
+    const workersAvailable = WorkerManager.init(sha1_js_url);
     if (!workersAvailable) {
         // fall back to single threaded version
         console.warn('fall back to single threaded version');
-        SetupSha1WithoutWorkers();
+        setupSha1WithoutWorkers();
         return;
     }
-    let busyWorkers = new Set();
-    let waitingTasks = [];
-    function EnqueueWorkerTask(data, callback) {
-        let selectedWorker = null;
-        let selectedIndex;
-        for (let i = 0; i < maxWorkerCount; ++i) {
-            if (!busyWorkers.has(i)) {
-                selectedWorker = workers[i];
-                selectedIndex = i;
-                busyWorkers.add(i);
-                break;
-            };
-        };
-        if (!selectedWorker) {
-            waitingTasks.push({ data: data, callback: callback });
-            return;
-        };
-        selectedWorker.postMessage(data, [data.data.buffer]);
-        selectedWorker.onmessage = function (ev) {
-            busyWorkers.delete(selectedIndex);
-            if (waitingTasks.length !== 0) {
-                let task = waitingTasks.shift();
-                if (task)
-                    EnqueueWorkerTask(task.data, task.callback);
-            };
-            callback(ev.data);
-        };
-    };
+
     // console.log('sha1加载完成');
     // 当sha1函数完成加载，解除按钮禁用
     document.getElementById('upload_file').disabled = false;
@@ -688,16 +731,14 @@ function SetupSha1WithoutWorkers() {
     document.getElementById('torrent_create').disabled = false;
 
     sha1 = function (data) {
-        return new Promise(function (resolve) { return EnqueueWorkerTask(data, resolve); });
+        return new Promise(function (resolve) {
+            WorkerManager.enqueueTask(data, resolve);
+        });
     };
+
+    // 页面卸载时清理 Workers
+    window.addEventListener('beforeunload', function () {
+        WorkerManager.cleanup();
+    });
+
 })();
-// Array.from polyfill
-if (typeof Array.from === "undefined") {
-    Array.from = function (arrayLike) {
-        let len = arrayLike.length;
-        let ret = new Array(len);
-        for (let i = 0; i < len; ++i)
-            ret[i] = arrayLike[i];
-        return ret;
-    };
-};

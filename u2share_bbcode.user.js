@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.0
+// @version      1.2.1
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -317,7 +317,7 @@ GreasyFork 地址
 </tr>
 `);
 
-            await loadScript('https://userscript.kysdm.com/js/torrent-creator.js?v=1.2')
+            await loadScript('https://userscript.kysdm.com/js/torrent-creator.js?v=1.3')
 
             jq('.progress').css({
                 'width': '99%',
@@ -390,11 +390,12 @@ GreasyFork 地址
                 let folder = jq('#folderchooser')[0].files;
                 if (file.length !== 0) {
                     torrent_start();
-                    await CreateTorrentFile(file);
+                    await createTorrentFile(file);
                     await pageTorrentInfo();
+                    // jq('#torrent_download,#torrent_clean').attr('disabled', false);  // 解除按钮禁用
                 } else if (folder.length !== 0) {
                     torrent_start();
-                    await CreateTorrentFolder(folder);
+                    await createTorrentFolder(folder);
                     await pageTorrentInfo();
                 } else {
                     window.alert('没有选择任何文件');
@@ -425,7 +426,7 @@ GreasyFork 地址
             jq('#torrent_download').click(async function () {
                 let a_1 = document.getElementById("download_link");
                 const blob = await db.getItem(`upload_autoSaveMessageTorrentBlob`);
-                const filename = await db.getItem(`upload_autoSaveMessageTorrentName`);
+                const filename = await db.getItem(`upload_autoSaveMessageTorrentName`) + '.torrent';
                 window.URL.revokeObjectURL(downloadUrl);
                 downloadUrl = window.URL.createObjectURL(blob);
                 a_1.href = downloadUrl;
@@ -434,6 +435,7 @@ GreasyFork 地址
             });
             const torrent_start = () => {
                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create,#torrent_download,#torrent_clean').attr('disabled', true);
+                jq('[name="progress"]').css('opacity', 1);
                 jq('[name="progress"]').show();
             };
 
@@ -517,7 +519,7 @@ GreasyFork 地址
                                 jq('#upload_chooser').text(filesList[0].name);
                                 jq('#upload_chooser').prop('title', filesList[0].name);
                                 jq('#qr').attr('disabled', false);  // 解除上传按钮锁定
-                                jq('#torrent_download').attr('disabled', false);  // 解除按钮禁用
+                                // jq('#torrent_download,#torrent_clean').attr('disabled', false);  // 解除按钮禁用
                                 jq('#upload_torrent,#upload_file,#upload_folder,#torrent_create').attr('disabled', true);  // 禁止其余种子处理按钮
                                 await pageTorrentInfo();
                             } else {
@@ -528,9 +530,9 @@ GreasyFork 地址
                                 jq('#upload_chooser').text(filesList[0].name);
                                 jq('#upload_chooser').prop('title', filesList[0].name);
                                 torrent_start();
-                                await CreateTorrentFile(filesList);
+                                await createTorrentFile(filesList);
                                 jq('#qr').attr('disabled', false);
-                                jq('#torrent_download').attr('disabled', false);
+                                // jq('#torrent_download,#torrent_clean').attr('disabled', false);
                                 await pageTorrentInfo();
                             };
                         } else {
@@ -541,9 +543,9 @@ GreasyFork 地址
                             jq('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
                             jq('#upload_chooser').prop('title', (filesList[0].webkitRelativePath).split("/")[0]);
                             torrent_start();
-                            await CreateTorrentFolder(filesList);
+                            await createTorrentFolder(filesList);
                             jq('#qr').attr('disabled', false);
-                            jq('#torrent_download').attr('disabled', false);
+                            // jq('#torrent_download,#torrent_clean').attr('disabled', false);
                             await pageTorrentInfo();
                         };
                     } else {
@@ -567,9 +569,9 @@ GreasyFork 地址
                         jq('#upload_chooser').text((filesList[0].webkitRelativePath).split("/")[0]);
                         jq('#upload_chooser').prop('title', (filesList[0].webkitRelativePath).split("/")[0]);
                         torrent_start();
-                        await CreateTorrentFolder(filesList);
+                        await createTorrentFolder(filesList);
                         jq('#qr').attr('disabled', false);
-                        jq('#torrent_download').attr('disabled', false);
+                        // jq('#torrent_download,#torrent_clean').attr('disabled', false);
                         await pageTorrentInfo();
                     };
 
