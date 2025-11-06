@@ -1,90 +1,68 @@
 "use strict";
 // uglifyjs index.js -c -m -o index.min.js
 
+// 浏览器支持检查 - 确保浏览器支持 Web Crypto API
+if ('crypto' in window && crypto.subtle && crypto.subtle.digest) {
+    // 启用文件和文件夹上传以及种子创建功能
+    document.getElementById('upload_file').disabled = false;
+    document.getElementById('upload_folder').disabled = false;
+    document.getElementById('torrent_create').disabled = false;
+} else {
+    // 不支持则弹窗提示
+    window.alert('浏览器不支持 Web Crypto API，无法使用种子创建功能。');
+}
 
-var DOMUtils = {
-    // 查询单个元素
-    query: function (selector) {
-        return document.querySelector(selector);
-    },
-    // 查询所有元素
-    queryAll: function (selector) {
-        return document.querySelectorAll(selector);
-    },
-    // 设置元素文本
-    setText: function (selector, text) {
-        var elements = this.queryAll(selector);
-        for (var i = 0; i < elements.length; i++) {
-            elements[i].textContent = text;
-        }
-    },
-    // 设置元素 CSS 样式
-    setStyle: function (selector, property, value) {
-        var elements = this.queryAll(selector);
-        for (var i = 0; i < elements.length; i++) {
-            elements[i].style[property] = value;
-        }
-    },
-    // 设置元素属性
-    setAttr: function (selector, attr, value) {
-        var elements = this.queryAll(selector);
-        for (var i = 0; i < elements.length; i++) {
-            if (attr in elements[i]) {
-                elements[i][attr] = value;
-            } else {
-                elements[i].setAttribute(attr, value);
-            }
-        }
-    },
-    // 淡出动画（简化版）
-    fadeOut: function (selector, duration) {
-        var elements = this.queryAll(selector);
-        duration = duration || 300;
-        var stepTime = 16; // 约 60fps
-        var steps = Math.ceil(duration / stepTime);
-
-        for (var i = 0; i < elements.length; i++) {
-            (function (element) {
-                var initialOpacity = parseFloat(window.getComputedStyle(element).opacity) || 1;
-                var opacityStep = initialOpacity / steps;
-                var currentStep = 0;
-
-                var fadeInterval = setInterval(function () {
-                    currentStep++;
-                    var newOpacity = initialOpacity - (opacityStep * currentStep);
-                    element.style.opacity = Math.max(0, newOpacity);
-
-                    if (currentStep >= steps) {
-                        element.style.opacity = '0';
-                        element.style.display = 'none';
-                        clearInterval(fadeInterval);
-                    }
-                }, stepTime);
-            })(elements[i]);
-        }
+/**
+ * DOM 操作工具类
+ * 提供统一的 DOM 元素批量操作方法
+ */
+const DOMUtils = {
+    // 批量设置元素文本内容
+    setText: (selector, text) => document.querySelectorAll(selector).forEach(el => el.textContent = text),
+    
+    // 批量设置元素样式
+    setStyle: (selector, property, value) => document.querySelectorAll(selector).forEach(el => el.style[property] = value),
+    
+    // 批量设置元素属性（智能判断是属性还是特性）
+    setAttr: (selector, attr, value) => document.querySelectorAll(selector).forEach(el =>
+        attr in el ? el[attr] = value : el.setAttribute(attr, value)
+    ),
+    
+    // 批量淡出元素
+    fadeOut: (selector, duration = 300) => {
+        document.querySelectorAll(selector).forEach(el => {
+            el.style.transition = `opacity ${duration}ms`;
+            el.style.opacity = '0';
+            setTimeout(() => el.style.display = 'none', duration);
+        });
     }
 };
 
-var AppState = (function () {
-    var state = {
-        allFiles: [],
-        singleFile: null,
-        totalSize: 0,
-        torrentChanged: false,
-        trackersOverlayVisible: false,
-        creationFinished: false,
-        blockSize: 16 * 1024 * 1024, // 种子区块大小
-        torrentObject: null
+/**
+ * 应用状态管理器
+ * 使用闭包模式封装应用全局状态
+ */
+const AppState = (() => {
+    const state = {
+        allFiles: [],           // 文件夹模式：所有文件列表
+        singleFile: null,       // 单文件模式：当前文件
+        totalSize: 0,           // 总文件大小（字节）
+        torrentChanged: false,  // 种子是否已修改
+        trackersOverlayVisible: false,  // Tracker 覆盖层是否可见
+        creationFinished: false,        // 种子创建是否完成
+        blockSize: 16 * 1024 * 1024,    // 种子区块大小（16MB）
+        torrentObject: null     // 当前种子对象
     };
 
     return {
-        get: function (key) {
-            return state[key];
-        },
-        set: function (key, value) {
-            state[key] = value;
-        },
-        reset: function () {
+        // 获取状态值
+        get: key => state[key],
+        
+        // 设置状态值
+        set: (key, value) => state[key] = value,
+        
+        // 重置状态
+        reset: () => {
             state.allFiles = [];
             state.singleFile = null;
             state.totalSize = 0;
@@ -94,651 +72,523 @@ var AppState = (function () {
     };
 })();
 
-function folderSelected(files) {
+/**
+ * 处理文件夹选择
+ * @param {FileList} files - 文件列表
+ * @returns {string} 文件夹名称
+ */
+const folderSelected = files => {
+    // 排除系统文件
     const excludedFiles = ['Thumbs.db', '.DS_Store', 'desktop.ini'];
-    const folderName = files[0]?.webkitRelativePath?.split("/")[0];
-    AppState.set('allFiles', [...files].filter(file => !excludedFiles.includes(file.name)));
-    AppState.set('totalSize', AppState.get('allFiles').reduce((size, file) => size + file.size, 0));
-    console.log(AppState.get('allFiles'));
-    return folderName;
-}
-
-function fileSelected(files) {
-    AppState.set('singleFile', files[0]);
-    let fileName = AppState.get('singleFile').name;
-    AppState.set('totalSize', AppState.get('singleFile').size);
-    AppState.set('allFiles', null);
-    return fileName;
+    const allFiles = [...files].filter(file => !excludedFiles.includes(file.name));
+    
+    // 保存文件列表和总大小到状态
+    AppState.set('allFiles', allFiles);
+    AppState.set('totalSize', allFiles.reduce((size, file) => size + file.size, 0));
+    console.log(allFiles);
+    
+    // 返回文件夹名称（从相对路径中提取）
+    return files[0]?.webkitRelativePath?.split("/")[0];
 };
 
-function setTorrentData(f_name) {
-    let torrentName = f_name.trim();
-    // console.log(torrentName);
-    if (torrentName === "") {
-        window.alert("Torrent name must not be empty");
-        return false;
-    };
-    if (torrentName.match(/[<>:\"\\\/\|\?\*]/)) {
-        window.alert("Torrent name cannot contain any of the following characters: < > : \\ / | ? *");
-        return false;
-    };
-    if (torrentName.length > 255) {
-        window.alert("Torrent name cannot be longer than 255 characters");
-        return false;
-    };
+/**
+ * 处理单文件选择
+ * @param {FileList} files - 文件列表
+ * @returns {string} 文件名
+ */
+const fileSelected = files => {
+    const file = files[0];
+    
+    // 保存文件信息到状态
+    AppState.set('singleFile', file);
+    AppState.set('totalSize', file.size);
+    AppState.set('allFiles', null);
+    
+    return file.name;
+};
 
-    let torrentObject = AppState.get('torrentObject');
-    let blockSize = AppState.get('blockSize');
-    let infoObject = (torrentObject && torrentObject["info"]) || { name: "", pieces: "", "piece length": 0 };
-    torrentObject = { "info": infoObject };
-    torrentObject["announce"] = 'https://daydream.dmhy.best/announce';
-    // torrentObject["announce-list"] = [];
-    torrentObject["creation date"] = (Date.now() / 1000) | 0;  // 种子创建时间
-    torrentObject["created by"] = "https://u2.dmhy.org/forums.php?action=viewtopic&topicid=13384";  // 创建客户端
-    infoObject["private"] = 1;  // 私有种子
-    infoObject["name"] = torrentName;  // 种子名称
-    infoObject["piece length"] = blockSize;  // 区块大小 默认16M
-    infoObject["source"] = ''; // 来源
-    AppState.set('torrentObject', torrentObject);
+/**
+ * 设置种子数据并验证
+ * @param {string} fileName - 文件或文件夹名称
+ * @returns {boolean} 是否设置成功
+ */
+const setTorrentData = fileName => {
+    const torrentName = fileName.trim();
+
+    // 验证：名称不能为空
+    if (!torrentName) {
+        window.alert("种子名称不能为空");
+        return false;
+    }
+    
+    // 验证：不能包含非法字符
+    if (torrentName.match(/[<>:"\\\/|\?\*]/)) {
+        window.alert("种子名称不能包含以下字符: < > : \\ / | ? *");
+        return false;
+    }
+    
+    // 验证：长度不能超过 255 个字符
+    if (torrentName.length > 255) {
+        window.alert("种子名称长度不能超过 255 个字符");
+        return false;
+    }
+
+    // 构建种子信息对象
+    const infoObject = AppState.get('torrentObject')?.info || { name: "", pieces: "", "piece length": 0 };
+    infoObject["private"] = 1;                          // 标记为私有种子
+    infoObject["name"] = torrentName;                   // 种子名称
+    infoObject["piece length"] = AppState.get('blockSize');  // 分块大小
+    infoObject["source"] = '';                          // 来源标记
+
+    // 保存完整的种子对象到状态
+    AppState.set('torrentObject', {
+        "info": infoObject,
+        "announce": 'https://daydream.dmhy.best/announce',  // Tracker 地址
+        "creation date": (Date.now() / 1000) | 0,           // 创建时间（Unix 时间戳）
+        "created by": "https://u2.dmhy.org/forums.php?action=viewtopic&topicid=13384"  // 创建者信息
+    });
     return true;
 };
 
-async function createTorrentFile(emfile) {
-    let f_name = fileSelected(emfile);
-    if (!setTorrentData(f_name) || !AppState.get('torrentObject')) return;
+/**
+ * 从单个文件创建种子
+ * @param {FileList} files - 文件列表
+ */
+const createTorrentFile = async files => {
+    const fileName = fileSelected(files);
+    if (!setTorrentData(fileName) || !AppState.get('torrentObject')) return;
+    
+    // 重置状态
     AppState.set('torrentChanged', false);
-    // creationInProgress = true;
     AppState.set('creationFinished', false);
+    
+    // 开始创建种子
     await createFromFile(AppState.get('torrentObject'));
 };
 
-async function createTorrentFolder(emfile) {
-    let f_name = folderSelected(emfile);
-    if (!setTorrentData(f_name) || !AppState.get('torrentObject')) return;
+/**
+ * 从文件夹创建种子
+ * @param {FileList} files - 文件列表
+ */
+const createTorrentFolder = async files => {
+    const folderName = folderSelected(files);
+    if (!setTorrentData(folderName) || !AppState.get('torrentObject')) return;
+    
+    // 重置状态
     AppState.set('torrentChanged', false);
-    // creationInProgress = true;
     AppState.set('creationFinished', false);
+    
+    // 开始创建种子
     await createFromFolder(AppState.get('torrentObject'));
 };
 
-async function finished() {
-    const db = localforage.createInstance({ name: "bbcodejs" });
-    AppState.set('creationFinished', true);
-    let torrentObject = AppState.get('torrentObject');
-    if (!torrentObject || !torrentObject.info) return;
-    let pieceBytes = torrentObject.info["pieces"];
-    let pieceStr = "";
-    for (let i = 0; i < pieceBytes.length; ++i) pieceStr += String.fromCharCode(pieceBytes[i]);
-    torrentObject.info["pieces"] = pieceStr;
-    let blob = new Blob([new Uint8Array(Bencode.EncodeToBytes(torrentObject))], { type: "application/octet-stream" });
-    await db.setItem(`upload_autoSaveMessageTorrentBlob`, blob)
-    await db.setItem(`upload_autoSaveMessageTorrentName`, torrentObject.info.name);
-    DOMUtils.setStyle('.progress > div', 'width', "100%");  // 整体进度
-    DOMUtils.setText('[name="progress-total"]', '100%');
-    DOMUtils.setText('[name="progress-name"]', 'Done.');
-    DOMUtils.setAttr('#upload_torrent,#upload_file,#upload_folder,#torrent_create', 'disabled', true);  // 禁止按钮
-    DOMUtils.setAttr('#torrent_download,#torrent_clean', 'disabled', false);  // 解除按钮禁用
-    DOMUtils.fadeOut('[name="progress"]', 3000);  // 渐出进度一栏
-};
+/**
+ * 创建进度更新器 - 带节流功能
+ * 避免频繁更新 DOM 导致性能问题
+ * @returns {Object} 包含 update 方法的对象
+ */
+const createProgressUpdater = () => {
+    let lastUpdateTime = 0;   // 上次更新时间
+    let lastPercent = 0;       // 上次更新的百分比
 
-function limitPromisePool(tasks, limit) {
-    return new Promise((resolve, reject) => {
-        const results = [];
-        let running = 0;
-        let current = 0;
+    return {
+        /**
+         * 更新进度
+         * @param {number} bytesProcessed - 已处理字节数
+         * @param {number} totalSize - 总字节数
+         */
+        update: (bytesProcessed, totalSize) => {
+            const percent = bytesProcessed / totalSize * 100;
+            const now = performance.now();
 
-        function runTask(task) {
-            running++;
-            task().then(result => {
-                results.push(result);
-                running--;
-                runNext();
-            }).catch(reject);
-        };
-
-        function runNext() {
-            while (running < limit && current < tasks.length) runTask(tasks[current++]);
-            if (running === 0) resolve(results);
-        };
-
-        runNext();
-    });
-};
-
-const createFromFile = (obj) => {
-    return new Promise((resolve) => {
-        let infoObject = obj.info;
-        let chunkSize = infoObject["piece length"];
-        let file = AppState.get('singleFile');
-        let fileSize = file.size;
-        let readChunkSize = 16 * 1024 * 1024;
-        let blockSize = AppState.get('blockSize');
-        let blocksPerChunk = readChunkSize / blockSize;
-        let maxBlockCount = Math.ceil(fileSize / blockSize);
-        let pieces = new Uint8Array(20 * maxBlockCount);
-        infoObject["length"] = fileSize;
-        let bytesProcessedSoFar = 0;  // 已经处理的块数量
-
-        function readAndProcessChunk(chunk, index) {
-            // 读取和处理文件块
-            return new Promise((resolve, reject) => {
-
-                let reader = new FileReader();
-
-                reader.onload = (event) => {
-                    let bytes = new Uint8Array(event.target.result);
-                    let byteCount = bytes.length;
-                    // bytesReadSoFar += byteCount;
-                    sha1({ data: bytes, blockSize: chunkSize, readChunkSize: readChunkSize }).then(function (result) {
-                        // console.log(result);
-                        pieces.set(result, index * blocksPerChunk * 20);
-                        bytesProcessedSoFar += byteCount;
-                        let percent = bytesProcessedSoFar / fileSize * 100;
-                        DOMUtils.setStyle('.progress > div', 'width', percent + "%")  // 整体进度
-                        DOMUtils.setText('[name="progress-name"]', file.name);
-                        DOMUtils.setText('[name="progress-percent"]', bytesProcessedSoFar + ' / ' + fileSize);
-                        DOMUtils.setText('[name="progress-total"]', percent.toFixed(2) + '%');
-                        bytes = null;
-                        resolve(index);
-                    });
-                };
-                reader.onerror = (error) => {
-                    reader.abort();
-                    reject(error);
-                };
-                reader.readAsArrayBuffer(chunk);
-
-            });
-
-        };
-
-        function run() {
-            const tasks = [];  // Promise 数组
-            for (let offset = 0, index = 0; offset < file.size; offset += readChunkSize, index++) {
-                tasks.push(() => readAndProcessChunk(file.slice(offset, offset + readChunkSize), index));
-            };
-            return tasks;
-        };
-
-        limitPromisePool(run(), maxWorkerCount).then(async () => {
-            infoObject["pieces"] = Array.from(pieces);
-            await finished();
-            DOMUtils.setText('[name="progress-name"]', 'Done.');
-            resolve();
-        }).catch(error => {
-            let singleFile = AppState.get('singleFile');
-            failed(singleFile && singleFile.name, error);
-        });
-
-    });
-};
-
-const createFromFolder = async (obj) => {
-    return new Promise(async (resolve) => {
-        let allFiles = AppState.get('allFiles');
-        if (!allFiles || !obj.info) return;
-        let infoObject = obj.info;
-        let chunkSize = infoObject["piece length"];
-        // let bytesReadSoFar = 0;
-        let bytesProcessedSoFar = 0;
-        let readChunkSize = 16 * 1024 * 1024;
-        let currentChunk = new Uint8Array(readChunkSize);
-        let currentChunkDataIndex = 0;
-        let chunkIndex = 0;  // 写入pieces时的切片索引值
-        let blockSize = AppState.get('blockSize');
-        let blocksPerChunk = readChunkSize / blockSize;
-        let totalSize = 0;  // 总体积
-        let fileInfos = [];
-
-        for (let i = 0; i < allFiles.length; ++i) {
-            let currentFileInfo = allFiles[i];
-            let currentFileSize = currentFileInfo.size;
-            totalSize += currentFileSize;
-            fileInfos.push({
-                "length": currentFileSize,
-                "path": currentFileInfo.webkitRelativePath.split("/").slice(1)
-            });
-        }
-
-        let totalBlockCount = Math.ceil(totalSize / chunkSize);  // 总切割块数量
-        let pieces = new Uint8Array(totalBlockCount * 20);
-        let processedBlockCount = 0;  // 总切片计算结果数量
-        infoObject["files"] = fileInfos;
-        let fileIndex = 0;  // 处理文件的索引号
-        let files = allFiles;
-        let currentFile = files[0];  // 当前处理的文件
-        let readStartIndex = 0;  // 切片起始位置
-        let fileSize = currentFile.size;  // 当前处理的文件大小
-        let currentWorkerCount = 0;
-        let waitingForWorkers = false;
-
-        function run() {
-            let bytes, byteIndex, localChunk, currentChunkIndex_1;
-
-            if (currentWorkerCount === maxWorkerCount) {
-                waitingForWorkers = true;
-                return;
-            };
-
-            let reader = new FileReader();
-            reader.readAsArrayBuffer(currentFile.slice(readStartIndex, readStartIndex + readChunkSize));
-            readStartIndex += readChunkSize;
-
-            waitingForWorkers = false;
-
-            reader.onloadend = function (ev) {
-                return new Promise(async (resolve) => {
-                    bytes = new Uint8Array(ev.target.result);
-                    // byteCount = bytes.length;
-                    if (currentChunkDataIndex + bytes.length >= readChunkSize) {  // readChunkSize 单次读取的块大小  || currentChunkDataIndex 初始是0
-                        byteIndex = readChunkSize - currentChunkDataIndex;  //  16 * 1024 * 1024 - 0   byteIndex 字节索引
-                        currentChunk.set(bytes.subarray(0, byteIndex), currentChunkDataIndex);  // Uint8Array对象 大小 16 * 1024 * 1024   创建一个新的chunk，防止位于文件结尾和开头
-                        localChunk = currentChunk;
-                        currentChunk = new Uint8Array(readChunkSize);
-                        currentChunkIndex_1 = chunkIndex++;  // 写入pieces时的切片索引值
-                        currentWorkerCount++;
-                        sha1({ data: localChunk, blockSize: chunkSize, readChunkSize: readChunkSize }).then(async function (result) {
-                            processedBlockCount += blocksPerChunk;
-                            pieces.set(result, currentChunkIndex_1 * blocksPerChunk * 20);
-                            currentWorkerCount--;
-                            if (waitingForWorkers) { waitingForWorkers = false; run(); };
-                            bytesProcessedSoFar += readChunkSize;
-                            let percent = bytesProcessedSoFar / totalSize * 100;
-                            DOMUtils.setStyle('.progress > div', 'width', percent + "%")  // 整体进度
-                            DOMUtils.setText('[name="progress-total"]', percent.toFixed(2) + '%');
-                            await maybeFinished();
-                            resolve()
-                        });
-                        // set the remaining data
-                        currentChunk.set(bytes.subarray(byteIndex), 0);
-                        currentChunkDataIndex = bytes.length - byteIndex;
-                    } else {
-                        // just add to the buffer 拼接不足20块的数据
-                        currentChunk.set(bytes, currentChunkDataIndex);
-                        currentChunkDataIndex += bytes.length;
-                    };
-
-                    if (readStartIndex < fileSize) {
-                        // current file is not finished yet
-                        run();
-                    } else {
-                        // current file is finished, check if we have any more files left
-                        if (++fileIndex === files.length) {
-                            // all files are processed, calculate the hash of the current buffer data
-                            if (currentChunkDataIndex !== 0) {
-                                sha1({ data: currentChunk, blockSize: chunkSize, readChunkSize: currentChunkDataIndex }).then(async function (result) {
-                                    processedBlockCount += blocksPerChunk;
-                                    pieces.set(result, chunkIndex * blocksPerChunk * 20);
-                                    await maybeFinished();
-                                    resolve()
-                                });
-                            } else {
-                                await maybeFinished();
-                                resolve()
-                            };
-                        } else {
-                            // some files are still left
-                            currentFile = files[fileIndex];
-                            fileSize = currentFile.size;
-                            readStartIndex = 0;
-                            DOMUtils.setText('[name="progress-name"]', currentFile.name);
-                            DOMUtils.setText('[name="progress-percent"]', (fileIndex + 1) + ' / ' + allFiles.length);
-                            run();
-                        };
-                    };
+            // 节流：每100ms或进度变化>0.5%或完成时才更新
+            if (now - lastUpdateTime >= 100 || Math.abs(percent - lastPercent) >= 0.5 || percent >= 100) {
+                requestAnimationFrame(() => {
+                    DOMUtils.setStyle('.progress > div', 'width', `${percent}%`);
+                    DOMUtils.setText('[name="progress-total"]', `${percent.toFixed(2)}%`);
                 });
-            };
-
-            reader.onerror = function () {
-                failed(currentFile.name, fr.error);
-            };
-
-        };
-
-        async function maybeFinished() {
-            if (processedBlockCount >= totalBlockCount) {
-                infoObject["pieces"] = Array.from(pieces);
-                DOMUtils.setText('[name="progress-percent"]', allFiles.length + ' / ' + allFiles.length);
-                await finished();
-                resolve(1);
-            };
-        };
-
-        DOMUtils.setText('[name="progress-name"]', currentFile.name);
-        DOMUtils.setText('[name="progress-percent"]', '1 / ' + allFiles.length);
-        DOMUtils.setText('[name="progress-total"]', '0%');
-
-        run();
-
-    });
-
-};
-
-function failed(fileName, err) {
-    var errorText = fileName ? ("Failed to read file: " + fileName) : "Error reading file";
-    if (err) {
-        errorText += "\nReason: " + err.message + " (" + err.name + ")";
-        console.error(errorText);
-        window.alert(errorText);
+                lastUpdateTime = now;
+                lastPercent = percent;
+            }
+        }
     };
 };
 
+/**
+ * 种子创建完成处理
+ * 保存种子文件到 IndexedDB 并更新界面状态
+ */
+const finished = async () => {
+    // 创建 localforage 实例用于存储
+    const db = localforage.createInstance({ name: "bbcodejs" });
+    AppState.set('creationFinished', true);
+    
+    const torrentObject = AppState.get('torrentObject');
+    if (!torrentObject?.info) return;
 
-// bencode
-function toUTF8Array(str) {
-    let utf8 = [];
-    for (let i = 0; i < str.length; ++i) {
-        let charcode = str.charCodeAt(i);
-        if (charcode < 0x80)
-            utf8.push(charcode);
-        else if (charcode < 0x800)
-            utf8.push(0xc0 | (charcode >> 6), 0x80 | (charcode & 0x3f));
-        else if (charcode < 0xd800 || charcode >= 0xe000)
-            utf8.push(0xe0 | (charcode >> 12), 0x80 | ((charcode >> 6) & 0x3f), 0x80 | (charcode & 0x3f));
-        else {
-            ++i;
-            charcode = 0x10000 + (((charcode & 0x3ff) << 10) | (str.charCodeAt(i) & 0x3ff));
-            utf8.push(0xf0 | (charcode >> 18), 0x80 | ((charcode >> 12) & 0x3f), 0x80 | ((charcode >> 6) & 0x3f), 0x80 | (charcode & 0x3f));
+    // 将种子对象编码为 Bencode 格式并创建 Blob
+    // pieces 已在 createFromFile/createFromFolder 中转换为字符串，无需重复转换
+    const blob = new Blob([new Uint8Array(Bencode.EncodeToBytes(torrentObject))], { type: "application/octet-stream" });
+    
+    // 保存到 IndexedDB
+    await db.setItem('upload_autoSaveMessageTorrentBlob', blob);
+    await db.setItem('upload_autoSaveMessageTorrentName', torrentObject.info.name);
+
+    // 更新进度显示为完成状态
+    DOMUtils.setStyle('.progress > div', 'width', "100%");
+    DOMUtils.setText('[name="progress-total"]', '100%');
+    DOMUtils.setText('[name="progress-name"]', '完成');
+    
+    // 禁用上传和创建按钮，启用下载和清理按钮
+    DOMUtils.setAttr('#upload_torrent,#upload_file,#upload_folder,#torrent_create', 'disabled', true);
+    DOMUtils.setAttr('#torrent_download,#torrent_clean', 'disabled', false);
+    
+    // 3秒后淡出进度条
+    DOMUtils.fadeOut('[name="progress"]', 3000);
+};
+
+
+
+/**
+ * 从单个文件创建种子（核心算法）
+ * 将文件分块并计算每块的 SHA-1 哈希值
+ * @param {Object} torrentObject - 种子对象
+ */
+const createFromFile = async torrentObject => {
+    const infoObject = torrentObject.info;
+    const file = AppState.get('singleFile');
+    const fileSize = file.size;
+    const blockSize = AppState.get('blockSize');
+    
+    // 创建 pieces 数组：每个块 20 字节（SHA-1 哈希长度）
+    const pieces = new Uint8Array(20 * Math.ceil(fileSize / blockSize));
+
+    infoObject["length"] = fileSize;
+    let bytesProcessed = 0;
+
+    // 初始化进度显示
+    const progressUpdater = createProgressUpdater();
+    DOMUtils.setText('[name="progress-name"]', file.name);
+    DOMUtils.setText('[name="progress-total"]', '0%');
+
+    // 顺序处理每个块
+    for (let offset = 0, index = 0; offset < fileSize; offset += blockSize, index++) {
+        try {
+            // 读取文件块
+            const chunk = file.slice(offset, offset + blockSize);
+            const arrayBuffer = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = () => {
+                    reader.abort();
+                    reject(reader.error);
+                };
+                reader.readAsArrayBuffer(chunk);
+            });
+
+            // 计算块的 SHA-1 哈希
+            const bytes = new Uint8Array(arrayBuffer);
+            const hash = await crypto.subtle.digest('SHA-1', bytes);
+
+            // 将哈希值存入 pieces 数组的对应位置
+            pieces.set(new Uint8Array(hash), index * 20);
+            bytesProcessed += bytes.length;
+
+            // 更新进度
+            progressUpdater.update(bytesProcessed, fileSize);
+            DOMUtils.setText('[name="progress-percent"]', `${bytesProcessed} / ${fileSize}`);
+        } catch (error) {
+            failed(file.name, error);
+            return;
         }
     }
-    return utf8;
-}
-function stringByteCount(str) {
-    let count = 0;
-    for (let i = 0; i < str.length; ++i) {
-        let charcode = str.charCodeAt(i);
-        if (charcode < 0x80)
-            ++count;
-        else if (charcode < 0x800)
-            count += 2;
-        else if (charcode < 0xd800 || charcode >= 0xe000)
-            count += 3;
-        else {
-            ++i;
-            count += 4;
-        }
-    }
-    return count;
-}
-function toByteArray(str) {
-    let ret = [];
-    for (let i = 0; i < str.length; ++i)
-        ret.push(str.charCodeAt(i));
-    return ret;
-}
-class BencodeObject {
-    encode(_array) { }
-    getBencodeObject(obj) {
-        if (obj === null || obj === undefined)
-            return null;
-        switch (typeof obj) {
-            case "number":
-                return new BencodeInt(obj);
-            case "string":
-                return new BencodeString(obj);
-            case "object":
-                {
-                    if (Array.isArray(obj))
-                        return new BencodeList(obj);
-                    else
-                        return new BencodeDict(obj);
+
+    // 将 Uint8Array 转换为二进制字符串（Bencode 编码需要）
+    infoObject["pieces"] = uint8ArrayToBinaryString(pieces);
+    await finished();
+};
+
+
+/**
+ * 从文件夹创建种子（核心算法）
+ * 将多个文件视为连续的虚拟文件，按固定块大小分块并计算哈希
+ * @param {Object} torrentObject - 种子对象
+ */
+const createFromFolder = async torrentObject => {
+    try {
+        const allFiles = AppState.get('allFiles');
+        if (!allFiles || !torrentObject.info) return;
+
+        const infoObject = torrentObject.info;
+        const blockSize = AppState.get('blockSize');
+
+        // 构建文件信息列表和计算总大小
+        let totalSize = 0;
+        const fileOffsets = [0];  // 每个文件在虚拟文件中的起始偏移量
+
+        infoObject["files"] = allFiles.map(file => {
+            totalSize += file.size;
+            fileOffsets.push(totalSize);
+            return {
+                "length": file.size,
+                "path": file.webkitRelativePath.split("/").slice(1)  // 去掉根文件夹名
+            };
+        });
+
+        // 创建 pieces 数组
+        const pieces = new Uint8Array(20 * Math.ceil(totalSize / blockSize));
+
+        // 初始化进度更新器
+        const progressUpdater = createProgressUpdater();
+
+        DOMUtils.setText('[name="progress-name"]', '正在处理文件...');
+        DOMUtils.setText('[name="progress-percent"]', `0 / ${allFiles.length}`);
+        DOMUtils.setText('[name="progress-total"]', '0%');
+
+        /**
+         * 根据全局偏移量找到对应的文件和文件内偏移
+         * @param {number} globalOffset - 在虚拟文件中的全局偏移量
+         * @returns {Object|null} 文件信息
+         */
+        const findFileAndOffset = globalOffset => {
+            for (let i = 0; i < allFiles.length; i++) {
+                if (globalOffset >= fileOffsets[i] && globalOffset < fileOffsets[i + 1]) {
+                    return {
+                        fileIndex: i,
+                        file: allFiles[i],
+                        offsetInFile: globalOffset - fileOffsets[i]  // 文件内的相对偏移
+                    };
                 }
-        }
-        return null;
-    }
-}
-class BencodeDict extends BencodeObject {
-    constructor(obj) {
-        super();
-        this.data = {};
-        for (let key in obj) {
-            let bencodeObj = this.getBencodeObject(obj[key]);
-            if (bencodeObj)
-                this.data[key] = bencodeObj;
-        }
-    }
-    encodeBinaryString(array, str) {
-        let bytesCount = str.length;
-        array.push.apply(array, toByteArray(bytesCount.toString()));
-        array.push(":".charCodeAt(0));
-        let strBytes = toByteArray(str);
-        for (let i = 0; i < strBytes.length; ++i)
-            array.push(strBytes[i]);
-    }
-    encode(array) {
-        array.push("d".charCodeAt(0));
-        let sortedKeys = Object.keys(this.data).sort();
-        for (let i = 0; i < sortedKeys.length; ++i) {
-            let currentKey = sortedKeys[i];
-            let currentObject = this.data[currentKey];
-            let bencodedKeyObject = this.getBencodeObject(currentKey);
-            if (bencodedKeyObject) {
-                bencodedKeyObject.encode(array);
-                if (currentKey === "pieces" && currentObject instanceof BencodeString)
-                    this.encodeBinaryString(array, currentObject.value);
-                else
-                    currentObject.encode(array);
             }
+            return null;
+        };
+
+        /**
+         * 读取指定全局范围的数据（可能跨越多个文件）
+         * @param {number} start - 起始全局偏移量
+         * @param {number} length - 要读取的长度
+         * @returns {Uint8Array} 读取的数据
+         */
+        const readGlobalRange = async (start, length) => {
+            const buffer = new Uint8Array(length);
+            let bufferOffset = 0;
+            let currentPos = start;
+
+            // 可能需要从多个文件中读取数据
+            while (bufferOffset < length) {
+                const info = findFileAndOffset(currentPos);
+                if (!info) break;
+
+                // 计算本次读取大小（不超过当前文件剩余大小和缓冲区剩余大小）
+                const remainingInFile = info.file.size - info.offsetInFile;
+                const remainingInBuffer = length - bufferOffset;
+                const readSize = Math.min(remainingInFile, remainingInBuffer);
+
+                // 读取文件片段
+                const blob = info.file.slice(info.offsetInFile, info.offsetInFile + readSize);
+                const arrayBuffer = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = () => reject(reader.error);
+                    reader.readAsArrayBuffer(blob);
+                });
+
+                // 将读取的数据复制到缓冲区
+                buffer.set(new Uint8Array(arrayBuffer), bufferOffset);
+                bufferOffset += readSize;
+                currentPos += readSize;
+            }
+
+            return buffer;
+        };
+
+        // 按固定块大小处理整个虚拟文件
+        let lastDisplayedFileIndex = -1;  // 用于避免重复更新文件名显示
+
+        for (let chunkIndex = 0, globalOffset = 0; globalOffset < totalSize; chunkIndex++, globalOffset += blockSize) {
+            const chunkLength = Math.min(blockSize, totalSize - globalOffset);
+
+            // 更新进度显示（仅在文件切换时更新）
+            const currentFileInfo = findFileAndOffset(globalOffset);
+            if (currentFileInfo && currentFileInfo.fileIndex !== lastDisplayedFileIndex) {
+                DOMUtils.setText('[name="progress-name"]', currentFileInfo.file.name);
+                DOMUtils.setText('[name="progress-percent"]', `${currentFileInfo.fileIndex + 1} / ${allFiles.length}`);
+                lastDisplayedFileIndex = currentFileInfo.fileIndex;
+            }
+
+            // 读取块数据并计算 SHA-1 哈希
+            const chunkData = await readGlobalRange(globalOffset, chunkLength);
+            const hash = await crypto.subtle.digest('SHA-1', chunkData);
+            pieces.set(new Uint8Array(hash), chunkIndex * 20);
+
+            // 更新进度
+            progressUpdater.update(globalOffset + chunkLength, totalSize);
         }
-        array.push("e".charCodeAt(0));
+
+        // 完成 - 将 Uint8Array 转换为二进制字符串
+        infoObject["pieces"] = uint8ArrayToBinaryString(pieces);
+        DOMUtils.setText('[name="progress-percent"]', `${allFiles.length} / ${allFiles.length}`);
+        await finished();
+
+    } catch (error) {
+        failed('文件夹处理', error);
     }
-}
-class BencodeList extends BencodeObject {
-    constructor(list) {
-        super();
-        this.data = [];
-        for (let i = 0; i < list.length; ++i) {
-            let bencodeObj = this.getBencodeObject(list[i]);
-            if (bencodeObj)
-                this.data.push(bencodeObj);
-        }
+};
+
+
+/**
+ * 处理文件读取失败
+ * @param {string} fileName - 失败的文件名
+ * @param {Error} error - 错误对象
+ */
+const failed = (fileName, error) => {
+    let errorText = fileName ? `读取文件失败: ${fileName}` : "读取文件出错";
+    if (error) {
+        errorText += `\n原因: ${error.message} (${error.name})`;
+        console.error(errorText);
+        window.alert(errorText);
     }
+};
+
+// ==================== Bencode 编码器（精简版） ====================
+
+// 工具函数
+const textEncoder = new TextEncoder();
+const toUTF8Array = str => textEncoder.encode(str);  // 字符串转 UTF-8 字节数组
+const toByteArray = str => [...str].map(c => c.charCodeAt(0));  // 字符串转字节数组
+
+/**
+ * 将 Uint8Array 转换为二进制字符串
+ * 每个字节作为一个字符（用于 pieces 字段）
+ */
+const uint8ArrayToBinaryString = uint8Array => String.fromCharCode.apply(null, uint8Array);
+
+/**
+ * 根据值类型创建对应的 Bencode 对象
+ * @param {*} value - 要编码的值
+ * @returns {BencodeInt|BencodeString|BencodeList|BencodeDict|null}
+ */
+const getBencodeObject = value => {
+    if (!value && value !== 0) return null;
+    const type = typeof value;
+    if (type === "number") return new BencodeInt(value);
+    if (type === "string") return new BencodeString(value);
+    return Array.isArray(value) ? new BencodeList(value) : new BencodeDict(value);
+};
+
+/**
+ * Bencode 字典类
+ * 编码格式: d<key1><value1><key2><value2>...e
+ * 键必须按字典序排序
+ */
+class BencodeDict {
+    constructor(dict) {
+        this.data = {};
+        // 将对象的每个属性转换为 Bencode 对象
+        Object.keys(dict).forEach(key => {
+            const bencodeValue = getBencodeObject(dict[key]);
+            if (bencodeValue) this.data[key] = bencodeValue;
+        });
+    }
+    
+    /**
+     * 编码为字节数组
+     * @param {Array} array - 输出字节数组
+     */
     encode(array) {
-        array.push("l".charCodeAt(0));
-        for (let i = 0; i < this.data.length; ++i)
-            this.data[i].encode(array);
-        array.push("e".charCodeAt(0));
-    }
-}
-class BencodeString extends BencodeObject {
-    constructor(value) {
-        super();
-        this.value = value;
-    }
-    encode(array) {
-        let bytesCount = stringByteCount(this.value);
-        array.push.apply(array, toByteArray(bytesCount.toString()));
-        array.push(":".charCodeAt(0));
-        array.push.apply(array, toUTF8Array(this.value));
-    }
-}
-class BencodeInt extends BencodeObject {
-    constructor(value) {
-        super();
-        this.value = value;
-    }
-    encode(array) {
-        array.push("i".charCodeAt(0));
-        array.push.apply(array, toUTF8Array(this.value.toString()));
-        array.push("e".charCodeAt(0));
+        array.push(100); // 'd' (ASCII 100)
+        
+        // 按字典序排序键并编码
+        Object.keys(this.data).sort().forEach(key => {
+            const value = this.data[key];
+            getBencodeObject(key).encode(array);  // 先编码键
+            
+            // pieces 字段需要特殊处理为二进制字符串（不进行 UTF-8 编码）
+            if (key === "pieces" && value instanceof BencodeString) {
+                array.push(...toByteArray(value.value.length.toString()), 58, ...toByteArray(value.value));
+            } else {
+                value.encode(array);  // 再编码值
+            }
+        });
+        
+        array.push(101); // 'e' (ASCII 101)
     }
 }
 
-var Bencode = {
-    EncodeToBytes: function (obj) {
-        let result = [];
-        new BencodeDict(obj).encode(result);
+/**
+ * Bencode 列表类
+ * 编码格式: l<item1><item2>...e
+ */
+class BencodeList {
+    constructor(list) {
+        // 将数组的每个元素转换为 Bencode 对象
+        this.data = list.map(item => getBencodeObject(item)).filter(Boolean);
+    }
+    
+    /**
+     * 编码为字节数组
+     * @param {Array} array - 输出字节数组
+     */
+    encode(array) {
+        array.push(108); // 'l' (ASCII 108)
+        this.data.forEach(item => item.encode(array));
+        array.push(101); // 'e' (ASCII 101)
+    }
+}
+
+/**
+ * Bencode 字符串类
+ * 编码格式: <length>:<string>
+ * 例如: "spam" -> "4:spam"
+ */
+class BencodeString {
+    constructor(value) {
+        this.value = value;
+    }
+    
+    /**
+     * 编码为字节数组
+     * @param {Array} array - 输出字节数组
+     */
+    encode(array) {
+        const utf8 = toUTF8Array(this.value);
+        // 格式: 长度 + ':' + UTF-8 字节
+        array.push(...toByteArray(utf8.length.toString()), 58, ...utf8);  // 58 是 ':' 的 ASCII
+    }
+}
+
+/**
+ * Bencode 整数类
+ * 编码格式: i<number>e
+ * 例如: 42 -> "i42e"
+ */
+class BencodeInt {
+    constructor(value) {
+        this.value = value;
+    }
+    
+    /**
+     * 编码为字节数组
+     * @param {Array} array - 输出字节数组
+     */
+    encode(array) {
+        // 格式: 'i' + 数字字符串 + 'e'
+        array.push(105, ...toByteArray(this.value.toString()), 101); // 105='i', 101='e'
+    }
+}
+
+/**
+ * Bencode 编码器主入口
+ */
+const Bencode = {
+    /**
+     * 将字典编码为字节数组
+     * @param {Object} dict - 要编码的字典对象
+     * @returns {Array} 字节数组
+     */
+    EncodeToBytes: dict => {
+        const result = [];
+        new BencodeDict(dict).encode(result);
         return result;
     }
 };
-
-var sha1;
-// workers
-var maxWorkerCount = Math.min(navigator.hardwareConcurrency || 1, 8); // use 8 workers at max, reading from disk will be the slowest anyways
-
-// Worker 管理器
-var WorkerManager = (function () {
-    var workers = [];
-    var busyWorkers = new Set();
-    var waitingTasks = [];
-    var sha1_js_url = null;
-    var isActive = false;
-
-    return {
-        init: function (url) {
-            sha1_js_url = url;
-            isActive = true;
-            if (location.protocol === "https:" || location.protocol === "http:") {
-                try {
-                    for (let i = 0; i < maxWorkerCount; ++i) {
-                        workers.push(new Worker(sha1_js_url));
-                    }
-                } catch (e) {
-                    console.log('添加线程发生错误: ' + e);
-                    return false;
-                }
-            } else {
-                return false;
-            }
-            return true;
-        },
-        enqueueTask: function (data, callback) {
-            if (!isActive) {
-                callback(new Error('Worker manager is not active'));
-                return;
-            }
-            let selectedWorker = null;
-            let selectedIndex;
-            for (let i = 0; i < workers.length; ++i) {
-                if (!busyWorkers.has(i)) {
-                    selectedWorker = workers[i];
-                    selectedIndex = i;
-                    busyWorkers.add(i);
-                    break;
-                };
-            };
-            if (!selectedWorker) {
-                waitingTasks.push({ data: data, callback: callback });
-                return;
-            };
-            selectedWorker.postMessage(data, [data.data.buffer]);
-            selectedWorker.onmessage = function (ev) {
-                busyWorkers.delete(selectedIndex);
-                if (waitingTasks.length !== 0) {
-                    let task = waitingTasks.shift();
-                    if (task)
-                        this.enqueueTask(task.data, task.callback);
-                };
-                callback(ev.data);
-            }.bind(this);
-        },
-        cleanup: function () {
-            isActive = false;
-            // 终止所有 Workers
-            for (let i = 0; i < workers.length; ++i) {
-                try {
-                    workers[i].terminate();
-                } catch (e) {
-                    console.warn('终止 Worker 时出错:', e);
-                }
-            }
-            // 清理引用
-            workers = [];
-            busyWorkers.clear();
-            waitingTasks = [];
-            // 清理 Blob URL
-            if (sha1_js_url) {
-                try {
-                    URL.revokeObjectURL(sha1_js_url);
-                } catch (e) {
-                    console.warn('清理 Blob URL 时出错:', e);
-                }
-                sha1_js_url = null;
-            }
-        },
-        isActive: function () {
-            return isActive;
-        }
-    };
-})();
-
-function setupSha1WithoutWorkers() {
-    let sha1ScriptLoaded = false;
-    let waitingResolvers = [];
-    async function ensureSha1ScriptLoaded() {
-        if (!sha1ScriptLoaded) {
-            await new Promise(function (resolve) { return waitingResolvers.push(resolve); });
-        }
-    }
-    let script = document.createElement("script");
-    script.src = "https://userscript.kysdm.com/js/sha1.js?v=1.1";
-    script.onload = function () {
-        sha1ScriptLoaded = true;
-        waitingResolvers.forEach(function (resolve) { return resolve(); });
-        waitingResolvers.length = 0;
-    };
-    document.body.appendChild(script);
-    sha1 = async function (data) {
-        await ensureSha1ScriptLoaded();
-        return ProcessSha1Data(data);
-    };
-};
-
-(async () => {
-    const sha1_js = () => {
-        return new Promise((resolve, reject) => {
-            fetch('https://userscript.kysdm.com/js/sha1.js?v=1.1',
-                {
-                    headers: {
-                        'Content-Type': 'application/javascript',
-                    },
-                    mode: 'cors'
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        console.error('sha1.js 下载失败')
-                        // console.error('Network response was not OK');
-                        reject('Network response was not OK');
-                    };
-                    return response.text();
-                }).then(t => {
-                    window.URL = window.URL || window.webkitURL;
-                    const blob = new Blob([t], { type: 'application/javascript' });
-                    resolve(URL.createObjectURL(blob));
-                })
-                .catch(error => {
-                    console.error('sha1.js 崩溃')
-                    // console.error('There has been a problem with your fetch operation:', error);
-                    reject(error);
-                });
-        });
-    };
-    const sha1_js_url = await sha1_js();
-    // console.log(sha1_js_url);
-
-    const workersAvailable = WorkerManager.init(sha1_js_url);
-    if (!workersAvailable) {
-        // fall back to single threaded version
-        console.warn('fall back to single threaded version');
-        setupSha1WithoutWorkers();
-        return;
-    }
-
-    // console.log('sha1加载完成');
-    // 当sha1函数完成加载，解除按钮禁用
-    document.getElementById('upload_file').disabled = false;
-    document.getElementById('upload_folder').disabled = false;
-    document.getElementById('torrent_create').disabled = false;
-
-    sha1 = function (data) {
-        return new Promise(function (resolve) {
-            WorkerManager.enqueueTask(data, resolve);
-        });
-    };
-
-    // 页面卸载时清理 Workers
-    window.addEventListener('beforeunload', function () {
-        WorkerManager.cleanup();
-    });
-
-})();
