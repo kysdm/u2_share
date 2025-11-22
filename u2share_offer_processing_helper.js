@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.0
+// @version      0.4.1
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -165,12 +165,13 @@ const pathBasedRules = [
     { pattern: /\/BDMV\/META\/DL\/$/, allowedFileNames: /^bdmt_(eng|jpn|deu|fra|ita|nld|spa|zho|kor)\.xml$|^[^\/]+\.jpg$|^(discinfo|disclib|titleinfo)\.xsd$/ },
     { pattern: /\/BDMV(\/BACKUP)?\/$/, allowedFileNames: /^(MovieObject|index)\.bdmv$/ },
     { pattern: /\/VIDEO_TS\/$/, allowedFileNames: /^(VIDEO_TS|VTS_\d{2}_\d)\.(BUP|IFO|VOB)$/ },
-    { pattern: /\/scans?(?:[^\/]+\/){1,5}$/i, allowedFileNames: /[^\/]+\.(bmp|tif|tiff|png|jpg|jpeg|webp|jxl)$/i },  // 确保扫描文件夹中只包含图片文件
+    { pattern: /\/scans?\/(?:[^\/]+\/){0,3}$/i, allowedFileNames: /[^\/]+\.(bmp|tif|tiff|png|jpg|jpeg|webp|jxl)$/i },  // 确保扫描文件夹中只包含图片文件
     { pattern: /^\/(?:[^\/]+\/){0,5}$/, allowedFileNames: /[^\/]+\.(iso|mds|mkv|ts|mp4|png|jpg|jpeg|bmp|webp|tif|tiff|flac|wav|aiff|m4a|cue|log)$/i },  // 0-5层文件夹
 ];
 
 function isFileNameValidForPath(filePath, fileName) {
-    const rule = pathBasedRules.find(rule => rule.pattern.test(getDirectoryFromPath(filePath, fileName)));
+    const directoryPath = getDirectoryFromPath(filePath, fileName)
+    const rule = pathBasedRules.find(rule => rule.pattern.test(directoryPath));
     if (rule) {
         if (rule.allowedFileNames.test(fileName)) {
             console.debug({ filePath, ...rule });
@@ -216,7 +217,7 @@ function hasNestedBDMV(directory) {
 
 function check(directory) {
     // 垃圾文件夹的名称
-    const junkFolders = new Set(["makemkv", "any!", "xrvl", "fab!"]);
+    const junkFolders = new Set(["makemkv", "any!", "xrvl", "fab!", "aac!"]);
 
     // 垃圾文件的完整名称
     const junkFiles = new Set([".ds_store", "thumbs.db", "disc.inf"]);
