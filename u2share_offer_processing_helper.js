@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.1
+// @version      0.4.2
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -271,7 +271,11 @@ function check(directory) {
                 // const unicodeChars = invisibleCharMatches.map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', ');
                 const unicodeChars = Array.from(new Set(invisibleCharMatches))
                     .map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', '); // 去重并转换为 Unicode
-                logger.addLog(`不可见字符 → ${unicodeChars} - ${fullPath}`);
+                // 将 fullPath 中的不可见字符替换成带下划线的 Unicode 字符
+                const highlightedPath = key.replace(invisibleCharPattern, char =>
+                    `<u>\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}</u>`
+                );
+                logger.addLog(`不可见字符 → ${unicodeChars} - ${currentPath}/${highlightedPath}`);
             }
 
             // 检查是否存在日文变音符号
