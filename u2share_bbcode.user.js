@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.2
+// @version      1.2.3
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -2615,9 +2615,10 @@ function SmileIT2(smile, form, text) {
         jq('.embedded').append(`<select class="med codebuttons" style="width: auto; min-width: 160px; margin-left: 10px; margin-right: 10px;"></select>`);
         jq('select').append(`<option title="${upload_extensions_limit}" value="u2.dmhy.org">U2 [${upload_size_limit}MB] (配额 ${upload_qty_limit})</option>`);
         jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="p.sda1.dev">流浪图床 [5MB]</option>`)
-        jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="p.sda1.dev.proxy">流浪图床(代理) [5MB]</option>`)
+        // 找不到不通过代理显示进度条的办法
+        // jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="p.sda1.dev.proxy">流浪图床(代理) [5MB]</option>`)
         jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="sm.ms">SM.MS [5MB]</option>`)
-        jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="sm.ms.proxy">SM.MS(代理) [5MB]</option>`)
+        // jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="sm.ms.proxy">SM.MS(代理) [5MB]</option>`)
 
         jq('#files').change(function () {
             const emfile = jq('#files')[0];
@@ -2817,23 +2818,23 @@ function SmileIT2(smile, form, text) {
                 case 'u2.dmhy.org':
                     return await upload1(file, attach_thumb, website_size, website_extensions);
                 case 'p.sda1.dev':
-                    return await upload3(file, website_size, website_extensions);
-                case 'p.sda1.dev.proxy':
                     return await upload3Proxy(file, website_size, website_extensions);
+                // case 'p.sda1.dev.proxy':
+                //     return await upload3Proxy(file, website_size, website_extensions);
                 case 'sm.ms':
-                    if (auth) {
-                        return await upload4(file, website_size, website_extensions, auth);
-                    } else {
-                        window.alert(`请先设置图床的鉴权信息\nhttps://sm.ms/home/apitoken`);
-                        return;
-                    }
-                case 'sm.ms.proxy':
                     if (auth) {
                         return await upload4Proxy(file, website_size, website_extensions, auth);
                     } else {
                         window.alert(`请先设置图床的鉴权信息\nhttps://sm.ms/home/apitoken`);
                         return;
                     }
+                // case 'sm.ms.proxy':
+                //     if (auth) {
+                //         return await upload4Proxy(file, website_size, website_extensions, auth);
+                //     } else {
+                //         window.alert(`请先设置图床的鉴权信息\nhttps://sm.ms/home/apitoken`);
+                //         return;
+                //     }
                 default:
                     break;
             };
