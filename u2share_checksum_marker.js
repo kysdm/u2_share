@@ -6,8 +6,8 @@
 // @author       kysdm
 // @grant        none
 // @match        *://u2.dmhy.org/torrents.php*
-// @downloadURL  https://github.com/kysdm/u2_share/raw/main/u2share_sha256.js
-// @updateURL    https://github.com/kysdm/u2_share/raw/main/u2share_sha256.js
+// @downloadURL  https://raw.githubusercontent.com/kysdm/u2_share/refs/heads/main/u2share_checksum_marker.js
+// @updateURL    https://raw.githubusercontent.com/kysdm/u2_share/refs/heads/main/u2share_checksum_marker.js
 // @icon         https://u2.dmhy.org/favicon.ico
 // ==/UserScript==
 
