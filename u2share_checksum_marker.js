@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         标记U2种子是否存在文件检验值
 // @namespace    https://u2.dmhy.org/
-// @version      0.1
+// @version      0.2
+// @description  标记U2种子是否存在文件检验值
 // @author       kysdm
 // @grant        none
 // @match        *://u2.dmhy.org/torrents.php*
