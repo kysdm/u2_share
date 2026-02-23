@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2显示文件校验和
 // @namespace    U2显示文件校验和
-// @version      0.0.5
+// @version      0.0.6
 // @description  为文件列表添加校验和信息
 // @author       kysdm
 // @match        *://u2.dmhy.org/details.php?id=*
@@ -96,7 +96,7 @@
     const token = await db.getItem('token');
     if (token === null || token.length !== 96) { window.alert('未找到有效 API Token，将无法使用此脚本。') };
 
-    torrent_checksum = await getApi(uid, token, tid);
+    torrent_checksum = await getApi(token, tid);
     assignTorrentChecksum();
 
     if (torrent_checksum === 'null') {
@@ -131,7 +131,7 @@
 
 })();
 
-async function getApi(uid, token, tid) {
+async function getApi(token, tid) {
     return new Promise(async (resolve) => {
         $.ajax({
             type: 'get',
@@ -146,7 +146,7 @@ async function getApi(uid, token, tid) {
                 };
             },
             error: async function (d) {
-                window.alert('checksum 获取失败')
+                // window.alert('checksum 获取失败')
                 return resolve('null');
             },
         })
