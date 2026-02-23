@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.3
+// @version      0.4.4
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -538,8 +538,7 @@ async function handleTorrentChecksum(userId, token, torrentId) {
         return;
     }
 
-    const torrentList = apiData?.data?.items || [];
-    const files = torrentList[0]?.torrent_files_info?.files || [];
+    const files = apiData?.data?.checksum?.torrent_files_info?.files || [];
     if (files.length === 0) {
         // 一般不可能发生这个，有 files 字段一定有哈希信息
         logger.addLog("API 文件 SHA256 信息为空");
