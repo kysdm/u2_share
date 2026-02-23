@@ -14,9 +14,8 @@ from tqdm import tqdm
 
 
 # ================= 配置区 =================
-UID = 0  # 请替换为实际的整数 UID
 API_TOKEN = ""
-API_BASE_URL = "https://u2.kysdm.com/api/v1"
+API_BASE_URL = "https://u2.kysdm.com/api/v2"
 BATCH_SIZE = 50  # 每次批量查询的数量，最大 100
 # =========================================
 
@@ -32,11 +31,12 @@ def fetch_filehash_batch(hashes: list) -> dict:
     """
     调用新的批量查询接口
     """
-    url = f"{API_BASE_URL}/filehash"
-    payload = {"uid": int(UID), "token": API_TOKEN, "filehashes": hashes}
+    url = f"{API_BASE_URL}/torrents/search/by-file-hashes"
+    headers = {"Authorization": f"Bearer {API_TOKEN}"}
+    payload = {"hashes": hashes}
 
     try:
-        response = requests.post(url, json=payload, timeout=30)
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
         response.raise_for_status()
         return response.json()
     except Exception as e:
@@ -49,12 +49,14 @@ def fetch_torrent_info(torrent_id: int) -> dict:
     """
     查询单个种子详情（用于最后生成校验文件）
     """
-    url = f"{API_BASE_URL}/torrent_checksum/"
-    payload = {"uid": UID, "token": API_TOKEN, "torrent_id": torrent_id}
+    url = f"{API_BASE_URL}/torrents/{torrent_id}/checksum"
+    headers = {"Authorization": f"Bearer {API_TOKEN}"}
 
-    response = requests.post(url, json=payload, timeout=30)
+    response = requests.get(url, headers=headers, timeout=30)
     if response.status_code == 200:
         return response.json()
+    elif response.status_code == 404:
+        return {}
     raise RequestException(f"Failed to fetch torrent info: {response.status_code}")
 
 
@@ -214,11 +216,11 @@ def organize_files(file_hash_map: dict, work_dir: Path):
             # API 请求
             try:
                 resp = fetch_filehash_batch(batch_hashes)
-                if resp.get("state") != "200":
+                if resp.get("code") != 200:
                     logger.error(f"API Error at batch {i}: {resp.get('msg')}")
                     pbar.update(len(batch_hashes))
                     continue
-                current_results = resp.get("data", {}).get("results", {})
+                current_results = resp.get("data", {}).get("items", {})
             except Exception as e:
                 logger.error(f"Batch request failed: {e}")
                 pbar.update(len(batch_hashes))
@@ -272,8 +274,13 @@ def verify_and_generate_reports(work_dir: Path):
         torrent_id = int(folder.name)
         try:
             data = fetch_torrent_info(torrent_id)
-            torrent_data = data["data"]["torrent"][0]
-            files_info_str = torrent_data["torrent_files_info"]
+
+            if not data:
+                # 此情况应该不会出现，除非 API 接口出现问题
+                logger.warning(f"Torrent {torrent_id} not found.")
+                continue
+
+            files_info_str = data["data"]["checksum"]["torrent_files_info"]
 
             if isinstance(files_info_str, str):
                 files_list = json.loads(files_info_str)["files"]
