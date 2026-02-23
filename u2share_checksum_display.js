@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2显示文件校验和
 // @namespace    U2显示文件校验和
-// @version      0.0.4
+// @version      0.0.5
 // @description  为文件列表添加校验和信息
 // @author       kysdm
 // @match        *://u2.dmhy.org/details.php?id=*
@@ -64,7 +64,7 @@
                 doc.find("td.rowfollow.dir_size").attr("colspan", "2");
                 doc.find("tr:first").find("td.colhead:last").attr("colspan", "2");
 
-                torrent_checksum[0].torrent_files_info.files.forEach(function (item) {
+                torrent_checksum.torrent_files_info.files.forEach(function (item) {
                     const path = item.path.split("/").slice(1).join("/");
                     const hash = item.hash;
                     const f_id = f_obj[path];
@@ -134,14 +134,12 @@
 async function getApi(uid, token, tid) {
     return new Promise(async (resolve) => {
         $.ajax({
-            type: 'post',
-            url: 'https://u2.kysdm.com/api/v1/torrent_checksum/',
-            contentType: "application/json",
-            dataType: 'json',
-            data: JSON.stringify({ "uid": uid, "token": token, "torrent_id": tid }),
+            type: 'get',
+            url: `https://u2.kysdm.com/api/v2/torrents/${tid}/checksum`,
+            headers: { "Authorization": "Bearer " + token },
             success: async function (d) {
-                if (d.msg === 'success') {
-                    return resolve(d.data.torrent);
+                if (d.message === 'success') {
+                    return resolve(d.data.checksum);
                 } else {
                     window.alert('checksum 获取失败')
                     return resolve('null');

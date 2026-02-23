@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.3
+// @version      1.2.4
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -223,9 +223,9 @@ GreasyFork 地址
                 if (isNaN(tid)) { window.alert('无效种子ID'); return; }
 
                 let api = await getApi(token, uid, tid);
-                if (api.msg !== 'success') { window.alert(`API获取发生错误\n\n${api.msg}`); console.log(api); return; }
+                if (api.message !== 'success') { window.alert(`API获取发生错误\n\n${api.msg}`); console.log(api); return; }
 
-                let torrents = api.data.history;
+                let torrents = api.data.items;
 
                 if (Object.keys(torrents).length === 0) { window.alert('API没有此种子数据'); return; }
 
@@ -4192,10 +4192,8 @@ function SmileIT2(smile, form, text) {
             // https://www.w3school.com.cn/jquery/ajax_ajax.asp
             jq.ajax({
                 type: 'get',
-                url: `https://u2.kysdm.com/api/v1/history?token=${token}&maximum=1&uid=${uid}&torrent_id=${tid}`,
-                contentType: 'application/json',
-                dataType: 'json',
-                cache: true,
+                url: `https://u2.kysdm.com/api/v2/torrents/${tid}/history?limit=1`,
+                headers: { "Authorization": "Bearer " + token },
                 success: r => resolve(r),
                 error: r => {
                     console.log('发生错误，HTTP状态码[' + r.status + ']。');

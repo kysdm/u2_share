@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.2
+// @version      0.4.3
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -79,14 +79,14 @@ const logger = new Logger();
 
     $('#top').nextAll('table').first().find('tr:first').before(newRow);
 
-    const apiData = await fetchApi('history', { token, maximum: 1, uid: userId, torrent_id: torrentId });
+    const apiData = await fetchApi(`/torrents/${torrentId}/history`, { limit: 1 }, 'GET', token);
 
-    if (apiData.msg !== 'success') {
+    if (apiData.message !== 'success') {
         $('#mod_check').html('API INFO 获取失败');
         return;
     }
 
-    const historyData = apiData.data.history;
+    const historyData = apiData.data.items;
     const torrent = historyData[0];
     const { torrent_tree: torrentTree, torrent_size: torrentSize, torrent_piece_length: torrentPieceLength } = torrent;
 
@@ -98,14 +98,14 @@ const logger = new Logger();
     if (isNaN(torrentSize)) {
         logger.addLog('API 种子体积获取失败');
     } else {
-        const sizeApiData = await fetchApi('search_torrents_size', { token, size: torrentSize, uid: userId });
+        const sizeApiData = await fetchApi(`/torrents/search/by-size`, { size: torrentSize }, 'GET', token);
 
-        if (sizeApiData.msg !== 'success') {
+        if (sizeApiData.message !== 'success') {
             logger.addLog('API SIZE 获取失败');
         } else {
             // console.log(sizeApiData.data.torrents);
 
-            sizeApiData.data.torrents.forEach(({ torrent_id: _torrentId, banned: _banned, deleted: _deleted }) => {
+            sizeApiData.data.items.forEach(({ torrent_id: _torrentId, banned: _banned, deleted: _deleted }) => {
                 if (String(_torrentId) === torrentId) return; // 跳过与自身 ID 相同的种子
                 let ban_status = _banned ? ' (屏蔽)' : '';
                 let del_status = _deleted ? ' (删除)' : '';
@@ -526,23 +526,19 @@ function getMismatchedBdmvBackups(fileList) {
 
 
 async function handleTorrentChecksum(userId, token, torrentId) {
-    const apiData = await fetchApi(
-        "torrent_checksum",
-        { token, uid: userId, torrent_id: torrentId },
-        "POST"
-    );
+    const apiData = await fetchApi(`/torrents/${torrentId}/checksum`, {}, 'GET', token);
 
-    if (apiData.msg !== "success") {
-        logger.addLog("API 获取 SHA256 信息失败");
-        return;
-    }
-
-    const torrentList = apiData?.data?.torrent || [];
-    if (torrentList.length === 0) {
+    if (apiData.code == 404) {
         logger.addLog("API 未找到 SHA256 信息");
         return;
     }
 
+    if (apiData.message !== "success") {
+        logger.addLog("API 获取 SHA256 信息失败");
+        return;
+    }
+
+    const torrentList = apiData?.data?.items || [];
     const files = torrentList[0]?.torrent_files_info?.files || [];
     if (files.length === 0) {
         // 一般不可能发生这个，有 files 字段一定有哈希信息
@@ -555,31 +551,42 @@ async function handleTorrentChecksum(userId, token, torrentId) {
 }
 
 
-async function fetchApi(endpoint, params = {}, method = 'GET') {
+async function fetchApi(path, params = {}, method = 'GET', token = null) {
     try {
-        let url = `https://u2.kysdm.com/api/v1/${endpoint}`;
+        let url = `https://u2.kysdm.com/api/v2${path}`;
+
         let options = {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            cache: 'no-cache'
+            method: method.toUpperCase(),
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
         };
 
-        if (method.toUpperCase() === 'GET') {
+        if (token) {
+            options.headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        if (options.method === 'GET') {
             const queryString = new URLSearchParams(params).toString();
-            if (queryString) url += `?${queryString}`;
+            if (queryString) {
+                // 处理原路径是否自带问号的情况
+                url += (url.includes('?') ? '&' : '?') + queryString;
+            }
         } else {
             options.body = JSON.stringify(params);
         }
 
         const response = await fetch(url, options);
 
-        if (!response.ok) {
-            logger.addLog(`API 请求失败 → ${endpoint}: HTTP ${response.status}`);
-            return { msg: 'error' };
+        if (response.status === 401) {
+            logger.addLog(`鉴权失败 → 请重新登录`);
+            return { code: 401, message: 'unauthorized' };
         }
+
         return await response.json();
     } catch (error) {
-        logger.addLog(`API 请求异常 → ${endpoint}: ${error.message}`);
-        return { msg: 'error' };
+        logger.addLog(`API 请求异常 → ${path}: ${error.message}`);
+        return { code: 500, message: 'exception' };
     }
 }

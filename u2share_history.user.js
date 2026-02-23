@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.0
+// @version      0.8.1
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -193,13 +193,13 @@ function auth() {
         return new Promise(async (resolve, reject) => {
             $.ajax({
                 type: 'post',
-                url: 'https://u2.kysdm.com/api/v1/token',
+                url: 'https://u2.kysdm.com/api/v2/auth/key/',
                 contentType: "application/json",
                 dataType: 'json',
                 // async: false,
                 data: JSON.stringify({ "uid": user_id }),
                 success: async function (d) {
-                    if (d.msg === 'success') {
+                    if (d.message === 'success') {
                         key = d.data.key
                         db.setItem('key', key);
                         await outPutLog('获取Key成功');
@@ -224,12 +224,12 @@ function auth() {
         return new Promise(async (resolve, reject) => {
             $.ajax({
                 type: 'post',
-                url: 'https://u2.kysdm.com/api/v1/token',
+                url: 'https://u2.kysdm.com/api/v2/auth/token/',
                 contentType: "application/json",
                 dataType: 'json',
                 data: JSON.stringify({ "uid": user_id, "key": key }),
                 success: async function (d) {
-                    if (d.msg === 'success') {
+                    if (d.message === 'success') {
                         let __token = d.data.token
                         await outPutLog('获取Token成功');
                         await outPutLog(`Token: ${__token}`);
@@ -304,15 +304,13 @@ function forumCommentHistoryReset() {
     $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>' + lang['history_text_loading'] + '</i>');
 
     $.ajax({
-        type: 'post',
-        url: 'https://u2.kysdm.com/api/v1/comment',
-        contentType: "application/json",
-        dataType: 'json',
-        data: JSON.stringify({ "uid": user_id, "token": token, "topicid": topicid, "type": "forum" }),
+        type: 'get',
+        url: `https://u2.kysdm.com/api/v2/comments/forum/${topicid}`,
+        headers: { "Authorization": "Bearer " + token },
         success: function (d) {
-            if (d.msg === 'success') {
+            if (d.message === 'success') {
                 console.log('获取论坛评论成功');
-                let __comment = d.data.comment[topicid].sort(firstBy((a, b) => a.pid - b.pid).thenBy((a, b) => b.self - a.self)); // 如果用self排序，消息顺序不正确，则改用编辑日期排序
+                let __comment = d.data.items.sort(firstBy((a, b) => a.pid - b.pid).thenBy((a, b) => b.self - a.self)); // 如果用self排序，消息顺序不正确，则改用编辑日期排序
 
                 if (__comment.length === 0) { // 没有评论 可以说不会出现这种情况
                     console.log('没有历史记录.');
@@ -472,15 +470,13 @@ async function forumCommentHistory() {
     db = localforage.createInstance({ name: "history" });
 
     $.ajax({
-        type: 'post',
-        url: 'https://u2.kysdm.com/api/v1/comment',
-        contentType: "application/json",
-        dataType: 'json',
-        data: JSON.stringify({ "uid": user_id, "token": token, "topicid": topicid, "type": "forum" }),
+        type: 'get',
+        url: `https://u2.kysdm.com/api/v2/comments/forum/${topicid}`,
+        headers: { "Authorization": "Bearer " + token },
         success: async function (d) {
-            if (d.msg === 'success') {
+            if (d.message === 'success') {
                 console.log('获取论坛评论成功');
-                let __comment = d.data.comment[topicid].sort((a, b) => b.self - a.self);
+                let __comment = d.data.items.sort((a, b) => b.self - a.self);
                 let pid_list = __comment.map(x => x.pid);
                 let counts = new Object();
                 pid_list.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
@@ -647,15 +643,13 @@ async function forumCommentHistory() {
 
 function torrentCommentHistory() {
     $.ajax({
-        type: 'post',
-        url: 'https://u2.kysdm.com/api/v1/comment',
-        contentType: "application/json",
-        dataType: 'json',
-        data: JSON.stringify({ "uid": user_id, "token": token, "torrent_id": torrent_id, "type": "torrent" }),
+        type: 'get',
+        url: `https://u2.kysdm.com/api/v2/comments/torrents/${torrent_id}`,
+        headers: { "Authorization": "Bearer " + token },
         success: function (d) {
-            if (d.msg === 'success') {
+            if (d.message === 'success') {
                 console.log('获取种子评论成功');
-                let __comment = d.data.comment[torrent_id].sort((a, b) => b.self - a.self);
+                let __comment = d.data.items.sort((a, b) => b.self - a.self);
                 let cid_list = __comment.map(x => x.cid);
                 let counts = new Object();
                 cid_list.forEach(x => counts[x] = counts[x] ? counts[x] + 1 : 1);
@@ -884,7 +878,7 @@ async function torrentInfoHistory() {
 
     const __json = await getapi(); // 从 API 获取数据
 
-    if (__json.msg !== 'success') { // 加载失败时
+    if (__json.message !== 'success') { // 加载失败时
         console.log('获取历史记录失败.');
         $("#history_select").empty(); // 插入前先清空 option
         $("#history_select").append('<option value="80000">' + lang['history_select_error'] + '</option>'); // 希望你不要看到这个 (ノДＴ)
@@ -908,7 +902,7 @@ async function torrentInfoHistory() {
         return;
     };
 
-    let history_data = __json.data.history;
+    let history_data = __json.data.items;
 
     for (let i = 0, len = history_data.length; i < len; i++) { // 循环插入到选择列表中
 
@@ -1102,16 +1096,14 @@ function torrentCommentHistoryReset() {
 
             $('#description').after(`<br><br><h1 align="center" id="startcomments" style="font-weight:normal; font-style: italic">正在加载用户评论...</h1><br>`);
             $.ajax({
-                type: 'post',
-                url: 'https://u2.kysdm.com/api/v1/comment',
-                contentType: "application/json",
-                dataType: 'json',
-                data: JSON.stringify({ "uid": user_id, "token": token, "torrent_id": torrent_id, "type": "torrent" }),
+                type: 'get',
+                url: `https://u2.kysdm.com/api/v2/comments/torrents/${torrent_id}`,
+                headers: { "Authorization": "Bearer " + token },
                 success: function (d) {
-                    if (d.msg !== 'success') { console.log('获取种子评论错误'); }
+                    if (d.message !== 'success') { console.log('获取种子评论错误'); }
                     else {
                         console.log('获取种子评论成功');
-                        let __comment = d.data.comment[torrent_id].sort(firstBy((a, b) => a.cid - b.cid).thenBy((a, b) => b.self - a.self)); // 如果用self排序，消息顺序不正确，则改用编辑日期排序
+                        let __comment = d.data.items.sort(firstBy((a, b) => a.cid - b.cid).thenBy((a, b) => b.self - a.self)); // 如果用self排序，消息顺序不正确，则改用编辑日期排序
                         if (__comment.length === 0) { // 没有评论
                             $('#startcomments').text('没有评论');
                             $('#startcomments').removeAttr("style");
@@ -1256,7 +1248,7 @@ async function torrentInfoHistoryReset() {
 
     const __json = await getapi(); // 从 API 获取数据
 
-    if (__json.msg !== 'success') { // 加载失败时
+    if (__json.message !== 'success') { // 加载失败时
         console.log('获取历史记录失败.');
         $('#outer').find('td.text').html(`${errorstr}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>${lang['history_text_error']}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="apifailure" href="javascript:void(0);" style="color:#FF1212">${lang['reset_token']}</a></i>`);
         $("#apifailure").click(function () {
@@ -1276,7 +1268,7 @@ async function torrentInfoHistoryReset() {
     };
 
     console.log('获取历史记录成功.');
-    let history_data = __json.data.history;
+    let history_data = __json.data.items;
     // let gdListObj = JSON.parse(localStorage.getItem("u2_gd_list")); // 读取谷歌备份列表
     // 还原网页
     $('#outer').html('<h1 align="center" id="top">'
@@ -2090,10 +2082,8 @@ function getapi() {
         // https://www.w3school.com.cn/jquery/ajax_ajax.asp
         $.ajax({
             type: 'get',
-            url: 'https://u2.kysdm.com/api/v1/history?token=' + token + '&maximum=50&uid=' + user_id + '&torrent_id=' + torrent_id,
-            contentType: 'application/json',
-            dataType: 'json',
-            cache: true,
+            url: `https://u2.kysdm.com/api/v2/torrents/${torrent_id}/history?limit=50`,
+            headers: { "Authorization": "Bearer " + token },
             success: r => resolve(r),
             error: r => {
                 console.log('发生错误，HTTP状态码[' + r.status + ']。');
