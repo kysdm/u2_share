@@ -43,7 +43,6 @@ function getList() {
             url: 'https://u2.kysdm.com/api/v1/filehash_list',
             contentType: 'text/plain',
             dataType: 'text',
-            cache: false,
             success: r => resolve(r),
             error: r => {
                 console.log('下载列表发生错误，HTTP状态码[' + r.status + ']。');
