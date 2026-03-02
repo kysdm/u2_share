@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.4
+// @version      0.4.5
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -238,7 +238,7 @@ function check(directory) {
     const invisibleCharPattern = /[\u0000-\u001F\u007F\u200B-\u200F\u2028-\u202F\uFEFF\u200E]/g;
 
     // 日文变音符号
-    const japaneseDiacriticPattern = /[\u3099-\u309c]/g;
+    const japaneseDiacriticPattern = /(.[\u3099\u309A])/g;
 
     // Windows 系统中不允许的字符
     const invalidCharsPattern = /[<>:"/\\|?*]/g;
@@ -282,8 +282,13 @@ function check(directory) {
             const japaneseDiacriticMatches = key.match(japaneseDiacriticPattern);
             if (japaneseDiacriticMatches) {
                 const unicodeChars = Array.from(new Set(japaneseDiacriticMatches))
-                    .map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', '); // 去重并转换为 Unicode
-                logger.addLog(`日文变音符号 → ${unicodeChars} - ${fullPath}`);
+                    .map(m => `\\u${m.charCodeAt(1).toString(16).padStart(4, '0')}`)
+                    .join(', ');
+                const highlightedPath = fullPath.replace(japaneseDiacriticPattern, (match) => {
+                    const diacriticUnicode = match.charCodeAt(1).toString(16).padStart(4, '0');
+                    return `<u>${match}(\\u${diacriticUnicode})</u>`;
+                });
+                logger.addLog(`日文变音符号 → ${unicodeChars} - ${highlightedPath}`);
             }
 
             // 如果是目录，则将目录压入栈中
