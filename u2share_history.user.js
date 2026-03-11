@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.1
+// @version      0.8.2
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -1261,7 +1261,7 @@ async function torrentInfoHistoryReset() {
         });
 
         return;
-    } else if (__json.data.history.length === 0) { // 获取成功 但没有历史记录时
+    } else if (__json.data.items.length === 0) { // 获取成功 但没有历史记录时
         console.log('没有历史记录.');
         $('#outer').find('td.text').html(errorstr + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + lang['history_text_empty'] + '</i>');
         return;
