@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.4
+// @version      1.2.5
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -3799,6 +3799,21 @@ function SmileIT2(smile, form, text) {
 
     // 候选处理脚本
     function pageTorrentCheck(directory) {
+        (() => {
+            const style = document.createElement('style');
+            style.innerHTML = `
+                .char-box-rounded {
+                    display: inline-block;
+                    border: 1.5px solid;
+                    border-radius: 6px;
+                    padding: 1px 2px;
+                    margin: 0 2px;
+                    line-height: 1.1;
+                }
+            `;
+            document.head.appendChild(style);
+        })();
+
         class Logger {
             constructor() {
                 this.logs = [];
@@ -4047,7 +4062,7 @@ function SmileIT2(smile, form, text) {
         const invisibleCharPattern = /[\u0000-\u001F\u007F\u200B-\u200F\u2028-\u202F\uFEFF\u200E]/g;
 
         // 日文变音符号
-        const japaneseDiacriticPattern = /[\u3099-\u309c]/g;
+        const japaneseDiacriticPattern = /(.[\u3099\u309A])/g;
 
         // Windows 系统中不允许的字符
         const invalidCharsPattern = /[<>:"/\\|?*]/g;
@@ -4070,7 +4085,10 @@ function SmileIT2(smile, form, text) {
                 if (invalidCharsMatches) {
                     // const invalidChars = invalidCharsMatches.join(', ');
                     const invalidChars = Array.from(new Set(invalidCharsMatches)).join(', ');
-                    logger.addLog(`非法字符 → ${invalidChars} - ${fullPath}`); // 输出包含非法字符的路径和字符
+                    const highlightedPath = key.replace(invalidCharsPattern, char =>
+                        `<span class="char-box-rounded">${char}</span>`
+                    );
+                    logger.addLog(`非法字符 → ${invalidChars} - ${highlightedPath}`); // 输出包含非法字符的路径和字符
                 }
 
                 // 检查是否存在不可见字符
@@ -4082,7 +4100,7 @@ function SmileIT2(smile, form, text) {
                         .map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', '); // 去重并转换为 Unicode
                     // 将 fullPath 中的不可见字符替换成带下划线的 Unicode 字符
                     const highlightedPath = key.replace(invisibleCharPattern, char =>
-                        `<u>\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}</u>`
+                        `<span class="char-box-rounded">\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}</span>`
                     );
                     logger.addLog(`不可见字符 → ${unicodeChars} - ${currentPath}/${highlightedPath}`);
                 }
@@ -4091,8 +4109,13 @@ function SmileIT2(smile, form, text) {
                 const japaneseDiacriticMatches = key.match(japaneseDiacriticPattern);
                 if (japaneseDiacriticMatches) {
                     const unicodeChars = Array.from(new Set(japaneseDiacriticMatches))
-                        .map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', '); // 去重并转换为 Unicode
-                    logger.addLog(`日文变音符号 → ${unicodeChars} - ${fullPath}`);
+                        .map(m => `\\u${m.charCodeAt(1).toString(16).padStart(4, '0')}`)
+                        .join(', ');
+                    const highlightedPath = fullPath.replace(japaneseDiacriticPattern, (match) => {
+                        const diacriticUnicode = match.charCodeAt(1).toString(16).padStart(4, '0');
+                        return `<span class="char-box-rounded">${match} \\u${diacriticUnicode}</span>`;
+                    });
+                    logger.addLog(`日文变音符号 → ${unicodeChars} - ${highlightedPath}`);
                 }
 
                 // 如果是目录，则将目录压入栈中
