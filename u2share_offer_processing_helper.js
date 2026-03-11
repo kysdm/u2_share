@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.5
+// @version      0.4.6
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -17,17 +17,26 @@
 // https://u2.dmhy.org/offers.php?id=16312&off_details=1
 // https://u2.dmhy.org/offers.php?id=58971&off_details=1
 // https://u2.dmhy.org/offers.php?id=51488&off_details=1
-// https://u2.dmhy.org/offers.php?id=59743&off_details=1
-// https://u2.dmhy.org/offers.php?id=59308&off_details=1
-// https://u2.dmhy.org/offers.php?id=59911&off_details=1
-// https://u2.dmhy.org/offers.php?id=59985&off_details=1
-// https://u2.dmhy.org/details.php?id=60091&hit=1
-// https://u2.dmhy.org/offers.php?id=60537&off_details=1
 // https://u2.dmhy.org/details.php?id=60981 - 55cde51dafb8eb6a72adfc3034ba6d7507bfe27d
 // https://u2.dmhy.org/details.php?id=29446&hit=1 - 79021415017f7a4302fa59705f9e355952b41ad4
 // https://u2.dmhy.org/details.php?id=43720 - m2ts 体积错误
 
 'use strict';
+
+(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+        .char-box-rounded {
+            display: inline-block;
+            border: 1.5px solid;
+            border-radius: 6px;
+            padding: 1px 2px;
+            margin: 0 2px;
+            line-height: 1.1;
+        }
+    `;
+    document.head.appendChild(style);
+})();
 
 class Logger {
     constructor() {
@@ -261,7 +270,10 @@ function check(directory) {
             if (invalidCharsMatches) {
                 // const invalidChars = invalidCharsMatches.join(', ');
                 const invalidChars = Array.from(new Set(invalidCharsMatches)).join(', ');
-                logger.addLog(`非法字符 → ${invalidChars} - ${fullPath}`); // 输出包含非法字符的路径和字符
+                const highlightedPath = key.replace(invalidCharsPattern, char =>
+                    `<span class="char-box-rounded">${char}</span>`
+                );
+                logger.addLog(`非法字符 → ${invalidChars} - ${highlightedPath}`); // 输出包含非法字符的路径和字符
             }
 
             // 检查是否存在不可见字符
@@ -273,7 +285,7 @@ function check(directory) {
                     .map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', '); // 去重并转换为 Unicode
                 // 将 fullPath 中的不可见字符替换成带下划线的 Unicode 字符
                 const highlightedPath = key.replace(invisibleCharPattern, char =>
-                    `<u>\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}</u>`
+                    `<span class="char-box-rounded">\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}</span>`
                 );
                 logger.addLog(`不可见字符 → ${unicodeChars} - ${currentPath}/${highlightedPath}`);
             }
@@ -286,7 +298,7 @@ function check(directory) {
                     .join(', ');
                 const highlightedPath = fullPath.replace(japaneseDiacriticPattern, (match) => {
                     const diacriticUnicode = match.charCodeAt(1).toString(16).padStart(4, '0');
-                    return `<u>${match}(\\u${diacriticUnicode})</u>`;
+                    return `<span class="char-box-rounded">${match} \\u${diacriticUnicode}</span>`;
                 });
                 logger.addLog(`日文变音符号 → ${unicodeChars} - ${highlightedPath}`);
             }
