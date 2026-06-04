@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.6
+// @version      1.2.7
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -1430,7 +1430,7 @@ GreasyFork 地址
                         document.getElementById('browsecat').dispatchEvent(new Event('change')); // 手动触发列表更改事件
                         jq('#autocheck_placeholder').children().eq(0).prop("checked", value['auto_pass']);
                         jq('#autocheck_placeholder').children().eq(1).prop("checked", !value['auto_pass']);
-                        for (var key in value) { if (/^(anime|manga|music|other)/.test(key)) { jq('#' + key + '-input').val(value[key]); }; };
+                        for (const key in value) { if (/^(anime|manga|music|other)/.test(key)) { jq('#' + key + '-input').val(value[key]); }; };
                     });
                     await db.getItem(`upload_autoSaveMessageBbcode`).then((value) => { jq('.bbcode').val(value); }) // 还原bbcode输入框内容
                     await db.getItem(`upload_autoSaveMessageTorrentBlob`).then(async (blob) => {
@@ -3415,7 +3415,7 @@ function SmileIT2(smile, form, text) {
     const objectKeys = Object.keys || function (obj) {
         var has = Object.prototype.hasOwnProperty || function () { return true };
         var keys = [];
-        for (var key in obj) {
+        for (const key in obj) {
             if (has.call(obj, key)) keys.push(key);
         }
         return keys;
@@ -3444,7 +3444,7 @@ function SmileIT2(smile, form, text) {
         // 插入ID
         let counter = 0;
         const InsertSeq = (data) => {
-            for (key in data) {
+            for (const key in data) {
                 data[key]['id'] = counter;
                 counter++;
                 if (data[key]['type'] == 'directory') InsertSeq(data[key]['children']);
@@ -3454,7 +3454,7 @@ function SmileIT2(smile, form, text) {
         // 获取文件ID
         const getFile = (data) => {
             let a = []
-            for (key in data) {
+            for (const key in data) {
                 if (data[key]['type'] == 'file') a.push(data[key]['id']);
             };
             a = a.concat(getDirectory(data));
@@ -3462,7 +3462,7 @@ function SmileIT2(smile, form, text) {
         };
         // 获取文件夹ID
         const getDirectory = (data, directory = []) => {
-            for (key in data) {
+            for (const key in data) {
                 if (data[key]['type'] == 'directory') directory.push(data[key]['id']);
             };
             return directory;
@@ -3470,7 +3470,7 @@ function SmileIT2(smile, form, text) {
         // 获取文件体积
         const getSize = (data, size = 0) => {
             // console.log(data);
-            for (key in data) {
+            for (const key in data) {
                 if (data[key]['type'] == 'file') {
                     size = size + data[key]['length'];
                 } else {
@@ -3481,7 +3481,7 @@ function SmileIT2(smile, form, text) {
         };
         // 遍历JSON
         const tree = (j, i) => {
-            for (let key in j) {
+            for (const key in j) {
                 if (j[key]['type'] == 'directory') {
                     let children = j[key]['children'];
                     let f_id_sh = getFile(children);  // 获取文件夹需要的id
@@ -3590,7 +3590,7 @@ function SmileIT2(smile, form, text) {
                 // 遍历v2的树结构，生成自定义的树结构
                 const traverseFileTree = (obj, depth = 0, path = '') => {
                     // console.log(obj);
-                    for (let key in obj) {
+                    for (const key in obj) {
                         if (typeof obj[key] === 'object') {
                             if (key === '') {
                                 fileCount++;
