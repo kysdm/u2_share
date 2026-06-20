@@ -174,7 +174,7 @@ const pathBasedRules = [
     { pattern: /\/BDMV\/META\/DL\/$/, allowedFileNames: /^bdmt_(eng|jpn|deu|fra|ita|nld|spa|zho|kor)\.xml$|^[^\/]+\.jpg$|^(discinfo|disclib|titleinfo)\.xsd$/ },
     { pattern: /\/BDMV(\/BACKUP)?\/$/, allowedFileNames: /^(MovieObject|index)\.bdmv$/ },
     { pattern: /\/VIDEO_TS\/$/, allowedFileNames: /^(VIDEO_TS|VTS_\d{2}_\d)\.(BUP|IFO|VOB)$/ },
-    { pattern: /\/(scans|bk)?\/(?:[^\/]+\/){0,3}$/i, allowedFileNames: /[^\/]+\.(bmp|tif|tiff|png|jpg|jpeg|webp|jxl)$/i },  // 确保扫描文件夹中只包含图片文件
+    { pattern: /\/(?:scans?|bk)\/(?:[^\/]+\/){0,3}$/i, allowedFileNames: /[^\/]+\.(bmp|tif|tiff|png|jpg|jpeg|webp|jxl)$/i },  // 确保扫描文件夹中只包含图片文件
     { pattern: /^\/(?:[^\/]+\/){0,5}$/, allowedFileNames: /[^\/]+\.(iso|mds|mkv|ts|mp4|png|jpg|jpeg|bmp|webp|tif|tiff|flac|wav|aiff|m4a|cue|log)$/i },  // 0-5层文件夹
 ];
 
