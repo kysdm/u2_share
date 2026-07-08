@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.7
+// @version      0.4.8
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -20,6 +20,7 @@
 // https://u2.dmhy.org/details.php?id=60981 - 55cde51dafb8eb6a72adfc3034ba6d7507bfe27d
 // https://u2.dmhy.org/details.php?id=29446&hit=1 - 79021415017f7a4302fa59705f9e355952b41ad4
 // https://u2.dmhy.org/details.php?id=43720 - m2ts 体积错误
+// https://u2.dmhy.org/offers.php?id=65466&off_details=1 - BD 缺失 BACKUP 目录
 
 'use strict';
 
@@ -237,10 +238,26 @@ function check(directory) {
     // 可疑文件扩展名 <总感觉会漏，还是维护白名单吧>
     // const suspiciousFileExtensions = new Set([".txt", ".xml"]);
 
-    // 必须存在的 BDMV 文件和目录
-    const bdmvStructure = {
-        files: ["index.bdmv", "MovieObject.bdmv"],
-        directories: ["BACKUP", "CLIPINF", "PLAYLIST", "STREAM"]
+    // BD 目录的最小完整性要求。
+    // BDMV 和 CERTIFICATE 在标准 Blu-ray 目录结构中应当作为同级目录出现，
+    // 因此这里用同一张配置表维护两类目录的必需项、同级依赖和专属检查函数。
+    // 遍历目录树时只需要查表并调用 checkBluRayDirectory，避免在主循环里分别写两套分支。
+    const bluRayStructures = {
+        bdmv: {
+            label: 'BDMV',
+            peerDirectory: 'CERTIFICATE',
+            files: ["index.bdmv", "MovieObject.bdmv"],
+            directories: ["BACKUP", "CLIPINF", "PLAYLIST", "STREAM"],
+            shouldSkip: hasNestedBDMV,
+            checker: checkBDMV
+        },
+        certificate: {
+            label: 'CERTIFICATE',
+            peerDirectory: 'BDMV',
+            files: ["id.bdmv"],
+            directories: ["BACKUP"],
+            checker: checkCertificate
+        }
     };
 
     // 不可见字符
@@ -309,10 +326,11 @@ function check(directory) {
                     logger.addLog(`垃圾文件夹 → ${fullPath}`); // 输出垃圾文件夹的绝对路径
                     continue;  // 如果是垃圾文件夹，那么内部的文件都没用
                 }
-                // 检测是否为 BDMV 文件夹
-                else if (lowerKey === "bdmv" && !hasNestedBDMV(item.children)) {
-                    // 检测 BDMV 文件夹是否有缺失
-                    checkBDMV(item.children, fullPath, bdmvStructure);
+                else {
+                    const bluRayStructure = bluRayStructures[lowerKey];
+                    if (bluRayStructure && !bluRayStructure.shouldSkip?.(item.children)) {
+                        checkBluRayDirectory(directory, currentPath, key, item.children, bluRayStructure);
+                    }
                 }
                 // 将子目录压入栈中
                 stack.push({ directory: item.children, currentPath: fullPath });
@@ -357,40 +375,66 @@ function check(directory) {
 }
 
 
+/**
+ * Blu-ray 目录完整性检查的统一入口。
+ *
+ * 主循环只负责发现当前目录名是否命中 bluRayStructures 配置表；
+ * 命中后由本函数统一完成两件事：
+ * - 检查 BDMV / CERTIFICATE 是否在同一父目录中成对出现
+ * - 调用该目录自己的 checker 处理必需项、BACKUP 和其它专属规则
+ *
+ * @param {Object} parentDirectory - 当前 BD 目录的父目录对象，用于查找同级目录。
+ * @param {string} parentPath - 父目录路径，用于输出缺失同级目录的日志。
+ * @param {string} directoryName - 实际命中的目录名，保留原始大小写用于拼接路径。
+ * @param {Object} directory - 当前 BD 目录对象。
+ * @param {Object} structure - bluRayStructures 中对应的规则配置。
+ */
+function checkBluRayDirectory(parentDirectory, parentPath, directoryName, directory, structure) {
+    // BDMV 与 CERTIFICATE 必须同级出现。
+    // 通过配置表中的 peerDirectory 做互检，可以同时覆盖：
+    // - 只有 BDMV、缺少 CERTIFICATE
+    // - 只有 CERTIFICATE、缺少 BDMV
+    const peerItem = getDirectoryItem(parentDirectory, structure.peerDirectory);
+    if (!peerItem || peerItem.type !== 'directory') {
+        logger.addLog(`${structure.peerDirectory} 缺失目录 → ${parentPath}/${structure.peerDirectory}`);
+    }
+
+    structure.checker(directory, `${parentPath}/${directoryName}`, structure);
+}
+
+
+/**
+ * 检查 BDMV 目录的结构完整性。
+ *
+ * 通用部分交给 checkDiscStructure：
+ * - BDMV 根目录下必须存在 index.bdmv / MovieObject.bdmv
+ * - BDMV 根目录下必须存在 BACKUP / CLIPINF / PLAYLIST / STREAM
+ *
+ * BDMV 特有部分在本函数处理：
+ * - BACKUP 中的关键文件、CLIPINF、PLAYLIST 需要与主目录对应
+ * - STREAM 与 CLIPINF 的编号需要一一对应
+ * - STREAM 下的 m2ts 文件体积应为 192 字节的倍数
+ */
 function checkBDMV(directory, currentPath, structure) {
-    // console.log(directory, currentPath, structure);
-
-    const presentFiles = new Set(Object.keys(directory).map(key => key.toLowerCase()));
-
-    // 检测必需的文件是否缺失
-    structure.files.forEach(file => {
-        if (!presentFiles.has(file.toLowerCase())) {
-            logger.addLog(`BDMV 缺失文件 → ${currentPath}/${file}`);
-        }
-    });
-
-    // 检测必需的子目录是否缺失
-    structure.directories.forEach(dir => {
-        if (!presentFiles.has(dir.toLowerCase())) {
-            logger.addLog(`BDMV 缺失目录 → ${currentPath}/${dir}`);
-        }
-    });
+    checkDiscStructure('BDMV', directory, currentPath, structure);
 
     // 检测 BACKUP 目录是否存在
-    if (presentFiles.has('backup')) {
+    const backupItem = getDirectoryItem(directory, 'BACKUP');
+    if (backupItem && backupItem.type === 'directory') {
         // log(`检测到 BACKUP 目录 ${currentPath}/BACKUP`);
 
         // 检查 BACKUP 目录结构是否与主目录一致
-        const backupDirectory = directory['BACKUP'].children;
-        checkBackup(backupDirectory, directory, currentPath);  // 比较 BACKUP 目录与主 BDMV 目录
+        checkBackup(backupItem.children, directory, currentPath);  // 比较 BACKUP 目录与主 BDMV 目录
     }
 
     // 检测 STREAM 和 CLIPINF 目录
-    if (presentFiles.has('stream') && presentFiles.has('clipinf')) {
+    const streamItem = getDirectoryItem(directory, 'STREAM');
+    const clipinfItem = getDirectoryItem(directory, 'CLIPINF');
+    if (streamItem && streamItem.type === 'directory' && clipinfItem && clipinfItem.type === 'directory') {
         // log(`检测到 STREAM 和 CLIPINF 目录 ${currentPath}/STREAM 和 ${currentPath}/CLIPINF`);
 
-        const streamDirectory = directory['STREAM'].children;
-        const clipinfDirectory = directory['CLIPINF'].children;
+        const streamDirectory = streamItem.children;
+        const clipinfDirectory = clipinfItem.children;
 
         // 调用 checkClipInfo 函数，检测 STREAM 和 CLIPINF 文件的对应关系
         checkClipInfo(streamDirectory, clipinfDirectory, currentPath);
@@ -398,6 +442,84 @@ function checkBDMV(directory, currentPath, structure) {
         // 检测 M2TS 文件体积
         checkStreamFileSize(streamDirectory, currentPath);
     }
+}
+
+/**
+ * 检查 CERTIFICATE 目录的结构完整性。
+ *
+ * CERTIFICATE 的规则比 BDMV 简单：
+ * - 根目录必须存在 id.bdmv
+ * - 根目录必须存在 BACKUP
+ * - 如果 BACKUP 存在，则 BACKUP/id.bdmv 需要与根目录 id.bdmv 对应
+ */
+function checkCertificate(directory, currentPath, structure) {
+    checkDiscStructure('CERTIFICATE', directory, currentPath, structure);
+
+    // 如果 BACKUP 目录已经由 checkDiscStructure 报过缺失，这里直接结束，避免重复报错。
+    const backupItem = getDirectoryItem(directory, 'BACKUP');
+    if (!backupItem || backupItem.type !== 'directory') return;
+
+    compareBackupFiles('CERTIFICATE/BACKUP', backupItem.children, directory, currentPath, structure.files);
+}
+
+/**
+ * 从目录对象中按名称取子项，忽略大小写。
+ *
+ * 种子文件列表里目录名通常是标准大写，但真实发布中偶尔会出现大小写变化。
+ * 检查完整性时不应因为 BACKUP / backup 这种大小写差异导致脚本取不到对象并报错。
+ */
+function getDirectoryItem(directory, itemName) {
+    const lowerItemName = itemName.toLowerCase();
+    const key = Object.keys(directory).find(key => key.toLowerCase() === lowerItemName);
+    return key ? directory[key] : null;
+}
+
+/**
+ * 通用目录结构检查。
+ *
+ * @param {string} label - 日志中使用的目录名，例如 BDMV 或 CERTIFICATE。
+ * @param {Object} directory - 当前要检查的目录对象。
+ * @param {string} currentPath - 当前目录在种子中的路径，用于输出日志。
+ * @param {{ files: string[], directories: string[] }} structure - 必需文件和必需目录清单。
+ */
+function checkDiscStructure(label, directory, currentPath, structure) {
+    const presentFiles = new Set(Object.keys(directory).map(key => key.toLowerCase()));
+
+    // 文件和目录都放在同一个 presentFiles 集合里做存在性判断：
+    // 对当前用途而言，只需要判断名称是否存在，类型错误会在后续白名单/可疑文件逻辑中暴露。
+    structure.files.forEach(file => {
+        if (!presentFiles.has(file.toLowerCase())) {
+            logger.addLog(`${label} 缺失文件 → ${currentPath}/${file}`);
+        }
+    });
+
+    structure.directories.forEach(dir => {
+        if (!presentFiles.has(dir.toLowerCase())) {
+            logger.addLog(`${label} 缺失目录 → ${currentPath}/${dir}`);
+        }
+    });
+}
+
+/**
+ * 比较主目录与 BACKUP 目录中指定文件的存在性和大小。
+ *
+ * 这里只比较“必须备份”的文件：
+ * - BDMV 使用 index.bdmv / MovieObject.bdmv
+ * - CERTIFICATE 使用 id.bdmv
+ *
+ * 更完整的内容一致性比较会在 handleTorrentChecksum 中通过 SHA256 完成。
+ */
+function compareBackupFiles(label, backupDirectory, mainDirectory, currentPath, files) {
+    files.forEach(file => {
+        const mainFile = getDirectoryItem(mainDirectory, file);
+        const backupFile = getDirectoryItem(backupDirectory, file);
+
+        if (!backupFile && mainFile) {
+            logger.addLog(`${label} 缺失文件 → ${currentPath}/BACKUP/${file}`);
+        } else if (backupFile && mainFile && mainFile.length !== backupFile.length) {
+            logger.addLog(`${label} 文件大小不匹配 → ${currentPath}/BACKUP/${file}`);
+        }
+    });
 }
 
 // 检测 M2TS 文件体积是否为 192 的倍数
@@ -420,20 +542,12 @@ function checkBackup(backupDirectory, mainDirectory, currentPath) {
         directories: ['CLIPINF', 'PLAYLIST']
     };
 
-    // 检查必需备份的文件
-    requiredBackupItems.files.forEach(file => {
-        const mainFileExists = mainDirectory[file];
-        const backupFileExists = backupDirectory[file];
-
-        if (!backupFileExists && mainFileExists) {
-            logger.addLog(`BDMV/BACKUP 缺失文件 → ${currentPath}/BACKUP/${file}`);
-        }
-    });
+    compareBackupFiles('BDMV/BACKUP', backupDirectory, mainDirectory, currentPath, requiredBackupItems.files);
 
     // 检查必需备份的文件夹并比较文件
     requiredBackupItems.directories.forEach(dir => {
-        const mainSubDir = mainDirectory[dir];
-        const backupSubDir = backupDirectory[dir];
+        const mainSubDir = getDirectoryItem(mainDirectory, dir);
+        const backupSubDir = getDirectoryItem(backupDirectory, dir);
         const innerPath = `${currentPath}/BACKUP/${dir}`;
 
         if (!backupSubDir && mainSubDir) {
@@ -499,25 +613,40 @@ function checkClipInfo(streamDirectory, clipinfDirectory, currentPath) {
 
 
 /**
- * 比较 BDMV 中 BACKUP 文件夹与外部主文件的哈希值
- * @param {Array} fileList - 文件信息数组，每个元素包含 hash 和 path 属性
- * @returns {Array} - 不匹配的 backup 文件路径数组
+ * 比较 BD 目录中 BACKUP 文件与主文件的 SHA256。
+ *
+ * API 返回的是扁平文件列表，形如：
+ * - xxx/BDMV/index.bdmv
+ * - xxx/BDMV/BACKUP/index.bdmv
+ * - xxx/CERTIFICATE/id.bdmv
+ * - xxx/CERTIFICATE/BACKUP/id.bdmv
+ *
+ * 本函数先按 BDMV / CERTIFICATE 根路径分组，再把 BACKUP 文件路径中的
+ * "/BACKUP/" 去掉，得到它理论上对应的主文件路径，最后比较两者 hash。
+ *
+ * @param {Array} fileList - 文件信息数组，每个元素包含 hash 和 path 属性。
+ * @returns {Array<{ path: string, backupRoot: string }>} - hash 不匹配的 BACKUP 文件及其根目录类型。
  */
-function getMismatchedBdmvBackups(fileList) {
-    const bdmvGroups = {};
+function getMismatchedDiscBackups(fileList) {
+    const discGroups = {};
+    const backupRoots = ['BDMV', 'CERTIFICATE'];
 
-    // 按 BDMV 根路径分组
+    // 按 BDMV / CERTIFICATE 根路径分组
     for (const { path, hash } of fileList) {
-        const bdmvIndex = path.indexOf("/BDMV/");
-        if (bdmvIndex === -1) continue;
+        // 只处理 BDMV 和 CERTIFICATE 内部文件，其它媒体文件、扫图等不参与 BACKUP 完整性比对。
+        const backupRoot = backupRoots.find(root => path.includes(`/${root}/`));
+        if (!backupRoot) continue;
 
-        const rootPath = path.substring(0, bdmvIndex);
-        (bdmvGroups[rootPath] ||= []).push({ path, hash });
+        // rootPath 用于区分同一个种子中可能存在的多套 BD 目录结构。
+        // 例如 /DISC1/BDMV 和 /DISC2/BDMV 会被分到两个组里，避免交叉比较。
+        const rootIndex = path.indexOf(`/${backupRoot}/`);
+        const rootPath = `${path.substring(0, rootIndex)}/${backupRoot}`;
+        (discGroups[rootPath] ||= []).push({ path, hash, backupRoot });
     }
 
     const mismatched = [];
 
-    for (const files of Object.values(bdmvGroups)) {
+    for (const files of Object.values(discGroups)) {
         // 建立主文件映射
         const mainFiles = Object.fromEntries(
             files
@@ -526,21 +655,22 @@ function getMismatchedBdmvBackups(fileList) {
         );
 
         // 检查 BACKUP 文件
-        for (const { path, hash } of files) {
+        for (const { path, hash, backupRoot } of files) {
             if (!path.includes("/BACKUP/")) continue;
 
+            // BACKUP 文件的主文件路径只差一个 /BACKUP/ 层级。
+            // 如果主文件不存在，mainHash 为 undefined，也会被视为不匹配并输出错误。
             const mainPath = path.replace("/BACKUP/", "/");
             const mainHash = mainFiles[mainPath];
 
             if (mainHash !== hash) {
-                mismatched.push(path);
+                mismatched.push({ path, backupRoot });
             }
         }
     }
 
     return mismatched;
 }
-
 
 async function handleTorrentChecksum(userId, token, torrentId) {
     const apiData = await fetchApi(`/torrents/${torrentId}/checksum`, {}, 'GET', token);
@@ -562,8 +692,8 @@ async function handleTorrentChecksum(userId, token, torrentId) {
         return;
     }
 
-    const badFiles = getMismatchedBdmvBackups(files);
-    badFiles.forEach(file => logger.addLog(`文件错误 (BDMV/BACKUP) → ${file}`));
+    const badFiles = getMismatchedDiscBackups(files);
+    badFiles.forEach(file => logger.addLog(`文件错误 (${file.backupRoot}/BACKUP) → ${file.path}`));
 }
 
 
