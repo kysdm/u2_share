@@ -485,15 +485,19 @@ function getDirectoryItem(directory, itemName) {
 function checkDiscStructure(label, directory, currentPath, structure) {
     structure.files.forEach(file => {
         const item = getDirectoryItem(directory, file);
-        if (!item || item.type !== 'file') {
+        if (!item) {
             logger.addLog(`${label} 缺失文件 → ${currentPath}/${file}`);
+        } else if (item.type !== 'file') {
+            logger.addLog(`${label} 类型错误 → ${currentPath}/${file} 应为文件`);
         }
     });
 
     structure.directories.forEach(dir => {
         const item = getDirectoryItem(directory, dir);
-        if (!item || item.type !== 'directory') {
+        if (!item) {
             logger.addLog(`${label} 缺失目录 → ${currentPath}/${dir}`);
+        } else if (item.type !== 'directory') {
+            logger.addLog(`${label} 类型错误 → ${currentPath}/${dir} 应为目录`);
         }
     });
 }
