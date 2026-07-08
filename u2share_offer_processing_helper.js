@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2候选处理辅助
 // @namespace    https://u2.dmhy.org/
-// @version      0.4.8
+// @version      0.4.9
 // @description  U2候选处理辅助
 // @author       kysdm
 // @match        *://u2.dmhy.org/offers.php?*
@@ -179,33 +179,25 @@ const pathBasedRules = [
     { pattern: /^\/(?:[^\/]+\/){0,5}$/, allowedFileNames: /[^\/]+\.(iso|mds|mkv|ts|mp4|png|jpg|jpeg|bmp|webp|tif|tiff|flac|wav|aiff|m4a|cue|log)$/i },  // 0-5层文件夹
 ];
 
-function isFileNameValidForPath(filePath, fileName) {
-    const directoryPath = getDirectoryFromPath(filePath, fileName)
-    const rule = pathBasedRules.find(rule => rule.pattern.test(directoryPath));
+function isFileNameValidForPath(directoryPath, fileName) {
+    if (typeof directoryPath !== 'string') {
+        console.warn({ directoryPath, fileName, pattern: null, allowedFileNames: null });
+        return false;
+    }
+
+    const normalizedDirectoryPath = directoryPath === ''
+        ? '/'
+        : directoryPath.endsWith('/') ? directoryPath : `${directoryPath}/`;
+
+    const rule = pathBasedRules.find(rule => rule.pattern.test(normalizedDirectoryPath));
     if (rule) {
         if (rule.allowedFileNames.test(fileName)) {
-            console.debug({ filePath, ...rule });
+            console.debug({ directoryPath: normalizedDirectoryPath, fileName, ...rule });
             return true;
         }
     }
-    console.warn({ filePath, pattern: null, allowedFileNames: null });
+    console.warn({ directoryPath: normalizedDirectoryPath, fileName, pattern: null, allowedFileNames: null });
     return false;
-}
-
-function getDirectoryFromPath(absolutePath, fileName) {
-    // 如果绝对路径和文件名完全相等，则说明是单文件
-    if (absolutePath === fileName) {
-        return absolutePath;
-    }
-
-    // 定位文件名在路径中最后一次出现的位置
-    const index = absolutePath.lastIndexOf(fileName);
-    // 确保文件名位于路径末尾
-    if (index !== -1 && index + fileName.length === absolutePath.length) {
-        return absolutePath.substring(0, index);
-    }
-
-    return null;
 }
 
 function hasNestedBDMV(directory) {
@@ -300,11 +292,13 @@ function check(directory) {
                 // const unicodeChars = invisibleCharMatches.map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', ');
                 const unicodeChars = Array.from(new Set(invisibleCharMatches))
                     .map(char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`).join(', '); // 去重并转换为 Unicode
-                // 将 fullPath 中的不可见字符替换成带下划线的 Unicode 字符
-                const highlightedPath = key.replace(invisibleCharPattern, char =>
+                // 将完整路径中的不可见字符都替换成 Unicode 标记。
+                // 子目录报错时，父目录中已有的不可见字符也需要一并显式展示，
+                // 否则日志里会混入真实不可见字符，看起来像只标出了最后一级目录。
+                const highlightedPath = fullPath.replace(invisibleCharPattern, char =>
                     `<span class="char-box-rounded">\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}</span>`
                 );
-                logger.addLog(`不可见字符 → ${unicodeChars} - ${currentPath}/${highlightedPath}`);
+                logger.addLog(`不可见字符 → ${unicodeChars} - ${highlightedPath}`);
             }
 
             // 检查是否存在日文变音符号
@@ -344,7 +338,7 @@ function check(directory) {
                 if (item.length === 0) {
                     logger.addLog(`空文件 → ${fullPath}`); // 输出空文件的绝对路径
                 }
-                else if (!isFileNameValidForPath(fullPath, key)) {
+                else if (!isFileNameValidForPath(currentPath, key)) {
                     // 检查是否是垃圾文件（通过完整名称匹配）
                     if (junkFiles.has(lowerKey)) {
                         logger.addLog(`垃圾文件 → ${fullPath}`); // 输出垃圾文件的绝对路径
