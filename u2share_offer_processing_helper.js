@@ -127,7 +127,7 @@ const logger = new Logger();
 
     // console.log(torrentTree);
     check(torrentTree);
-    // 检查 BDMV 与 BDMV/BACKUP 目录下的文件是否相同
+    // 检查 BDMV / CERTIFICATE 与各自 BACKUP 目录下的文件是否相同
     await handleTorrentChecksum(userId, token, torrentId);
 
     logger.addLog('完成');
@@ -483,18 +483,16 @@ function getDirectoryItem(directory, itemName) {
  * @param {{ files: string[], directories: string[] }} structure - 必需文件和必需目录清单。
  */
 function checkDiscStructure(label, directory, currentPath, structure) {
-    const presentFiles = new Set(Object.keys(directory).map(key => key.toLowerCase()));
-
-    // 文件和目录都放在同一个 presentFiles 集合里做存在性判断：
-    // 对当前用途而言，只需要判断名称是否存在，类型错误会在后续白名单/可疑文件逻辑中暴露。
     structure.files.forEach(file => {
-        if (!presentFiles.has(file.toLowerCase())) {
+        const item = getDirectoryItem(directory, file);
+        if (!item || item.type !== 'file') {
             logger.addLog(`${label} 缺失文件 → ${currentPath}/${file}`);
         }
     });
 
     structure.directories.forEach(dir => {
-        if (!presentFiles.has(dir.toLowerCase())) {
+        const item = getDirectoryItem(directory, dir);
+        if (!item || item.type !== 'directory') {
             logger.addLog(`${label} 缺失目录 → ${currentPath}/${dir}`);
         }
     });
@@ -562,26 +560,27 @@ function checkBackup(backupDirectory, mainDirectory, currentPath) {
 
 // 比较主目录和 BACKUP 目录中的文件
 function compareFilesInDirectory(backupFiles, mainFiles, currentPath) {
-    const mainFileSet = new Set(Object.keys(mainFiles));
-    const backupFileSet = new Set(Object.keys(backupFiles));
+    const mainFileMap = new Map(Object.keys(mainFiles).map(file => [file.toLowerCase(), file]));
+    const backupFileMap = new Map(Object.keys(backupFiles).map(file => [file.toLowerCase(), file]));
 
-    mainFileSet.forEach(file => {
-        const mainFile = mainFiles[file];
-        const backupFile = backupFiles[file];
+    mainFileMap.forEach((mainFileName, lowerFileName) => {
+        const backupFileName = backupFileMap.get(lowerFileName);
+        const mainFile = mainFiles[mainFileName];
+        const backupFile = backupFileName ? backupFiles[backupFileName] : null;
 
         if (!backupFile) {
-            logger.addLog(`BDMV/BACKUP 缺失文件 → ${currentPath}/${file}`);
+            logger.addLog(`BDMV/BACKUP 缺失文件 → ${currentPath}/${mainFileName}`);
         } else {
             // 检查文件大小是否不同
             if (mainFile.length !== backupFile.length) {
-                logger.addLog(`BDMV/BACKUP 文件大小不匹配 → ${currentPath}/${file}`);
+                logger.addLog(`BDMV/BACKUP 文件大小不匹配 → ${currentPath}/${backupFileName}`);
             }
         }
     });
 
-    backupFileSet.forEach(file => {
-        if (!mainFileSet.has(file)) {
-            logger.addLog(`BDMV/BACKUP 多余文件 → ${currentPath}/${file}`);
+    backupFileMap.forEach((backupFileName, lowerFileName) => {
+        if (!mainFileMap.has(lowerFileName)) {
+            logger.addLog(`BDMV/BACKUP 多余文件 → ${currentPath}/${backupFileName}`);
         }
     });
 }
