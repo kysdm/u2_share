@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2显示文件校验和
 // @namespace    U2显示文件校验和
-// @version      0.0.6
+// @version      0.0.7
 // @description  为文件列表添加校验和信息
 // @author       kysdm
 // @match        *://u2.dmhy.org/details.php?id=*
@@ -53,7 +53,7 @@
 
             f_obj[f_tmp.join('/')] = f_id;
 
-            if (torrent_checksum.length !== 0) {
+            if (torrent_checksum && typeof torrent_checksum === 'object' && Object.keys(torrent_checksum).length !== 0) {
                 doc.append(`<style>.checksum { 
                     font-family: ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;
                     text-align: center;
@@ -104,11 +104,13 @@
         return;
     }
 
-    if (torrent_checksum.length !== 0) {
+    if (torrent_checksum === '404') {
+        $("#closeall").after(`<span id="checksum">[无校验和信息]</a></span>`);
+    } else {
         $("#closeall").after(`<span id="checksum"><a href="javascript:void(0)">[复制校验和]</a></span>`);
 
         const __checksum = [];
-        torrent_checksum[0].torrent_files_info.files.forEach(function (item) { __checksum.push(`${item.hash} *${item.path}`); });
+        torrent_checksum.torrent_files_info.files.forEach(function (item) { __checksum.push(`${item.hash} *${item.path}`); });
 
         $("#checksum").click(function () {
             navigator.clipboard.writeText(__checksum.join('\n')).then(() => {
@@ -117,13 +119,11 @@
                 window.alert('失败 - 可能是你的浏览器太古老了')
             });
         });
-    } else {
-        $("#closeall").after(`<span id="checksum">[无校验和信息]</a></span>`);
     }
 
     if ($('#showfl').length === 0) {
         // 单文件种子
-        const checksum = torrent_checksum.length !== 0 ? torrent_checksum[0].torrent_files_info.files[0].hash : '---';
+        const checksum = torrent_checksum && typeof torrent_checksum === 'object' && Object.keys(torrent_checksum).length !== 0 ? torrent_checksum.torrent_files_info.files[0].hash : '---';
         $(`td[class='rowhead nowrap']:contains('${lang['torrent_info']}')`).next('td').find('tr:first')
             .after(`<tr><td style="border: none;" colspan="4"><b>文件校验和:</b>&nbsp;${checksum}</td></tr>`);
         return;
@@ -146,6 +146,7 @@ async function getApi(token, tid) {
                 };
             },
             error: async function (d) {
+                if (d.status === 404) return resolve('404');
                 // window.alert('checksum 获取失败')
                 return resolve('null');
             },
