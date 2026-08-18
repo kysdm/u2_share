@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.17
+// @version      1.2.18
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -659,6 +659,7 @@ GreasyFork 地址
      * @param {File[]|{path: string[], file: File}[]} options.files
      *    File[]：单选文件 / webkitdirectory 选文件夹 / 平铺多文件
      *    {path, file}[]：显式指定路径（推荐，最可控）
+     * @param {boolean} [options.singleFile] 强制单/多文件结构（默认自动：显式路径单条目视为单文件）
      * @param {string} [options.name] torrent 名（默认：单文件=文件名，文件夹=根目录名）
      * @param {number|"auto"} [options.pieceSize="auto"] 分片大小（2 的幂）
      * @param {boolean} [options.isPrivate=false] 私有种子（禁 DHT/PEX）
@@ -676,6 +677,9 @@ GreasyFork 地址
      */
     async function createTorrent(options) {
         const input = normalizeInput(options.files);
+        // 显式路径形式下条目数为 1 时，无法自动区分"单文件"与"文件夹内只有一个文件"，
+        // 允许调用方显式指定（例如文件夹制种始终应保留多文件结构）
+        if (typeof options.singleFile === "boolean") input.isSingle = options.singleFile;
 
         const name = options.name || input.name || "unknown";
         const pieceSize = options.pieceSize === undefined || options.pieceSize === "auto"
@@ -1012,7 +1016,7 @@ GreasyFork 地址
         };
     }
 
-    async function runCreate(entries, name) {
+    async function runCreate(entries, name, singleFile) {
         if (!checkName(name)) return;
         const total = entries.reduce((s, e) => s + e.file.size, 0);
         const cfg = getSeedConfig(); // 读取配置行：区块大小 / 评论 / 私有 / tracker
@@ -1029,6 +1033,7 @@ GreasyFork 地址
             const result = await TC.createTorrent({
                 files: entries,
                 name: name.trim(),
+                singleFile: singleFile, // 文件夹制种强制多文件结构（单文件文件夹也保留目录）
                 pieceSize: cfg.pieceSize,
                 isPrivate: cfg.isPrivate,
                 setCreationDate: true,
@@ -1072,7 +1077,7 @@ GreasyFork 地址
     window.createTorrentFile = async function (fileList) {
         const f = fileList && fileList[0];
         if (!f) { window.alert("没有选择任何文件"); return; }
-        await runCreate([{ path: [f.name], file: f }], f.name);
+        await runCreate([{ path: [f.name], file: f }], f.name, true); // 单文件种子
     };
 
     window.createTorrentFolder = async function (folderList) {
@@ -1083,7 +1088,7 @@ GreasyFork 地址
             path: f.webkitRelativePath ? f.webkitRelativePath.split("/").slice(1) : [f.name],
             file: f,
         }));
-        await runCreate(entries, rootName);
+        await runCreate(entries, rootName, false); // 文件夹：保留目录结构
     };
 
     // 页面加载完成后：创建制种配置行 + 常驻显示制种环境（WASM / 纯 JS）
