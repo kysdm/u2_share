@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.22
+// @version      1.2.24
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -1882,6 +1882,14 @@ GreasyFork 地址
             };
         });
 
+        // URL 协议白名单：拦截 javascript:/data:/vbscript: 等协议；
+        // 同时移除引号实体，防止 &quot; 被还原为 " 造成属性逃逸；
+        // 非法 URL 返回 null，调用方将原样保留 bbcode 文本（不生成链接）
+        const safeUrl = (u) => {
+            u = u.replace(/&quot;/g, '');
+            return /^(https?|ftp|magnet|ed2k|mms|rtsp|gopher|news|telnet):/i.test(u) ? u : null;
+        };
+
         bbcodestr = bbcodestr.replace(/\r\n/g, () => { return '<br>' });
         bbcodestr = bbcodestr.replace(/\n/g, () => { return '<br>' });
         bbcodestr = bbcodestr.replace(/\r/g, () => { return '<br>' });
@@ -1922,14 +1930,18 @@ GreasyFork 地址
                     let tmp = url.replace(/^(?:&quot;)?(.*?)(?:&quot;)?$/, "$1");
                     if (!tmp.match(/&quot;/)) url = tmp;
                     else { if (url.match(/&quot;/g).length === 1) url = url.replace('&quot;', ''); }
-                    return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + url.replace(/&quot;/g, '"') + '">' + text + '</a>');
+                    const cleanUrl = safeUrl(url);
+                    if (cleanUrl === null) return addTempCode(all); // 非法协议：原样显示，不生成链接
+                    return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + cleanUrl + '">' + text + '</a>');
                 });
             } else {
                 const lost = checkLostTags(textarea, /\[(?<tag>url)\]/i, /\[\/(?<tag>url)\]/i);
                 if (lost.state) { return textarea.replace(/\[url\]/i, function (s) { return addTempCode(s); }); };
                 return textarea.replace(/\[url\](.+?)\[\/url\]/i, function (s, x) {
                     if (x.match(/\s|\[/i)) return addTempCode(s);
-                    return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + x + '">' + x + '</a>');
+                    const cleanUrl = safeUrl(x);
+                    if (cleanUrl === null) return addTempCode(s); // 非法协议：原样显示，不生成链接
+                    return addTempCode('<a class="faqlink" rel="nofollow noopener noreferer" href="' + cleanUrl + '">' + x + '</a>');
                 });
             };
         };
@@ -2078,7 +2090,9 @@ GreasyFork 地址
                     url = url.replace('&amp;', '&');
                     if (/^((?!"|'|>|<|;|\[|\]|#).)+\.(?:png|jpg|jpeg|gif|svg|bmp|webp)$/i.test(url)) {
                         // url 以 .png 之类结尾
-                        return addTempCode(`<a class="faqlink" rel="nofollow noopener noreferer" href="' + y + '"><img alt="image" src="${url}" style="height: auto; width: auto; max-width: 100%;"></a>`);
+                        const cleanUrl = safeUrl(url);
+                        if (cleanUrl === null) return addTempCode(all); // 非法协议：原样显示，不生成链接
+                        return addTempCode(`<a class="faqlink" rel="nofollow noopener noreferer" href="${cleanUrl}"><img alt="image" src="${url}" style="height: auto; width: auto; max-width: 100%;"></a>`);
                     } else {
                         return addTempCode(all);
                     };
