@@ -861,25 +861,29 @@ GreasyFork 地址
     }
 
     // 与原库 finished() 相同：存 localforage（key 不含 .torrent 后缀，下载按钮会补）+ 更新 UI
-    function finish(result) {
+    // 注意：必须 await 写入完成再返回，否则脚本紧接着调用的 pageTorrentInfo()
+    // 会从 localforage 读到 null，导致种子信息/检测/文件列表不显示
+    async function finish(result) {
         if (typeof localforage === "undefined") {
             window.alert("localforage 未加载，无法保存种子");
             return;
         }
         const store = localforage.createInstance({ name: "bbcodejs" });
-        Promise.all([
-            store.setItem("upload_autoSaveMessageTorrentBlob", result.blob),
-            store.setItem("upload_autoSaveMessageTorrentName", result.name),
-        ]).then(() => {
+        try {
+            await Promise.all([
+                store.setItem("upload_autoSaveMessageTorrentBlob", result.blob),
+                store.setItem("upload_autoSaveMessageTorrentName", result.name),
+            ]);
             setProgress(100);
             ui.setText('[name="progress-name"]', "完成");
             ui.setAttr("#upload_torrent,#upload_file,#upload_folder,#torrent_create", "disabled", true);
             ui.setAttr("#torrent_download,#torrent_clean", "disabled", false);
             ui.fadeOut('[name="progress"]', 3000);
-        }).catch((err) => {
+        }
+        catch (err) {
             console.error("[U2 torrent] 保存失败", err);
             window.alert("保存种子到本地存储失败: " + err.message);
-        });
+        }
     }
 
     function fail(label, err) {
@@ -934,7 +938,7 @@ GreasyFork 地址
                     ui.setText('[name="progress-percent"]', fmt(p.bytesRead) + " / " + fmt(total));
                 },
             });
-            finish(result);
+            await finish(result); // 等待写入完成，保证 pageTorrentInfo() 能读到
         }
         catch (err) {
             if (err && err.name === "AbortError") {
