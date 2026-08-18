@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.18
+// @version      1.2.19
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -498,7 +498,9 @@ GreasyFork 地址
                     const results = new Uint8Array(numPieces * 20);
                     for (let i = 0; i < numPieces; ++i) {
                         if (signal !== null && signal.aborted) throw abortError();
-                        const hash = wasmImpl !== null ? wasmImpl(chunks[i]) : sha1Bytes(chunks[i]);
+                        // WASM 静态缓冲区上限 16MiB+64（原项目编译产物），超出自动改用纯 JS 计算
+                        const useWasm = (wasmImpl !== null) && (chunks[i].length <= (16 * MB + 64));
+                        const hash = useWasm ? wasmImpl(chunks[i]) : sha1Bytes(chunks[i]);
                         results.set(hash, i * 20);
                         await new Promise((resolve) => setTimeout(resolve, 0));
                     }
@@ -507,8 +509,8 @@ GreasyFork 地址
             }
         }
 
-        // ---- 读取：16MiB 累积缓冲，读满即派发（流水线） ----
-        const readBufferSize = 16 * MB;
+        // ---- 读取：累积缓冲（至少 16MiB；区块更大时跟随区块，保证 piece 不被拆段），读满即派发 ----
+        const readBufferSize = Math.max(16 * MB, blockSize);
         const readAccumulator = new Uint8Array(readBufferSize);
         let readIndex = 0;
 
@@ -912,7 +914,8 @@ GreasyFork 地址
 
     // ---- 制种配置行（区块大小 / 私有 / Tracker / 评论 / 环境） ----
     // 新建一行 UI，插入在按钮表格之后；控件值在每次制种时读取
-    // PT 站点：私有与 tracker 固定（不显示），区块大小默认 16M，可选 4/8/16/32/64/128M
+    // PT 站点：私有与 tracker 固定（不显示）；区块大小默认 16M，可选 4/8/16M
+    // 注意：内联 WASM 静态缓冲区上限 16MiB（原项目编译产物）
     // flex 单行布局：标签与控件同格紧贴（间距 4px），字体随后跟随页面计算样式同步
     const CFG_ROW_HTML = '<table style="width:100%; margin-top:6px; border:none;">'
         + '<tbody>'
@@ -922,9 +925,6 @@ GreasyFork 地址
         + '<option value="4194304">4 MiB</option>'
         + '<option value="8388608">8 MiB</option>'
         + '<option value="16777216" selected>16 MiB</option>'
-        + '<option value="33554432">32 MiB</option>'
-        + '<option value="67108864">64 MiB</option>'
-        + '<option value="134217728">128 MiB</option>'
         + '</select></td></tr>'
         + '<tr><td style="border:none; display:flex; align-items:center;">'
         + '<span style="white-space:nowrap; margin-right:4px;">评论：</span>'
