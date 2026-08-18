@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.9
+// @version      1.2.17
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -825,8 +825,7 @@ GreasyFork 地址
     const U2_TRACKER = "https://daydream.dmhy.best/announce";
     const U2_CREATED_BY = "https://u2.dmhy.org/forums.php?action=viewtopic&topicid=13384";
     const IGNORED_FILES = ["Thumbs.db", ".DS_Store", "desktop.ini"];
-    // 旧库固定 16MiB；改为自适应（目标 ~1200 片，16KiB~16MiB），小文件更合理。如需完全一致可设 16777216
-    const BLOCK_SIZE = "auto";
+    // 区块大小默认自适应（目标 ~1200 片，16KiB~16MiB）；可在制种配置行中选择
 
     const q = (sel) => Array.prototype.slice.call(document.querySelectorAll(sel));
     const ui = {
@@ -907,9 +906,116 @@ GreasyFork 地址
         ui.setAttr("#torrent_clean", "disabled", false);
     }
 
+    // ---- 制种配置行（区块大小 / 私有 / Tracker / 评论 / 环境） ----
+    // 新建一行 UI，插入在按钮表格之后；控件值在每次制种时读取
+    // PT 站点：私有与 tracker 固定（不显示），区块大小默认 16M，可选 4/8/16/32/64/128M
+    // flex 单行布局：标签与控件同格紧贴（间距 4px），字体随后跟随页面计算样式同步
+    const CFG_ROW_HTML = '<table style="width:100%; margin-top:6px; border:none;">'
+        + '<tbody>'
+        + '<tr><td style="border:none; display:flex; align-items:center;">'
+        + '<span style="white-space:nowrap; margin-right:4px;">区块大小：</span>'
+        + '<select id="u2_piece_size" style="font-size:11px; padding:1px 2px;">'
+        + '<option value="4194304">4 MiB</option>'
+        + '<option value="8388608">8 MiB</option>'
+        + '<option value="16777216" selected>16 MiB</option>'
+        + '<option value="33554432">32 MiB</option>'
+        + '<option value="67108864">64 MiB</option>'
+        + '<option value="134217728">128 MiB</option>'
+        + '</select></td></tr>'
+        + '<tr><td style="border:none; display:flex; align-items:center;">'
+        + '<span style="white-space:nowrap; margin-right:4px;">评论：</span>'
+        + '<input type="text" id="u2_comment" placeholder="种子评论（可选）" style="flex:1; min-width:0; font-size:11px; padding:1px 4px; box-sizing:border-box;">'
+        + '</td></tr>'
+        + '</tbody></table>';
+
+    // 等待按钮表格注入后，把配置行插到它后面；已创建则直接返回 true
+    function ensureConfigRow() {
+        if (document.getElementById("u2_piece_size")) return true;
+        const chooser = document.getElementById("upload_chooser");
+        if (!chooser) return false; // UI 尚未注入
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = CFG_ROW_HTML;
+        const rowEl = wrapper.firstElementChild;
+        const table = (typeof chooser.closest === "function") ? chooser.closest("table") : null;
+        if (table && table.parentNode) {
+            table.parentNode.insertBefore(rowEl, table.nextSibling);
+        }
+        else if (chooser.parentNode) {
+            chooser.parentNode.appendChild(rowEl);
+        }
+        else {
+            document.body.appendChild(rowEl);
+        }
+        // 字体与页面 rowfollow 一致（标签继承，select/input 显式同步）
+        try {
+            let followTd = null;
+            if (typeof chooser.closest === "function") {
+                const inner = chooser.closest("td");
+                const tbl = inner ? inner.closest("table") : null;
+                followTd = tbl ? tbl.closest("td") : null;
+            }
+            const cs = followTd && (typeof window.getComputedStyle === "function") ? window.getComputedStyle(followTd) : null;
+            if (cs && cs.font) {
+                rowEl.style.font = cs.font;
+                const sel = rowEl.querySelector("#u2_piece_size");
+                const input = rowEl.querySelector("#u2_comment");
+                if (sel) sel.style.font = cs.font;
+                if (input) input.style.font = cs.font;
+            }
+        }
+        catch { /* 忽略 */ }
+        return true;
+    }
+
+    // 环境显示在"种子文件"标签（rowhead）中：种子文件<br>(wasm)
+    // DOM 结构：rowhead td | rowfollow td { 按钮表格 { td { #upload_chooser } } ... }
+    // 需要两级 closest("td") 才能从 chooser 导航到外层 rowfollow td
+    function setEnvText(text) {
+        const chooser = document.getElementById("upload_chooser");
+        if (!chooser || typeof chooser.closest !== "function") return;
+        const innerTd = chooser.closest("td");                 // 按钮表格内的 td
+        const table = innerTd ? innerTd.closest("table") : null; // 按钮表格
+        const outerTd = table ? table.closest("td") : null;    // 外层 rowfollow td
+        const head = outerTd ? outerTd.previousElementSibling : null; // "种子文件" rowhead td
+        if (!head) return;
+        let env = (typeof head.querySelector === "function") ? head.querySelector("span.u2-env") : null;
+        if (!env) {
+            const br = document.createElement("br");
+            env = document.createElement("span");
+            env.className = "u2-env";
+            head.appendChild(br);
+            head.appendChild(env);
+        }
+        // 每次强制更新样式（兼容历史版本已创建但样式过期的标签）：block 居中 + 灰暗色
+        env.style.cssText = "display:block; text-align:center; font-size:10px; color:#6b7280; font-style:italic; white-space:nowrap;";
+        env.textContent = "(" + text + ")";
+        // 清理历史版本可能残留在错误位置的同类标签
+        try {
+            const all = document.querySelectorAll("span.u2-env");
+            for (const el of all) {
+                if (el !== env && el.parentNode) el.parentNode.removeChild(el);
+            }
+        }
+        catch { /* 忽略 */ }
+    }
+
+    // 读取配置行的当前值（控件未创建时回退默认值）
+    function getSeedConfig() {
+        const piece = document.getElementById("u2_piece_size");
+        const comment = document.getElementById("u2_comment");
+        const rawPiece = piece ? parseInt(piece.value, 10) : NaN;
+        return {
+            pieceSize: (Number.isFinite(rawPiece) && rawPiece > 0) ? rawPiece : (16 * 1024 * 1024), // 默认 16M
+            comment: comment ? comment.value.trim() : "",
+            isPrivate: true,          // PT 站点固定私种
+            trackers: [U2_TRACKER],   // PT 站点固定 tracker
+        };
+    }
+
     async function runCreate(entries, name) {
         if (!checkName(name)) return;
         const total = entries.reduce((s, e) => s + e.file.size, 0);
+        const cfg = getSeedConfig(); // 读取配置行：区块大小 / 评论 / 私有 / tracker
 
         // 建立取消通道：制种期间"清除"按钮变为停止键
         const abortController = new AbortController();
@@ -923,10 +1029,11 @@ GreasyFork 地址
             const result = await TC.createTorrent({
                 files: entries,
                 name: name.trim(),
-                pieceSize: BLOCK_SIZE,
-                isPrivate: true,          // U2 私种站点
+                pieceSize: cfg.pieceSize,
+                isPrivate: cfg.isPrivate,
                 setCreationDate: true,
-                trackers: [U2_TRACKER],
+                trackers: cfg.trackers,
+                comment: cfg.comment,
                 createdBy: U2_CREATED_BY,
                 useWorker: true,
                 signal: abortController.signal,
@@ -978,6 +1085,21 @@ GreasyFork 地址
         }));
         await runCreate(entries, rootName);
     };
+
+    // 页面加载完成后：创建制种配置行 + 常驻显示制种环境（WASM / 纯 JS）
+    (function showSeedEnv() {
+        const isWasm = (typeof WebAssembly !== "undefined") && (typeof WebAssembly.instantiate === "function");
+        const show = () => {
+            if (!ensureConfigRow()) return false; // 按钮表格尚未注入
+            setEnvText(isWasm ? "wasm" : "js");
+            return true;
+        };
+        if (show()) return;
+        let tries = 0;
+        const timer = setInterval(function () {
+            if (show() || (++tries > 60)) clearInterval(timer); // 最多等 30 秒
+        }, 500);
+    })();
 
     // 等效原库首行：启用制种按钮
     // 注意：按钮 DOM 由脚本异步注入（在 loadScript 之后），此处执行时元素尚不存在，
