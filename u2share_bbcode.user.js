@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.19
+// @version      1.2.22
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -831,8 +831,6 @@ GreasyFork 地址
     const U2_TRACKER = "https://daydream.dmhy.best/announce";
     const U2_CREATED_BY = "https://u2.dmhy.org/forums.php?action=viewtopic&topicid=13384";
     const IGNORED_FILES = ["Thumbs.db", ".DS_Store", "desktop.ini"];
-    // 区块大小默认自适应（目标 ~1200 片，16KiB~16MiB）；可在制种配置行中选择
-
     const q = (sel) => Array.prototype.slice.call(document.querySelectorAll(sel));
     const ui = {
         setText: (sel, text) => q(sel).forEach((e) => { e.textContent = text; }),
@@ -868,12 +866,21 @@ GreasyFork 地址
     // 与原库 finished() 相同：存 localforage（key 不含 .torrent 后缀，下载按钮会补）+ 更新 UI
     // 注意：必须 await 写入完成再返回，否则脚本紧接着调用的 pageTorrentInfo()
     // 会从 localforage 读到 null，导致种子信息/检测/文件列表不显示
+    // localforage 实例缓存（同名 store 复用，避免每次制种重建连接）
+    let lfStore = null;
+    function getStore() {
+        if (lfStore === null && typeof localforage !== "undefined") {
+            lfStore = localforage.createInstance({ name: "bbcodejs" });
+        }
+        return lfStore;
+    }
+
     async function finish(result) {
-        if (typeof localforage === "undefined") {
+        const store = getStore();
+        if (!store) {
             window.alert("localforage 未加载，无法保存种子");
             return;
         }
-        const store = localforage.createInstance({ name: "bbcodejs" });
         try {
             await Promise.all([
                 store.setItem("upload_autoSaveMessageTorrentBlob", result.blob),
@@ -912,7 +919,7 @@ GreasyFork 地址
         ui.setAttr("#torrent_clean", "disabled", false);
     }
 
-    // ---- 制种配置行（区块大小 / 私有 / Tracker / 评论 / 环境） ----
+    // ---- 制种配置行（区块大小 / 评论） ----
     // 新建一行 UI，插入在按钮表格之后；控件值在每次制种时读取
     // PT 站点：私有与 tracker 固定（不显示）；区块大小默认 16M，可选 4/8/16M
     // 注意：内联 WASM 静态缓冲区上限 16MiB（原项目编译产物）
@@ -932,33 +939,42 @@ GreasyFork 地址
         + '</td></tr>'
         + '</tbody></table>';
 
+    // 从 #upload_chooser 导航到种子文件行的相关 DOM 结构（两级 td）
+    // 结构：rowhead td | rowfollow td { 按钮表格 { td { #upload_chooser } } }
+    function getSeedDom() {
+        const chooser = document.getElementById("upload_chooser");
+        if (!chooser || typeof chooser.closest !== "function") return null;
+        const innerTd = chooser.closest("td");                    // 按钮表格内的 td
+        const table = innerTd ? innerTd.closest("table") : null;  // 按钮表格
+        const outerTd = table ? table.closest("td") : null;       // 外层 rowfollow td
+        return {
+            chooser,
+            table,
+            rowfollow: outerTd,
+            rowhead: outerTd ? outerTd.previousElementSibling : null, // "种子文件"标签 td
+        };
+    }
+
     // 等待按钮表格注入后，把配置行插到它后面；已创建则直接返回 true
     function ensureConfigRow() {
         if (document.getElementById("u2_piece_size")) return true;
-        const chooser = document.getElementById("upload_chooser");
-        if (!chooser) return false; // UI 尚未注入
+        const dom = getSeedDom();
+        if (!dom || !dom.chooser) return false; // UI 尚未注入
         const wrapper = document.createElement("div");
         wrapper.innerHTML = CFG_ROW_HTML;
         const rowEl = wrapper.firstElementChild;
-        const table = (typeof chooser.closest === "function") ? chooser.closest("table") : null;
-        if (table && table.parentNode) {
-            table.parentNode.insertBefore(rowEl, table.nextSibling);
+        if (dom.table && dom.table.parentNode) {
+            dom.table.parentNode.insertBefore(rowEl, dom.table.nextSibling);
         }
-        else if (chooser.parentNode) {
-            chooser.parentNode.appendChild(rowEl);
+        else if (dom.chooser.parentNode) {
+            dom.chooser.parentNode.appendChild(rowEl);
         }
         else {
             document.body.appendChild(rowEl);
         }
         // 字体与页面 rowfollow 一致（标签继承，select/input 显式同步）
         try {
-            let followTd = null;
-            if (typeof chooser.closest === "function") {
-                const inner = chooser.closest("td");
-                const tbl = inner ? inner.closest("table") : null;
-                followTd = tbl ? tbl.closest("td") : null;
-            }
-            const cs = followTd && (typeof window.getComputedStyle === "function") ? window.getComputedStyle(followTd) : null;
+            const cs = dom.rowfollow && (typeof window.getComputedStyle === "function") ? window.getComputedStyle(dom.rowfollow) : null;
             if (cs && cs.font) {
                 rowEl.style.font = cs.font;
                 const sel = rowEl.querySelector("#u2_piece_size");
@@ -972,15 +988,9 @@ GreasyFork 地址
     }
 
     // 环境显示在"种子文件"标签（rowhead）中：种子文件<br>(wasm)
-    // DOM 结构：rowhead td | rowfollow td { 按钮表格 { td { #upload_chooser } } ... }
-    // 需要两级 closest("td") 才能从 chooser 导航到外层 rowfollow td
     function setEnvText(text) {
-        const chooser = document.getElementById("upload_chooser");
-        if (!chooser || typeof chooser.closest !== "function") return;
-        const innerTd = chooser.closest("td");                 // 按钮表格内的 td
-        const table = innerTd ? innerTd.closest("table") : null; // 按钮表格
-        const outerTd = table ? table.closest("td") : null;    // 外层 rowfollow td
-        const head = outerTd ? outerTd.previousElementSibling : null; // "种子文件" rowhead td
+        const dom = getSeedDom();
+        const head = dom ? dom.rowhead : null;
         if (!head) return;
         let env = (typeof head.querySelector === "function") ? head.querySelector("span.u2-env") : null;
         if (!env) {
@@ -1019,10 +1029,10 @@ GreasyFork 地址
     async function runCreate(entries, name, singleFile) {
         if (!checkName(name)) return;
         const total = entries.reduce((s, e) => s + e.file.size, 0);
-        const cfg = getSeedConfig(); // 读取配置行：区块大小 / 评论 / 私有 / tracker
+        const cfg = getSeedConfig(); // 读取配置行：区块大小 / 评论
 
-        // 建立取消通道：制种期间"清除"按钮变为停止键
-        const abortController = new AbortController();
+        // 建立取消通道：制种期间"清除"按钮变为停止键（老浏览器无 AbortController 时降级为不可停止）
+        const abortController = (typeof AbortController !== "undefined") ? new AbortController() : null;
         activeAbort = abortController;
         window.__torrentCreating = true;
         ui.setAttr("#torrent_clean", "disabled", false);
@@ -1041,7 +1051,7 @@ GreasyFork 地址
                 comment: cfg.comment,
                 createdBy: U2_CREATED_BY,
                 useWorker: true,
-                signal: abortController.signal,
+                signal: abortController ? abortController.signal : undefined,
                 onProgress: (p) => {
                     if (typeof p.filePath === "string") {
                         ui.setText('[name="progress-name"]', p.filePath.split("/").pop());
@@ -1091,35 +1101,24 @@ GreasyFork 地址
         await runCreate(entries, rootName, false); // 文件夹：保留目录结构
     };
 
-    // 页面加载完成后：创建制种配置行 + 常驻显示制种环境（WASM / 纯 JS）
-    (function showSeedEnv() {
+    // 页面加载完成后，等待脚本异步注入的 UI（按钮/表格），就绪后一次完成：
+    // ① 启用制种按钮  ② 创建配置行  ③ 显示制种环境（WASM / 纯 JS）
+    // 观察器 + 轮询兜底双保险；上传页成功即停，非上传页 60s/5min 自动收敛
+    (function initSeedUI() {
         const isWasm = (typeof WebAssembly !== "undefined") && (typeof WebAssembly.instantiate === "function");
-        const show = () => {
-            if (!ensureConfigRow()) return false; // 按钮表格尚未注入
-            setEnvText(isWasm ? "wasm" : "js");
-            return true;
-        };
-        if (show()) return;
-        let tries = 0;
-        const timer = setInterval(function () {
-            if (show() || (++tries > 60)) clearInterval(timer); // 最多等 30 秒
-        }, 500);
-    })();
+        const BUTTONS = "#upload_file,#upload_folder,#torrent_create";
 
-    // 等效原库首行：启用制种按钮
-    // 注意：按钮 DOM 由脚本异步注入（在 loadScript 之后），此处执行时元素尚不存在，
-    // 因此用 MutationObserver 监听 + 轮询兜底，元素出现后立即启用
-    (function enableSeedButtons() {
-        // 按钮 DOM 由脚本异步注入（先 await 加载 localforage/mediainfo/conversion 后才注入），
-        // 慢网络下可能超过 10 秒，因此持续等待直到按钮出现并成功启用，成功即停止。
-        const TARGETS = "#upload_file,#upload_folder,#torrent_create";
-        const tryEnable = () => ui.setAttr(TARGETS, "disabled", false);
-        const allEnabled = () => {
-            const els = q(TARGETS);
-            return (els.length >= 3) && els.every((e) => !e.disabled);
+        // 幂等初始化：每次调用都尝试补齐所有步骤，全部就绪才算成功
+        const init = () => {
+            ui.setAttr(BUTTONS, "disabled", false); // ① 启用按钮
+            const btns = q(BUTTONS);
+            const buttonsReady = (btns.length >= 3) && btns.every((e) => !e.disabled);
+            const rowReady = ensureConfigRow();     // ② 配置行
+            if (rowReady) setEnvText(isWasm ? "wasm" : "js"); // ③ 环境
+            return buttonsReady && rowReady;
         };
 
-        tryEnable(); // 立即尝试一次
+        if (init()) return;
 
         let done = false;
         const finish = () => { done = true; };
@@ -1127,26 +1126,26 @@ GreasyFork 地址
         if (typeof MutationObserver !== "undefined") {
             try {
                 const observer = new MutationObserver(() => {
-                    tryEnable();
-                    if (allEnabled()) { observer.disconnect(); finish(); }
+                    if (init()) { observer.disconnect(); finish(); }
                 });
                 observer.observe(document.documentElement, { childList: true, subtree: true });
+                // 防止在非上传页（按钮永不出现）观察器长期挂载：60 秒后强制断开，只留轮询兜底
+                setTimeout(() => { observer.disconnect(); }, 60000);
             }
             catch { /* 观察失败则依赖下方轮询兜底 */ }
         }
 
         // 轮询兜底：每 500ms 尝试，成功后停止；上限 5 分钟（覆盖极慢网络）
+        const start = Date.now();
         const fallback = setInterval(() => {
             if (done) { clearInterval(fallback); return; }
-            tryEnable();
-            if (allEnabled()) { clearInterval(fallback); finish(); }
+            if (init()) { clearInterval(fallback); finish(); }
             else if (Date.now() - start > 300000) { clearInterval(fallback); }
         }, 500);
-        const start = Date.now();
 
         // 兜底 2：脚本注入 UI 后页面的 load 事件（DOM 就绪的最后一刻）
         if (document.readyState !== "complete") {
-            window.addEventListener("load", tryEnable, { once: true });
+            window.addEventListener("load", init, { once: true });
         }
     })();
 })();
