@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.24
+// @version      1.2.28
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -1154,6 +1154,13 @@ GreasyFork 地址
     // 声明全局变量
     // https://api.jquery.com/jQuery.noConflict/
     const jq = jQuery.noConflict();
+    // 自动保存定时器（替代 title 属性存 ID 的写法）
+    let uploadAutoSaveTimer = null;
+    // 全局兜底：未捕获的 Promise rejection 记录到控制台（localforage 等），不再静默
+    window.addEventListener('unhandledrejection', function (e) {
+        console.error('[U2] 未处理的 Promise 错误:', e && e.reason);
+        if (e) e.preventDefault();
+    });
     // 网站语言
     const lang = new lang_init(jq('#locale_selection').val());;
     // CSS
@@ -1162,9 +1169,13 @@ GreasyFork 地址
     // JS
     jq('body').append(`<script type="text/javascript">function createTag(name,attribute,content){var components=[];components.push('[');components.push(name);if(attribute!==null){components.push('=');components.push(attribute)}components.push(']');if(content!==null){components.push(content);components.push('[/');components.push(name);components.push(']')}return components.join('')};function replaceText(str,start,end,replacement){return str.substring(0,start)+replacement+str.substring(end)};function addTag(textArea,name,attribute,content,surround){var selStart=textArea.selectionStart;var selEnd=textArea.selectionEnd;if(selStart===null||selEnd===null){selStart=selEnd=textArea.value.length}var selTarget=selStart+name.length+2+(attribute?attribute.length+1:0);if(selStart===selEnd){textArea.value=replaceText(textArea.value,selStart,selEnd,createTag(name,attribute,content))}else{var replacement=null;if(surround){replacement=createTag(name,attribute,textArea.value.substring(selStart,selEnd))}else{replacement=createTag(name,attribute,content)}textArea.value=replaceText(textArea.value,selStart,selEnd,replacement)}textArea.setSelectionRange(selTarget,selTarget)};</script>`);
 
+    // 任一库加载失败只降级对应功能，不再中断整个脚本
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js')
+        .catch(err => console.error('[U2] localforage 加载失败，自动保存/种子存储不可用:', err))
     await loadScript('https://userscript.kysdm.com/js/mediainfo.js?v=1.0')
+        .catch(err => console.error('[U2] mediainfo.js 加载失败，媒体信息功能不可用:', err))
     await loadScript('https://userscript.kysdm.com/js/conversion.js?v=1.0')
+        .catch(err => console.error('[U2] conversion.js 加载失败，图片压缩功能不可用:', err))
 
     // DB
     const db = localforage.createInstance({ name: "bbcodejs" });
@@ -1189,9 +1200,15 @@ GreasyFork 地址
 
         syncWindowChange('.bbcode', '#bbcode2');
 
-        jq('.bbcode').bind('input propertychange', async function updateValue() {
-            let html = await bbcode2html(jq(this).val());
-            jq('#bbcode2').children('.child').html(html);
+        // 预览防抖：连续输入只重渲染最后一次（300ms），避免大篇幅 bbcode 击键卡顿
+        let bbcodePreviewTimer = null;
+        jq('.bbcode').bind('input propertychange', function updateValue() {
+            clearTimeout(bbcodePreviewTimer);
+            const textarea = this;
+            bbcodePreviewTimer = setTimeout(async function () {
+                let html = await bbcode2html(jq(textarea).val());
+                jq('#bbcode2').children('.child').html(html);
+            }, 300);
         });
 
         jq('.codebuttons').click(async function updateValue() {
@@ -1337,7 +1354,7 @@ GreasyFork 地址
                 if (isNaN(tid)) { window.alert('无效种子ID'); return; }
 
                 let api = await getApi(token, uid, tid);
-                if (api.message !== 'success') { window.alert(`API获取发生错误\n\n${api.msg}`); console.log(api); return; }
+                if (api.message !== 'success') { window.alert(`API获取发生错误\n\n${api.msg}`); console.error(api); return; }
 
                 let torrents = api.data.items;
 
@@ -1464,9 +1481,10 @@ GreasyFork 地址
             jq('[name="progress"]').hide();  // 隐藏进度条
             // 显示上传的文件名 & 去除其余上传框内的值
             jq('#torrent').change(async function () {
-                const response = await fetch(URL.createObjectURL(this.files[0]));
+                const torrentObjectUrl = URL.createObjectURL(this.files[0]);
+                const response = await fetch(torrentObjectUrl);
                 const torrent_blob = await response.blob();
-                console.log(torrent_blob);
+                URL.revokeObjectURL(torrentObjectUrl); // 数据已读入内存，立即回收
                 await db.setItem(`upload_autoSaveMessageTorrentBlob`, torrent_blob);
                 await db.setItem(`upload_autoSaveMessageTorrentName`, this.files[0].name);
                 jq('#upload_chooser').text(this.files[0].name);
@@ -1646,8 +1664,10 @@ GreasyFork 地址
                         if (filesList[0].webkitRelativePath === filesList[0].name) {
                             if (filesList[0].name.toLowerCase().match(/.+\.torrent$/)) {
                                 // console.log('是种子文件');
-                                const response = await fetch(URL.createObjectURL(filesList[0]));
+                                const torrentObjectUrl = URL.createObjectURL(filesList[0]);
+                                const response = await fetch(torrentObjectUrl);
                                 const torrent_blob = await response.blob();
+                                URL.revokeObjectURL(torrentObjectUrl); // 数据已读入内存，立即回收
                                 await db.setItem(`upload_autoSaveMessageTorrentBlob`, torrent_blob);
                                 await db.setItem(`upload_autoSaveMessageTorrentName`, filesList[0].name);
                                 jq('#upload_chooser').text(filesList[0].name);
@@ -1722,7 +1742,6 @@ GreasyFork 地址
                     return;
                 }
 
-                console.log(new File([torrentBlob], "a.torrent", { type: "application/octet-stream" }));
 
                 const p = () => {
                     return new Promise(function (resolve, reject) {
@@ -1790,7 +1809,7 @@ GreasyFork 地址
                     if (!r.responseURL.includes("takeupload.php")) {
                         // 成功上传
                         // console.log('成功上传');
-                        clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 停止自动保存
+                        clearInterval(uploadAutoSaveTimer); uploadAutoSaveTimer = null; // 停止自动保存
                         await db.removeItem(`upload_autoSaveMessageTime`);
                         await db.removeItem(`upload_autoSaveMessageBbcode`);
                         await db.removeItem(`upload_autoSaveMessageSmallDescr`);
@@ -1808,11 +1827,10 @@ GreasyFork 地址
                     let warn = jq(h).find('#outer').text();
                     warn = warn ? warn.trim() : warn;
                     window.alert(warn)
-                    console.log(warn);
                     this.disabled = false;  // 解除按钮禁止点击
                 }).catch(e => {
                     console.error(e);
-                    window.alert('上传发生错误\n' + e)
+                    window.alert('上传发生错误\n' + e);
                     this.disabled = false;  // 解除按钮禁止点击
                 });
 
@@ -1912,7 +1930,7 @@ GreasyFork 地址
 
             if (r_tag_start_exec && !r_tag_end_exec) {
                 let tag_start_val = r_tag_start_exec.groups.tag;;
-                console.log('检测到丢失的标签 => ' + `[/${tag_start_val}]`);
+                // console.log('检测到丢失的标签 => ' + `[/${tag_start_val}]`);
                 lost_tags.push(`[/${tag_start_val}]`);
                 state = true;
             };
@@ -2207,7 +2225,7 @@ GreasyFork 地址
                 const { tag, hash } = args.slice(-1)[0];
                 if (tag) { return '[' + addTempCode(`attach`) + tag + `]${hash}[/attach]`; };
                 if (/<br>/.test(hash)) { return addTempCode(`[attach]`) + hash + addTempCode('[/attach]'); };
-                if (!hash) { console.log('内部为空'); return addTempCode(args[0]); }; // attach 标签内为空时
+                if (!hash) { return addTempCode(args[0]); }; // attach 标签内为空时
                 if (!/^\w{32}$/.test(hash)) { return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${hash} 无效。</div>`; }; // attach 标签内hash不符合要求
 
                 return await attachmap_db.getItem(hash).then(async (value) => {
@@ -2336,7 +2354,7 @@ GreasyFork 地址
                                                 "attach_time": getDateString()
                                             };
                                             await attachmap_db.setItem(hash, attach);
-                                        } else { console.log('附件未知错误: ' + d); };
+                                        } else { console.error('附件未知错误: ' + d); };
                                         resolve(`<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`);
                                     };
                                 },
@@ -2479,9 +2497,9 @@ GreasyFork 地址
     };
 
     async function autoSaveUpload() {
-        // 设置自动保存时间间隔
+        // 设置自动保存时间间隔（初始与重置一致，均为 8 次 tick）
         let num_global = 8;
-        let num = 5;
+        let num = num_global;
 
         jq('#bbcodejs_tbody').append(`<span id="upload_auto_save_on" style="margin-top:4px; display: none;">`
             + `<input id="upload_switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">`
@@ -2498,9 +2516,8 @@ GreasyFork 地址
                 case `upload_switch`:
                     jq(this).hide(); // 隐藏按钮
                     jq(`#upload_auto_save_off`).fadeIn(200); // 渐入按钮
-                    clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 清除setInterval函数
+                    clearInterval(uploadAutoSaveTimer); uploadAutoSaveTimer = null; // 清除定时器
                     await db.setItem(`upload_autoSaveMessageSwitch`, false)
-                    console.log(`upload-自动保存已关闭`);
                     break;
                 case `upload_clean`:
                     if (window.confirm("确定清空所有数据?")) {
@@ -2514,7 +2531,7 @@ GreasyFork 地址
         jq(`#upload_auto_save_off`).click(async function () {
             jq(this).hide();
             jq(`#upload_auto_save_on`).fadeIn(200);
-            jq(`#upload_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
+            uploadAutoSaveTimer = setInterval(autoSave, 1000); // 设置定时器
             await db.setItem(`upload_autoSaveMessageSwitch`, true)
             // console.log(`upload-自动保存已开启`);
         });
@@ -2527,7 +2544,7 @@ GreasyFork 地址
                 });
          */
         async function clean() {
-            clearInterval(jq(`#upload_auto_save_text`).attr('title')); // 清除setInterval函数
+            clearInterval(uploadAutoSaveTimer); uploadAutoSaveTimer = null; // 清除定时器
             await db.removeItem(`upload_autoSaveMessageTime`);
             await db.removeItem(`upload_autoSaveMessageBbcode`);
             await db.removeItem(`upload_autoSaveMessageSmallDescr`);
@@ -2545,7 +2562,7 @@ GreasyFork 地址
                 // 启用自动保存
                 jq(`#upload_auto_save_on`).show();
                 jq(`#upload_auto_save_off`).hide();
-                jq(`#upload_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
+                uploadAutoSaveTimer = setInterval(autoSave, 1000); // 设置定时器
                 // console.log(`upload-自动保存已开启`);
                 // 检查输入框内是否已经存在字符串
                 let _input_bool = true
@@ -2617,13 +2634,11 @@ GreasyFork 地址
                 // console.log(`upload-自动保存已关闭`);
             }
         }).catch(async function (err) {
-            // 第一次运行时 <第一次运行时 数据库里什么都没有>
-            // 这段其实也没什么用 数据库中如果没有这个键值 会返回 undefined
+            // localforage 读取失败（真实错误，getItem 无值会返回 undefined 而非 reject）
+            console.error(`[U2] 自动保存状态读取失败:`, err);
             jq(`#upload_auto_save_on`).hide();
             jq(`#upload_auto_save_off`).show();
             await db.setItem(`upload_autoSaveMessageSwitch`, false)
-            // console.log(`upload-第一次运行`);
-            console.log(`upload-${err}`);
         });
 
         async function autoSave() {
@@ -2679,8 +2694,9 @@ GreasyFork 地址
     // type 识别符
     // parent 父级元素
     async function autoSaveMessage(elementButton, elementBbcode, elementPost, type, parent) {
-        let num_global = 8; // 设置自动保存时间间隔
-        let num = 5; // 设置自动保存时间间隔
+        let num_global = 8; // 设置自动保存时间间隔（初始与重置一致，均为 8 次 tick）
+        let num = num_global;
+        let autoSaveTimer = null; // 本实例的自动保存定时器
 
         jq(elementButton).append(`<span id="${type}_auto_save_on" style="margin-top:4px; display: none;">`
             + `<input id="${type}_switch" class="codebuttons" style="font-size:11px;margin-right:3px;" type="button" value="自动保存已开启">`
@@ -2697,7 +2713,7 @@ GreasyFork 地址
                 case `${type}_switch`:
                     jq(this).hide(); // 隐藏按钮
                     jq(`#${type}_auto_save_off`).fadeIn(200); // 渐入按钮
-                    clearInterval(jq(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
+                    clearInterval(autoSaveTimer); autoSaveTimer = null; // 清除定时器
                     await db.setItem(`${type}_autoSaveMessageSwitch`, false)
                     // console.log(`${type}-自动保存已关闭`);
                     break;
@@ -2713,7 +2729,7 @@ GreasyFork 地址
         jq(`#${type}_auto_save_off`).click(async function () {  // 开启自动保存
             jq(this).hide(); // 隐藏按钮
             jq(`#${type}_auto_save_on`).fadeIn(200);
-            jq(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000));  // 设置setInterval函数
+            autoSaveTimer = setInterval(autoSave, 1000); // 设置定时器
             await db.setItem(`${type}_autoSaveMessageSwitch`, true)
             // console.log(`${type}-自动保存已开启`);
         });
@@ -2725,7 +2741,7 @@ GreasyFork 地址
         });
 
         async function clean() {
-            clearInterval(jq(`#${type}_auto_save_text`).attr('title')); // 清除setInterval函数
+            clearInterval(autoSaveTimer); autoSaveTimer = null; // 清除定时器
             await db.removeItem(`${type}_autoSaveMessageTime`);
             await db.removeItem(`${type}_autoSaveMessageBbcode`);
             await db.removeItem(`${type}_autoSaveMessageSubject`);
@@ -2738,7 +2754,7 @@ GreasyFork 地址
                 // 启用自动保存
                 jq(`#${type}_auto_save_on`).show();
                 jq(`#${type}_auto_save_off`).hide();
-                jq(`#${type}_auto_save_text`).attr("title", setInterval(autoSave, 1000)); // 设置setInterval函数
+                autoSaveTimer = setInterval(autoSave, 1000); // 设置定时器
                 // console.log(`${type}-自动保存已开启`);
                 // 检查输入框内是否已经存在字符串
                 let _input_bool = true
@@ -2760,13 +2776,11 @@ GreasyFork 地址
                 await db.setItem(`${type}_autoSaveMessageSwitch`, false);
             };
         }).catch(async function (err) {
-            // 第一次运行时 <第一次运行时 数据库里什么都没有>
-            // 这段其实也没什么用 数据库中如果没有这个键值 会返回 undefined
+            // localforage 读取失败（真实错误，getItem 无值会返回 undefined 而非 reject）
+            console.error(`[U2] ${type} 自动保存状态读取失败:`, err);
             jq(`#${type}_auto_save_on`).hide();
             jq(`#${type}_auto_save_off`).show();
             await db.setItem(`${type}_autoSaveMessageSwitch`, false);
-            // console.log(`${type}-第一次运行`);
-            console.log(`${type}-${err}`);
         });
 
         async function autoSave() {
@@ -3792,7 +3806,6 @@ function SmileIT2(smile, form, text) {
                     let f = await imgCompressor(emfile.files[i]).catch(e => { window.alert(e) });
                     if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
                     const val = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
-                    console.log(val);
                     if (val) _list.push(val); // 存储hash值
                 };
             })();
@@ -3804,8 +3817,11 @@ function SmileIT2(smile, form, text) {
                 else { console.error("无效数据 -> " + val); };
             });
             let em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);  // 获取text_area_id
-            addTextBox(window.parent.document.getElementById(em.groups.id), bbcode); // 添加附件bbcode
-            window.parent.document.getElementById(em.groups.id).dispatchEvent(new Event('input'));  // 触发input事件
+            if (!em) { console.error('[U2] 未找到 text_area_id 参数'); return; }
+            const targetBox = window.parent.document.getElementById(em.groups.id);
+            if (!targetBox) { console.error('[U2] 未找到编辑框元素:', em.groups.id); return; }
+            addTextBox(targetBox, bbcode); // 添加附件bbcode
+            targetBox.dispatchEvent(new Event('input'));  // 触发input事件
             jq('[name="progress"]').hide();  // 隐藏进度条
             jq('.embedded').show();  // 显示附件菜单
             jq('[name="file"]').val(''); // 清空输入框
@@ -3816,12 +3832,14 @@ function SmileIT2(smile, form, text) {
         const imgThumb = (file) => {
             return new Promise((resolve) => {
                 let img = new Image();              //创建个Image对象
-                img.src = url.createObjectURL(file); //将图片路径存入Image对象
+                const thumbObjectUrl = url.createObjectURL(file); //将图片路径存入Image对象
+                img.src = thumbObjectUrl;
                 img.onload = async function () {
-                    console.log('长: ' + this.height + ' | 宽: ' + this.width)
+                    url.revokeObjectURL(thumbObjectUrl); // 加载完成回收
                     resolve((this.height > 500 || this.width > 500) ? 1 : 0);
                 };
                 img.onerror = function () {
+                    url.revokeObjectURL(thumbObjectUrl); // 加载失败也回收
                     window.alert(`${file.name} 不是有效的图片文件`);
                     resolve('badimg');
                 };
@@ -4053,11 +4071,9 @@ function SmileIT2(smile, form, text) {
                     },
                     onload: function (r) {
                         let j = JSON.parse(r.responseText);
-                        console.log(j);
                         if (j.success) {
                             let url = j.data.url;
-                            console.log(url);
-                            resolve(url);
+                                resolve(url);
                         } else {
                             uploadErrorHandling(j.message);
                             reject(j.message);
@@ -4077,7 +4093,7 @@ function SmileIT2(smile, form, text) {
         const upload3Proxy = (file, max_size, extensions) => {
             // p.sda1.dev binary
             return new Promise(async (resolve, reject) => {
-                console.log('p.sda1.dev binary TEST')
+                // console.log('p.sda1.dev binary TEST')
                 if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
                 if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
 
@@ -4283,9 +4299,13 @@ function SmileIT2(smile, form, text) {
                 let items = e.clipboardData && e.clipboardData.items;
 
                 if (items) {
+                    let confirmOnce = false;
                     for (var i = 0; i < items.length; i++) {
                         if (!items[i].type.startsWith('image/')) continue;
-                        if (!confirm('上传剪贴板中的图片?')) return;
+                        if (!confirmOnce) {
+                            if (!confirm('上传剪贴板中的图片?')) return;
+                            confirmOnce = true;
+                        }
                         jq('.embedded').hide();
                         jq('[name="progress"]').show();
                         // https://developer.mozilla.org/zh-CN/docs/Web/API/DataTransferItem/getAsFile
@@ -4294,7 +4314,7 @@ function SmileIT2(smile, form, text) {
                             jq('[name="progress-total"]').text(`1 / 1`); // 显示当前上传文件的序号
                             let f = await imgCompressor(file).catch(e => { window.alert(e) });
                             if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
-                            const val = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
+                            const val = await upload(f.file, f.thumb).catch(e => { window.alert('图片上传失败: ' + ((e && e.message) || e || '未知错误')); }); // 上传文件 返回文件hash
                             let bbcode = '';
                             if (/^[a-zA-Z0-9]{32}$/.test(val)) { bbcode += `[attach]${val}[/attach]`; }
                             else if (/^https?:\/\/.+/.test(val)) { bbcode += `[img]${val}[/img]`; }
@@ -4324,8 +4344,7 @@ function SmileIT2(smile, form, text) {
                 await (async () => {
                     for (let i = 0, len = file_list.length; i < len; i++) {
                         jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
-                        console.log('文件: ' + file_list[i].name + '| 类型: ' + file_list[i].type);
-                        if (/\.(flv|mkv|mp4|ts|avi|mov|wmv|mpg|mpeg|rm|ram|swf|f4v|h261|h264|h263|m2ts)$/i.test(file_list[i].name)) {  // 常见的视频后缀名
+                            if (/\.(flv|mkv|mp4|ts|avi|mov|wmv|mpg|mpeg|rm|ram|swf|f4v|h261|h264|h263|m2ts)$/i.test(file_list[i].name)) {  // 常见的视频后缀名
                             jq('[name="progress-percent"]').text('解析中...');
                             jq('[name="progress-name"]').text(file_list[i].name);
                             await mediainfoFn(window.parent.document.getElementById(text_area_id), file_list[i]).catch(e => { window.alert(e); });
@@ -4357,14 +4376,21 @@ function SmileIT2(smile, form, text) {
 
     })();
 
+    // 解析失败统一抛错（防止畸形数据导致死循环/卡死页面）
     function bencodeDecodeUint8Array(data) {
         const decoder = new TextDecoder();
         let pointer = 0;
 
+        const fail = (msg) => { throw new Error("bencode 解析失败: " + msg); };
+
         function decodeString() {
-            const delimiterIndex = data.indexOf(58, pointer);
+            const delimiterIndex = data.indexOf(58, pointer); // ':'
+            if (delimiterIndex === -1) fail("字符串缺少 ':' 分隔符");
             const lengthBuffer = data.slice(pointer, delimiterIndex);
             const length = parseInt(decoder.decode(lengthBuffer), 10);
+            if (!Number.isFinite(length) || length < 0 || (delimiterIndex + 1 + length) > data.length) {
+                fail("字符串长度无效");
+            }
             const start = delimiterIndex + 1;
             const end = start + length;
             const value = data.slice(start, end);
@@ -4373,9 +4399,11 @@ function SmileIT2(smile, form, text) {
         };
 
         function decodeNumber() {
-            const endIndex = data.indexOf(101, pointer);
+            const endIndex = data.indexOf(101, pointer); // 'e'
+            if (endIndex === -1) fail("数字缺少 'e' 结尾");
             const valueBuffer = data.slice(pointer + 1, endIndex);
             const value = parseInt(decoder.decode(valueBuffer), 10);
+            if (Number.isNaN(value)) fail("数字格式无效");
             pointer = endIndex + 1;
             return value;
         };
@@ -4383,10 +4411,11 @@ function SmileIT2(smile, form, text) {
         function decodeList() {
             const result = [];
             pointer++; // Move past 'l'
-            while (data[pointer] !== 101) {
+            while ((pointer < data.length) && (data[pointer] !== 101)) {
                 const item = decodeValue();
                 result.push(item);
             };
+            if (pointer >= data.length) fail("列表未闭合");
             pointer++; // Move past 'e'
             return result;
         };
@@ -4394,16 +4423,18 @@ function SmileIT2(smile, form, text) {
         function decodeDictionary() {
             const result = {};
             pointer++; // Move past 'd'
-            while (data[pointer] !== 101) {
+            while ((pointer < data.length) && (data[pointer] !== 101)) {
                 const key = decoder.decode(decodeString());
                 const value = decodeValue();
                 result[key] = value;
             };
+            if (pointer >= data.length) fail("字典未闭合");
             pointer++; // Move past 'e'
             return result;
         };
 
         function decodeValue() {
+            if (pointer >= data.length) fail("数据提前结束");
             const currentByte = data[pointer];
 
             if (currentByte === 105) {
@@ -4677,12 +4708,14 @@ function SmileIT2(smile, form, text) {
     };
 
     async function pageTorrentInfo() {
+        try {
         const torrentBlob = await db.getItem(`upload_autoSaveMessageTorrentBlob`)
-        const response = await fetch(URL.createObjectURL(torrentBlob));
+        const torrentObjectUrl = URL.createObjectURL(torrentBlob);
+        const response = await fetch(torrentObjectUrl);
         const arrayBuffer = await response.arrayBuffer();
+        URL.revokeObjectURL(torrentObjectUrl); // 数据已读入内存，立即回收
         const torrentUint8Array = new Uint8Array(arrayBuffer)
         const decodedData = bencodeDecodeUint8Array(torrentUint8Array);
-        console.log(decodedData);
         // https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder
         const encoder = new TextEncoder();
         const decoderUtf8 = new TextDecoder();
@@ -4800,6 +4833,14 @@ function SmileIT2(smile, form, text) {
         jq('#torrentinfo3').html(warnStr.join(' | '));
         putFileTree(trie.root);
         pageTorrentCheck(trie.root)
+        }
+        catch (err) {
+            // 种子文件损坏/畸形：显示错误而非静默失败（原实现会死循环卡死页面）
+            console.error("[U2] 种子解析失败:", err);
+            jq('#torrentinfo3').html('种子文件解析失败：' + (err && err.message ? err.message : err));
+            jq('#file_tree').html('-');
+            jq('#torrentcheck').html('-');
+        }
     }
 
     // 候选处理脚本
@@ -5356,11 +5397,18 @@ function SmileIT2(smile, form, text) {
             script.type = "text/javascript";
             script.src = url;
             document.body.appendChild(script);
+            // 20 秒超时：CDN 挂起时不再永久卡住脚本初始化
+            var timer = setTimeout(function () {
+                script.remove();
+                reject(new Error('加载超时: ' + url));
+            }, 20000);
             script.onload = function () {
+                clearTimeout(timer);
                 resolve('ok')
             };
             script.onerror = function () {
-                reject('err');
+                clearTimeout(timer);
+                reject(new Error('加载失败: ' + url));
             };
         });
     };
@@ -5394,7 +5442,7 @@ function SmileIT2(smile, form, text) {
                 headers: { "Authorization": "Bearer " + token },
                 success: r => resolve(r),
                 error: r => {
-                    console.log('发生错误，HTTP状态码[' + r.status + ']。');
+                    console.error('发生错误，HTTP状态码[' + r.status + ']。');
                     reject(r.status);
                 },
             });
