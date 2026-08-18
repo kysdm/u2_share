@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.28
+// @version      1.2.29
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -151,15 +151,24 @@ GreasyFork 地址
     }
 
     let wasmSha1Promise = null;
+    let wasmVariant = null; // "simd" | "wasm" | "js"（实际可用的哈希后端）
     function getWasmSha1() {
         if (wasmSha1Promise === null) {
             wasmSha1Promise = (async () => {
                 const simd = await createWasmSha1(SHA1_SIMD_WASM_B64);
-                if (simd !== null) return simd;
-                return createWasmSha1(SHA1_WASM_B64); // 可能为 null → 调用方回退纯 JS
+                if (simd !== null) { wasmVariant = "simd"; return simd; }
+                const plain = await createWasmSha1(SHA1_WASM_B64);
+                if (plain !== null) { wasmVariant = "wasm"; return plain; }
+                wasmVariant = "js";
+                return null; // 调用方回退纯 JS
             })();
         }
         return wasmSha1Promise;
+    }
+    // 检测实际使用的哈希后端（触发一次实例化）："simd" | "wasm" | "js"
+    async function detectBackend() {
+        await getWasmSha1();
+        return wasmVariant;
     }
 
     function sha1Hex(bytes) {
@@ -796,6 +805,7 @@ GreasyFork 地址
         getInfoHash: sha1Hex,
         selfTest,
         formatSize,
+        detectBackend,
         version: "1.0.0",
     };
 
@@ -1107,6 +1117,17 @@ GreasyFork 地址
     (function initSeedUI() {
         const isWasm = (typeof WebAssembly !== "undefined") && (typeof WebAssembly.instantiate === "function");
         const BUTTONS = "#upload_file,#upload_folder,#torrent_create";
+        let backendChecked = false;
+
+        // 环境标签精确显示实际后端：simd / wasm / js
+        const checkBackend = () => {
+            const set = (v) => setEnvText(v);
+            if (typeof TC.detectBackend === "function") {
+                TC.detectBackend().then(set).catch(() => set("js"));
+            } else {
+                set(isWasm ? "wasm" : "js"); // 旧版库兜底
+            }
+        };
 
         // 幂等初始化：每次调用都尝试补齐所有步骤，全部就绪才算成功
         const init = () => {
@@ -1114,7 +1135,7 @@ GreasyFork 地址
             const btns = q(BUTTONS);
             const buttonsReady = (btns.length >= 3) && btns.every((e) => !e.disabled);
             const rowReady = ensureConfigRow();     // ② 配置行
-            if (rowReady) setEnvText(isWasm ? "wasm" : "js"); // ③ 环境
+            if (rowReady && !backendChecked) { backendChecked = true; checkBackend(); } // ③ 环境（仅检测一次）
             return buttonsReady && rowReady;
         };
 
