@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.8
+// @version      1.2.9
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -32,6 +32,993 @@ GreasyFork 地址
 
 
 'use strict';
+
+/* ============ TorrentCreatorLib（WASM 加速版，内联）============ */
+/*
+ * TorrentCreatorLib — 浏览器端创建 .torrent 的独立库（油猴脚本可用）
+ *
+ * 移植自 Kimbatt/torrent-creator（Svelte 项目）的 WASM 加速版。
+ *   - 内联原项目编译好的 Sha1.wasm / Sha1Simd.wasm（base64），优先 SIMD，自动降级纯 JS
+ *   - Worker 源码内联（含 wasm），Blob URL 创建，CSP 受限自动降级主线程
+ *   - 输入从 DOM FileList 改为任意 File[] / {path, file}[]
+ *
+ * 实测（Node 22/V8，16MiB 分块）：纯 JS 110 MB/s | WASM 663 MB/s | WASM+SIMD 740 MB/s
+ *
+ * 用法：
+ *   <script src="torrent-creator-lib.js"></script>  或油猴 @require
+ *   const result = await TorrentCreatorLib.createTorrent({ files, name: "my-torrent" });
+ *   TorrentCreatorLib.download(result.bytes, result.name + ".torrent");
+ */
+(function (global) {
+    "use strict";
+
+    const KB = 1024;
+    const MB = 1024 * 1024;
+
+    // ============================================================
+    // SHA-1（纯 JS，标准实现，逐块处理任意大小输入）
+    // 注意：此函数会被 toString() 提取为 worker 源码，不得引用外部变量
+    // ============================================================
+    function sha1Bytes(data) {
+        const byteLength = data.byteLength;
+        const paddedLength = (((byteLength + 8) >> 6) + 1) << 6; // 至少 64 字节
+        const padded = new Uint8Array(paddedLength);
+        padded.set(data);
+        padded[byteLength] = 0x80; // 追加 0x80
+
+        const view = new DataView(padded.buffer);
+        // 64 位大端长度（bit 数）。JS number 精确到 2^53，文件 < 2^50 字节安全
+        const bitLength = byteLength * 8;
+        view.setUint32(paddedLength - 8, Math.floor(bitLength / 0x100000000));
+        view.setUint32(paddedLength - 4, bitLength >>> 0);
+
+        let h0 = 0x67452301;
+        let h1 = 0xEFCDAB89;
+        let h2 = 0x98BADCFE;
+        let h3 = 0x10325476;
+        let h4 = 0xC3D2E1F0;
+
+        const w = new Int32Array(80);
+        for (let offset = 0; offset < paddedLength; offset += 64) {
+            for (let j = 0; j < 16; ++j) {
+                w[j] = view.getUint32(offset + j * 4);
+            }
+            for (let j = 16; j < 80; ++j) {
+                const n = w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16];
+                w[j] = (n << 1) | (n >>> 31);
+            }
+
+            let a = h0, b = h1, c = h2, d = h3, e = h4;
+            for (let j = 0; j < 80; ++j) {
+                let f, k;
+                if (j < 20) { f = (b & c) | (~b & d); k = 0x5A827999; }
+                else if (j < 40) { f = b ^ c ^ d; k = 0x6ED9EBA1; }
+                else if (j < 60) { f = (b & c) | (b & d) | (c & d); k = 0x8F1BBCDC; }
+                else { f = b ^ c ^ d; k = 0xCA62C1D6; }
+                const temp = (((a << 5) | (a >>> 27)) + f + e + k + w[j]) | 0;
+                e = d; d = c; c = (b << 30) | (b >>> 2); b = a; a = temp;
+            }
+
+            h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0;
+        }
+
+        const out = new Uint8Array(20);
+        const ov = new DataView(out.buffer);
+        ov.setUint32(0, h0 >>> 0);
+        ov.setUint32(4, h1 >>> 0);
+        ov.setUint32(8, h2 >>> 0);
+        ov.setUint32(12, h3 >>> 0);
+        ov.setUint32(16, h4 >>> 0);
+        return out;
+    }
+
+
+    // ============================================================
+    // WASM SHA-1 后端（内联原项目编译产物，base64）
+    // 优先级：SIMD wasm → 普通 wasm → 纯 JS
+    // ============================================================
+    const SHA1_WASM_B64 = "AGFzbQEAAAABDQNgAX8Bf2AAAX9gAAADBAMAAQIFBgEBggSCBAcxBAZtZW1vcnkCAA9nZXRNZW1vcnlCdWZmZXIAAQRzaGExAAALX2luaXRpYWxpemUAAgrqJgPeJgFUfyAAQYABOgCACCAAQQFqIgFBP3FBOEcEQANAIAFBADoAgAggAUEBaiIBQT9xQThHDQALCyABQYcIaiAAQQN0OgAAIAFBhghqIABBBXY6AAAgAUGFCGogAEENdjoAACABQYQIaiAAQRV2OgAAIAFBgwhqIABBHXY6AABBACEAIAFBgghqQQA6AAAgAUGACGpBADsAAEGBxpS6BiECQYnXtv5+IRJB/rnrxXkhDEH2qMmBASEPQfDDy558IRcgAUEIaiJQBEADQCACIABBuAhqKAIAIgFBGHQgAUGA/gNxQQh0ciABQQh2QYD+A3EgAUEYdnJyIgEgAEGkCGooAgAiA0EYdCADQYD+A3FBCHRyIANBCHZBgP4DcSADQRh2cnIiCSAAQYwIaigCACIDQRh0IANBgP4DcUEIdHIgA0EIdkGA/gNxIANBGHZyciINIABBhAhqKAIAIgNBGHQgA0GA/gNxQQh0ciADQQh2QYD+A3EgA0EYdnJyIhxzc3NBAXciAyAAQbQIaigCACIFQRh0IAVBgP4DcUEIdHIgBUEIdkGA/gNxIAVBGHZyciIFIABBoAhqKAIAIgRBGHQgBEGA/gNxQQh0ciAEQQh2QYD+A3EgBEEYdnJyIhMgAEGICGooAgAiBEEYdCAEQYD+A3FBCHRyIARBCHZBgP4DcSAEQRh2cnIiCiAAKAKACCIEQRh0IARBgP4DcUEIdHIgBEEIdkGA/gNxIARBGHZyciIZc3NzQQF3IgQgAEGsCGooAgAiBkEYdCAGQYD+A3FBCHRyIAZBCHZBgP4DcSAGQRh2cnIiGiAAQZQIaigCACIGQRh0IAZBgP4DcUEIdHIgBkEIdkGA/gNxIAZBGHZyciIYIA1zc3NBAXciBnMgEyAAQZgIaigCACIHQRh0IAdBgP4DcUEIdHIgB0EIdkGA/gNxIAdBGHZyciIbcyABcyAGc0EBdyIHIAkgGnMgA3NzQQF3IgtzIABBqAhqKAIAIghBGHQgCEGA/gNxQQh0ciAIQQh2QYD+A3EgCEEYdnJyIhAgE3MgBHMgAEG8CGooAgAiCEEYdCAIQYD+A3FBCHRyIAhBCHZBgP4DcSAIQRh2cnIiCCAAQZAIaigCACIUQRh0IBRBgP4DcUEIdHIgFEEIdkGA/gNxIBRBGHZyciIOIApzIBBzc0EBdyIUIABBnAhqKAIAIhVBGHQgFUGA/gNxQQh0ciAVQQh2QYD+A3EgFUEYdnJyIh0gGHMgBXNzQQF3IhVzQQF3Ih4gBSAacyAGc3NBAXciHyABIARzIAdzc0EBdyIgc0EBdyIhIABBsAhqKAIAIhZBGHQgFkGA/gNxQQh0ciAWQQh2QYD+A3EgFkEYdnJyIhEgDiAbc3MgA3NBAXciFiAJIB1zIAhzc0EBdyIiIAMgCHNzIAEgEXMgFnMgC3NBAXciI3NBAXciJHMgByAWcyAjcyAhc0EBdyIlIAsgInMgJHNzQQF3IiZzIBAgEXMgFHMgInNBAXciJyAFIAhzIBVzc0EBdyIoIAQgFHMgHnNzQQF3IikgBiAVcyAfc3NBAXciKiAHIB5zICBzc0EBdyIrIAsgH3MgIXNzQQF3IiwgICAjcyAlc3NBAXciLXNBAXciLiAUIBZzICdzICRzQQF3Ii8gFSAicyAoc3NBAXciMCAeICdzIClzc0EBdyIxIB8gKHMgKnNzQQF3IjIgICApcyArc3NBAXciMyAhICpzICxzc0EBdyI0cyAlICtzIC1zIDRzQQF3IjUgJiAscyAuc3NBAXciNnMgIyAncyAvcyAmc0EBdyI3ICQgKHMgMHNzQQF3IjggKSAvcyAxc3NBAXciOSAqIDBzIDJzc0EBdyI6ICsgMXMgM3NzQQF3IjsgLCAycyA0c3NBAXciPCAtIDNzIDVzc0EBdyI9c0EBdyI+ICUgL3MgN3MgLnNBAXciPyAmIDBzIDhzc0EBdyJAIDEgN3MgOXNzQQF3IkEgMiA4cyA6c3NBAXciQiAzIDlzIDtzc0EBdyJDIDQgOnMgPHNzQQF3IkdzIDUgO3MgPXMgR3NBAXciSiA2IDxzID5zc0EBdyJLcyAtIDdzID9zIDZzQQF3IkQgLiA4cyBAc3NBAXciRSA5ID9zIEFzc0EBdyJIIDogQHMgQnNzQQF3IkwgOyBBcyBDc3NBAXciTSA8IEJzIEdzc0EBdyJRID0gQ3MgSnNzQQF3IlJzQQF3aiA1ID9zIERzID5zQQF3Ik4gPSBEc3MgS3NBAXciUyA2IEBzIEVzIE5zQQF3Ik8gSCBCIDsgNCAtICYgLyAoIB4gBiABIAkgDiAKIAwgD3MgEnEgD3MgF2ogAkEFd2ogGWoiRkGZ84nUBWoiCiACQR53Ig5xIBJBHnciGUHmjPareiBGa3FyIAxqIAwgGXMgAnEgDHMgD2ogCkEFd2ogHGoiSUGZ84nUBWoiAkEFd2pqIlRBmfOJ1AVqIhwgAkEedyJGcSAKQR53IgpB5oz2q3ogVGtxciAOamogAiAKcUHmjPareiBJayAOcXIgGWogDWogHEEFd2oiGUGZ84nUBWoiAkEFd2oiSUGZ84nUBWoiDUEedyIOaiAdIBxBHnciCWogAiAJcUHmjPareiAZayBGcXIgCmogGGogDUEFd2oiGEGZ84nUBWoiCiAOcSACQR53IgJB5oz2q3ogGGtxcmogAiANcUHmjPareiBJayAJcXIgRmogG2ogCkEFd2oiG0GZ84nUBWoiCUEFd2oiHUGZ84nUBWoiDSAJQR53IhhxIApBHnciCkHmjPareiAda3FyaiACIBNqIAkgCnFB5oz2q3ogG2sgDnFyaiANQQV3aiIbQZnzidQFaiICQQV3aiIOQZnzidQFaiIJQR53IhNqIBEgDUEedyIBaiAKIBBqIAEgAnFB5oz2q3ogG2sgGHFyaiAJQQV3aiIRQZnzidQFaiIQIBNxIAJBHnciAkHmjPareiARa3FyaiAYIBpqIAIgCXFB5oz2q3ogDmsgAXFyaiAQQQV3aiIRQZnzidQFaiIBQQV3aiINQZnzidQFaiIJIAFBHnciGnEgEEEedyIQQeaM9qt6IA1rcXJqIAIgBWogASAQcUHmjPareiARayATcXJqIAlBBXdqIhNBmfOJ1AVqIgFBBXdqIhFBmfOJ1AVqIgJBHnciBWogAyAJQR53IgNqIAggEGogASADcUHmjPareiATayAacXJqIAJBBXdqIghBmfOJ1AVqIgYgBXEgAUEedyIBQeaM9qt6IAhrcXJqIAQgGmogASACcUHmjPareiARayADcXJqIAZBBXdqIghBmfOJ1AVqIgJBBXdqIglBmfOJ1AVqIgMgAkEedyIEcSAGQR53IgZB5oz2q3ogCWtxcmogASAUaiACIAZxQeaM9qt6IAhrIAVxcmogA0EFd2pBmfOJ1AVqIgFBBXdqQZnzidQFaiICQR53IgVqIAQgFWogAUEedyIIIANBHnciA3MgAnNqIAYgFmogAyAEcyABc2ogAkEFd2pBodfn9gZqIgFBBXdqQaHX5/YGaiICQR53IgQgAUEedyIGcyADIAdqIAUgCHMgAXNqIAJBBXdqQaHX5/YGaiIBc2ogCCAiaiAFIAZzIAJzaiABQQV3akGh1+f2BmoiAkEFd2pBodfn9gZqIgNBHnciBWogBCAnaiACQR53IgcgAUEedyIBcyADc2ogBiALaiABIARzIAJzaiADQQV3akGh1+f2BmoiAkEFd2pBodfn9gZqIgNBHnciBCACQR53IgZzIAEgH2ogBSAHcyACc2ogA0EFd2pBodfn9gZqIgFzaiAHICNqIAUgBnMgA3NqIAFBBXdqQaHX5/YGaiICQQV3akGh1+f2BmoiA0EedyIFaiAEICRqIAJBHnciByABQR53IgFzIANzaiAGICBqIAEgBHMgAnNqIANBBXdqQaHX5/YGaiICQQV3akGh1+f2BmoiA0EedyIEIAJBHnciBnMgASApaiAFIAdzIAJzaiADQQV3akGh1+f2BmoiAXNqIAcgIWogBSAGcyADc2ogAUEFd2pBodfn9gZqIgJBBXdqQaHX5/YGaiIDQR53IgdqIAQgJWogAkEedyILIAFBHnciAXMgA3NqIAYgKmogASAEcyACc2ogA0EFd2pBodfn9gZqIgJBBXdqQaHX5/YGaiIDQR53IgUgAkEedyIEcyABIDBqIAcgC3MgAnNqIANBBXdqQaHX5/YGaiICc2ogCyAraiAEIAdzIANzaiACQQV3akGh1+f2BmoiA0EFd2pBodfn9gZqIgZBHnciAWogNyACQR53IgJqIAQgMWogAyACIAVycSACIAVxcmogBkEFd2pBpIaRhwdrIgQgASADQR53IgNycSABIANxcmogBSAsaiAGIAIgA3JxIAIgA3FyaiAEQQV3akGkhpGHB2siBkEFd2pBpIaRhwdrIgcgBkEedyICIARBHnciBXJxIAIgBXFyaiADIDJqIAYgASAFcnEgASAFcXJqIAdBBXdqQaSGkYcHayIEQQV3akGkhpGHB2siBkEedyIBaiAuIAdBHnciA2ogBSA4aiAEIAIgA3JxIAIgA3FyaiAGQQV3akGkhpGHB2siByABIARBHnciBXJxIAEgBXFyaiACIDNqIAYgAyAFcnEgAyAFcXJqIAdBBXdqQaSGkYcHayIEQQV3akGkhpGHB2siBiAEQR53IgIgB0EedyIDcnEgAiADcXJqIAUgOWogBCABIANycSABIANxcmogBkEFd2pBpIaRhwdrIgRBBXdqQaSGkYcHayIHQR53IgFqIDUgBkEedyIFaiADID9qIAQgAiAFcnEgAiAFcXJqIAdBBXdqQaSGkYcHayIGIAEgBEEedyIDcnEgASADcXJqIAIgOmogByADIAVycSADIAVxcmogBkEFd2pBpIaRhwdrIgRBBXdqQaSGkYcHayIHIARBHnciAiAGQR53IgVycSACIAVxcmogAyBAaiAEIAEgBXJxIAEgBXFyaiAHQQV3akGkhpGHB2siBEEFd2pBpIaRhwdrIgZBHnciAWogPCAHQR53IgNqIAUgNmogBCACIANycSACIANxcmogBkEFd2pBpIaRhwdrIgcgASAEQR53IgVycSABIAVxcmogAiBBaiAGIAMgBXJxIAMgBXFyaiAHQQV3akGkhpGHB2siBEEFd2pBpIaRhwdrIgYgBEEedyIDIAdBHnciAnJxIAIgA3FyaiAFIERqIAQgASACcnEgASACcXJqIAZBBXdqQaSGkYcHayIBQQV3akGkhpGHB2siBUEedyIEaiADIEVqIAFBHnciByAGQR53IgZzIAVzaiACID1qIAMgBnMgAXNqIAVBBXdqQar89KwDayIBQQV3akGq/PSsA2siAkEedyIDIAFBHnciBXMgBiBDaiAEIAdzIAFzaiACQQV3akGq/PSsA2siAXNqIAcgPmogBCAFcyACc2ogAUEFd2pBqvz0rANrIgJBBXdqQar89KwDayIEQR53IgZqIAMgTmogAkEedyIHIAFBHnciAXMgBHNqIAUgR2ogASADcyACc2ogBEEFd2pBqvz0rANrIgJBBXdqQar89KwDayIDQR53IgUgAkEedyIEcyABIExqIAYgB3MgAnNqIANBBXdqQar89KwDayIBc2ogByBKaiAEIAZzIANzaiABQQV3akGq/PSsA2siAkEFd2pBqvz0rANrIgNBHnciBmogBSBLaiACQR53IgcgAUEedyIBcyADc2ogBCBNaiABIAVzIAJzaiADQQV3akGq/PSsA2siAkEFd2pBqvz0rANrIgNBHnciBSACQR53IgRzIEEgRHMgSHMgT3NBAXciCyABaiAGIAdzIAJzaiADQQV3akGq/PSsA2siAXNqIAcgUWogBCAGcyADc2ogAUEFd2pBqvz0rANrIgJBBXdqQar89KwDayIDQR53IgZqIAUgUmogAkEedyIHIAFBHnciAXMgA3NqIAQgQiBFcyBMcyALc0EBdyIEaiABIAVzIAJzaiADQQV3akGq/PSsA2siAkEFd2pBqvz0rANrIgNBHnciCyACQR53IgVzID4gRXMgT3MgU3NBAXcgAWogBiAHcyACc2ogA0EFd2pBqvz0rANrIgFzaiBDIEhzIE1zIARzQQF3IAdqIAUgBnMgA3NqIAFBBXdqQar89KwDayIDQQV3akGq/PSsA2shAiADIBJqIRIgAUEedyAMaiEMIAUgF2ohFyALIA9qIQ8gAEFAayIAIFBJDQALC0HTiIAIIBc6AABBz4iACCAPOgAAQcuIgAggDDoAAEHHiIAIIBI6AABBw4iACCACOgAAQdKIgAggF0EIdjoAAEHRiIAIIBdBEHY6AABB0IiACCAXQRh2OgAAQc6IgAggD0EIdjoAAEHNiIAIIA9BEHY6AABBzIiACCAPQRh2OgAAQcqIgAggDEEIdjoAAEHJiIAIIAxBEHY6AABByIiACCAMQRh2OgAAQcaIgAggEkEIdjoAAEHFiIAIIBJBEHY6AABBxIiACCASQRh2OgAAQcKIgAggAkEIdjoAAEHBiIAIIAJBEHY6AABBwIiACCACQRh2OgAAQcCIgAgLBQBBgAgLAgAL";
+    const SHA1_SIMD_WASM_B64 = "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cSACIAVxcmogB0EFd2pBpIaRhwdrIgRBBXdqQaSGkYcHayIGQR53IgJqIC4gB0EedyIDaiAFIDhqIAQgASADcnEgASADcXJqIAZBBXdqQaSGkYcHayIHIAIgBEEedyIFcnEgAiAFcXJqIAEgM2ogBiADIAVycSADIAVxcmogB0EFd2pBpIaRhwdrIgRBBXdqQaSGkYcHayIGIARBHnciASAHQR53IgNycSABIANxcmogBSA5aiAEIAIgA3JxIAIgA3FyaiAGQQV3akGkhpGHB2siBEEFd2pBpIaRhwdrIgdBHnciAmogNSAGQR53IgVqIAMgP2ogBCABIAVycSABIAVxcmogB0EFd2pBpIaRhwdrIgYgAiAEQR53IgNycSACIANxcmogASA6aiAHIAMgBXJxIAMgBXFyaiAGQQV3akGkhpGHB2siBEEFd2pBpIaRhwdrIgcgBEEedyIBIAZBHnciBXJxIAEgBXFyaiADIEBqIAQgAiAFcnEgAiAFcXJqIAdBBXdqQaSGkYcHayIEQQV3akGkhpGHB2siBkEedyICaiA8IAdBHnciA2ogBSA2aiAEIAEgA3JxIAEgA3FyaiAGQQV3akGkhpGHB2siByACIARBHnciBXJxIAIgBXFyaiABIEFqIAYgAyAFcnEgAyAFcXJqIAdBBXdqQaSGkYcHayIEQQV3akGkhpGHB2siBiAEQR53IgMgB0EedyIBcnEgASADcXJqIAUgRGogBCABIAJycSABIAJxcmogBkEFd2pBpIaRhwdrIgJBBXdqQaSGkYcHayIFQR53IgRqIAMgRWogAkEedyIHIAZBHnciBnMgBXNqIAEgPWogAyAGcyACc2ogBUEFd2pBqvz0rANrIgJBBXdqQar89KwDayIBQR53IgMgAkEedyIFcyAGIENqIAQgB3MgAnNqIAFBBXdqQar89KwDayICc2ogByA+aiAEIAVzIAFzaiACQQV3akGq/PSsA2siAUEFd2pBqvz0rANrIgRBHnciBmogAyBOaiABQR53IgcgAkEedyICcyAEc2ogBSBHaiACIANzIAFzaiAEQQV3akGq/PSsA2siAUEFd2pBqvz0rANrIgNBHnciBSABQR53IgRzIAIgTGogBiAHcyABc2ogA0EFd2pBqvz0rANrIgJzaiAHIEpqIAQgBnMgA3NqIAJBBXdqQar89KwDayIBQQV3akGq/PSsA2siA0EedyIGaiAFIEtqIAFBHnciByACQR53IgJzIANzaiAEIE1qIAIgBXMgAXNqIANBBXdqQar89KwDayIBQQV3akGq/PSsA2siA0EedyIFIAFBHnciBHMgQSBEcyBIcyBPc0EBdyINIAJqIAYgB3MgAXNqIANBBXdqQar89KwDayICc2ogByBRaiAEIAZzIANzaiACQQV3akGq/PSsA2siAUEFd2pBqvz0rANrIgNBHnciBmogBSBSaiABQR53IgcgAkEedyICcyADc2ogBCBCIEVzIExzIA1zQQF3IgRqIAIgBXMgAXNqIANBBXdqQar89KwDayIBQQV3akGq/PSsA2siA0EedyINIAFBHnciBXMgPiBFcyBPcyBTc0EBdyACaiAGIAdzIAFzaiADQQV3akGq/PSsA2siAnNqIEMgSHMgTXMgBHNBAXcgB2ogBSAGcyADc2ogAkEFd2pBqvz0rANrIgNBBXdqQar89KwDayEBIAMgDmohDiACQR53IABqIQAgBSAXaiEXIAwgDWohDCAIQUBrIgggUEkNAAsLQdOIgAggFzoAAEHPiIAIIAw6AABBy4iACCAAOgAAQceIgAggDjoAAEHDiIAIIAE6AABB0oiACCAXQQh2OgAAQdGIgAggF0EQdjoAAEHQiIAIIBdBGHY6AABBzoiACCAMQQh2OgAAQc2IgAggDEEQdjoAAEHMiIAIIAxBGHY6AABByoiACCAAQQh2OgAAQcmIgAggAEEQdjoAAEHIiIAIIABBGHY6AABBxoiACCAOQQh2OgAAQcWIgAggDkEQdjoAAEHEiIAIIA5BGHY6AABBwoiACCABQQh2OgAAQcGIgAggAUEQdjoAAEHAiIAIIAFBGHY6AABBwIiACAsFAEGACAsCAAs=";
+
+    function base64ToBytes(b64) {
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; ++i) bytes[i] = bin.charCodeAt(i);
+        return bytes;
+    }
+
+    // 实例化一个 wasm 模块；失败返回 null（调用方回退）
+    async function createWasmSha1(b64) {
+        try {
+            const bytes = base64ToBytes(b64);
+            const { instance } = await WebAssembly.instantiate(bytes);
+            const ex = instance.exports;
+            ex._initialize();
+            const bufPtr = ex.getMemoryBuffer();
+            const memory = ex.memory;
+            const sha1Fn = ex.sha1;
+            return (data) => {
+                // 每次取最新 buffer（防御 memory.grow）
+                const heap = new Uint8Array(memory.buffer);
+                heap.set(data, bufPtr);
+                const rp = sha1Fn(data.length);
+                return heap.slice(rp, rp + 20);
+            };
+        }
+        catch {
+            return null;
+        }
+    }
+
+    let wasmSha1Promise = null;
+    function getWasmSha1() {
+        if (wasmSha1Promise === null) {
+            wasmSha1Promise = (async () => {
+                const simd = await createWasmSha1(SHA1_SIMD_WASM_B64);
+                if (simd !== null) return simd;
+                return createWasmSha1(SHA1_WASM_B64); // 可能为 null → 调用方回退纯 JS
+            })();
+        }
+        return wasmSha1Promise;
+    }
+
+    function sha1Hex(bytes) {
+        let hex = "";
+        const h = sha1Bytes(bytes);
+        for (let i = 0; i < h.length; ++i) {
+            hex += h[i].toString(16).padStart(2, "0");
+        }
+        return hex;
+    }
+
+    // ============================================================
+    // Bencode 编码（字典键排序、UTF-8 字节长度前缀）
+    // ============================================================
+    function utf8Encode(str) {
+        return new TextEncoder().encode(str);
+    }
+
+    function bencodeEncode(value) {
+        const enc = new TextEncoder();
+        const parts = [];
+
+        function pushBytes(bytes) {
+            parts.push(bytes);
+        }
+
+        function pushText(text) {
+            parts.push(enc.encode(text));
+        }
+
+        function encodeString(str) {
+            const bytes = utf8Encode(str);
+            pushText(bytes.length + ":");
+            pushBytes(bytes);
+        }
+
+        function encode(v) {
+            if (typeof v === "number") {
+                pushText("i" + Math.trunc(v) + "e");
+            }
+            else if (typeof v === "string") {
+                encodeString(v);
+            }
+            else if (v instanceof Uint8Array) {
+                pushText(v.length + ":");
+                pushBytes(v);
+            }
+            else if (Array.isArray(v)) {
+                pushText("l");
+                for (const item of v) encode(item);
+                pushText("e");
+            }
+            else if (v !== null && typeof v === "object") {
+                pushText("d");
+                const keys = Object.keys(v).sort();
+                for (const key of keys) {
+                    const val = v[key];
+                    if (val === undefined) continue;
+                    encodeString(key);
+                    encode(val);
+                }
+                pushText("e");
+            }
+            else {
+                throw new Error("Unsupported bencode value: " + typeof v);
+            }
+        }
+
+        encode(value);
+
+        let total = 0;
+        for (const part of parts) total += part.length;
+        const result = new Uint8Array(total);
+        let offset = 0;
+        for (const part of parts) {
+            result.set(part, offset);
+            offset += part.length;
+        }
+        return result;
+    }
+
+    // ============================================================
+    // 工具
+    // ============================================================
+    function getLines(str) {
+        return String(str).split(/\s+/g).filter((line) => line.length !== 0);
+    }
+
+    function formatSize(size) {
+        if (size < KB) return size + " bytes";
+        if (size < MB) return ((size / KB) | 0) + " kB";
+        return ((size / MB) | 0) + " MB";
+    }
+
+    // 自动 piece size：目标 ~1200 片，clamp 到 16KiB .. 16MiB（2 的幂）
+    function autoPieceSize(totalSize) {
+        const targetBlockCount = 1200;
+        let factor = Math.round(Math.log2(totalSize / targetBlockCount));
+        factor = Math.max(factor, 14); // 2^14 = 16 KiB
+        factor = Math.min(factor, 24); // 2^24 = 16 MiB
+        return 1 << factor;
+    }
+
+    function abortError() {
+        return new DOMException("Aborted", "AbortError");
+    }
+
+    function validateTorrentInput(params, blockSize, totalSize) {
+        if (params.name.length === 0) return "Torrent name cannot be empty";
+        if (params.name.length > 255) return "Torrent name cannot be longer than 255 characters";
+        if (params.name.match(/[<>:"\\/|?*]/)) {
+            return "Torrent name cannot contain any of the following characters: < > : \\ / | ? *";
+        }
+        if (totalSize <= 0) return "Total size of selected files is 0";
+        if (blockSize <= 0 || (blockSize & (blockSize - 1)) !== 0) {
+            return "Piece size must be a power of two";
+        }
+        for (const tracker of getLines(params.trackers)) {
+            try { new URL(tracker); }
+            catch { return "Invalid tracker: `" + tracker + "` (not a valid URL)"; }
+        }
+        for (const webSeed of getLines(params.webSeeds)) {
+            try { new URL(webSeed); }
+            catch { return "Invalid web seed: `" + webSeed + "` (not a valid URL)"; }
+        }
+        return null;
+    }
+
+    // ============================================================
+    // 输入归一化：File[] / {path, file}[] → 统一文件清单
+    // 复刻原项目 FileInput.ts 语义
+    // ============================================================
+    function normalizeInput(files) {
+        if (!Array.isArray(files) || files.length === 0) {
+            throw new Error("No files provided");
+        }
+
+        let fileList;   // [{path: string[], file: File}]
+        let name;       // 默认 torrent 名
+        let isSingle;   // 单文件 torrent（info.length）
+
+        const first = files[0];
+        const hasPathInfo = (first !== null) && (typeof first === "object") && (first.file instanceof File);
+
+        if (hasPathInfo) {
+            fileList = files.map((entry) => ({ path: entry.path.slice(), file: entry.file }));
+            name = null; // 调用方显式传 name；否则取第一个文件名
+            isSingle = fileList.length === 1;
+            if (isSingle) name = fileList[0].path[fileList[0].path.length - 1];
+        }
+        else {
+            const hasRelPath = files.some((f) => typeof f.webkitRelativePath === "string" && f.webkitRelativePath !== "");
+
+            if (hasRelPath) {
+                // 文件夹选择（webkitdirectory）：根段 = torrent 名
+                const rootSeg = files[0].webkitRelativePath.split("/")[0];
+                fileList = files.map((f) => {
+                    const segments = f.webkitRelativePath.split("/").slice(1); // 去掉根段
+                    return { path: [...segments, f.name], file: f };
+                });
+                name = rootSeg;
+                isSingle = false;
+            }
+            else if (files.length === 1) {
+                // 单选一个文件
+                const f = files[0];
+                fileList = [{ path: [f.name], file: f }];
+                name = f.name;
+                isSingle = true;
+            }
+            else {
+                // 平铺多文件：路径 = 各自文件名
+                fileList = files.map((f) => ({ path: [f.name], file: f }));
+                name = null;
+                isSingle = false;
+            }
+        }
+
+        let totalSize = 0;
+        for (const { file } of fileList) totalSize += file.size;
+
+        return { name, fileList, totalSize, isSingle };
+    }
+
+    // ============================================================
+    // Worker（可选）：SHA-1 源码提取 + Blob URL 内联创建，自动降级
+    // ============================================================
+    const WORKER_SOURCE = [
+        "\"use strict\";",
+        "const SHA1_WASM_B64 = \"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BXdqQaSGkYcHayIEQQV3akGkhpGHB2siBiAEQR53IgIgB0EedyIDcnEgAiADcXJqIAUgOWogBCABIANycSABIANxcmogBkEFd2pBpIaRhwdrIgRBBXdqQaSGkYcHayIHQR53IgFqIDUgBkEedyIFaiADID9qIAQgAiAFcnEgAiAFcXJqIAdBBXdqQaSGkYcHayIGIAEgBEEedyIDcnEgASADcXJqIAIgOmogByADIAVycSADIAVxcmogBkEFd2pBpIaRhwdrIgRBBXdqQaSGkYcHayIHIARBHnciAiAGQR53IgVycSACIAVxcmogAyBAaiAEIAEgBXJxIAEgBXFyaiAHQQV3akGkhpGHB2siBEEFd2pBpIaRhwdrIgZBHnciAWogPCAHQR53IgNqIAUgNmogBCACIANycSACIANxcmogBkEFd2pBpIaRhwdrIgcgASAEQR53IgVycSABIAVxcmogAiBBaiAGIAMgBXJxIAMgBXFyaiAHQQV3akGkhpGHB2siBEEFd2pBpIaRhwdrIgYgBEEedyIDIAdBHnciAnJxIAIgA3FyaiAFIERqIAQgASACcnEgASACcXJqIAZBBXdqQaSGkYcHayIBQQV3akGkhpGHB2siBUEedyIEaiADIEVqIAFBHnciByAGQR53IgZzIAVzaiACID1qIAMgBnMgAXNqIAVBBXdqQar89KwDayIBQQV3akGq/PSsA2siAkEedyIDIAFBHnciBXMgBiBDaiAEIAdzIAFzaiACQQV3akGq/PSsA2siAXNqIAcgPmogBCAFcyACc2ogAUEFd2pBqvz0rANrIgJBBXdqQar89KwDayIEQR53IgZqIAMgTmogAkEedyIHIAFBHnciAXMgBHNqIAUgR2ogASADcyACc2ogBEEFd2pBqvz0rANrIgJBBXdqQar89KwDayIDQR53IgUgAkEedyIEcyABIExqIAYgB3MgAnNqIANBBXdqQar89KwDayIBc2ogByBKaiAEIAZzIANzaiABQQV3akGq/PSsA2siAkEFd2pBqvz0rANrIgNBHnciBmogBSBLaiACQR53IgcgAUEedyIBcyADc2ogBCBNaiABIAVzIAJzaiADQQV3akGq/PSsA2siAkEFd2pBqvz0rANrIgNBHnciBSACQR53IgRzIEEgRHMgSHMgT3NBAXciCyABaiAGIAdzIAJzaiADQQV3akGq/PSsA2siAXNqIAcgUWogBCAGcyADc2ogAUEFd2pBqvz0rANrIgJBBXdqQar89KwDayIDQR53IgZqIAUgUmogAkEedyIHIAFBHnciAXMgA3NqIAQgQiBFcyBMcyALc0EBdyIEaiABIAVzIAJzaiADQQV3akGq/PSsA2siAkEFd2pBqvz0rANrIgNBHnciCyACQR53IgVzID4gRXMgT3MgU3NBAXcgAWogBiAHcyACc2ogA0EFd2pBqvz0rANrIgFzaiBDIEhzIE1zIARzQQF3IAdqIAUgBnMgA3NqIAFBBXdqQar89KwDayIDQQV3akGq/PSsA2shAiADIBJqIRIgAUEedyAMaiEMIAUgF2ohFyALIA9qIQ8gAEFAayIAIFBJDQALC0HTiIAIIBc6AABBz4iACCAPOgAAQcuIgAggDDoAAEHHiIAIIBI6AABBw4iACCACOgAAQdKIgAggF0EIdjoAAEHRiIAIIBdBEHY6AABB0IiACCAXQRh2OgAAQc6IgAggD0EIdjoAAEHNiIAIIA9BEHY6AABBzIiACCAPQRh2OgAAQcqIgAggDEEIdjoAAEHJiIAIIAxBEHY6AABByIiACCAMQRh2OgAAQcaIgAggEkEIdjoAAEHFiIAIIBJBEHY6AABBxIiACCASQRh2OgAAQcKIgAggAkEIdjoAAEHBiIAIIAJBEHY6AABBwIiACCACQRh2OgAAQcCIgAgLBQBBgAgLAgAL\";",
+        "const SHA1_SIMD_WASM_B64 = \"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cSACIAVxcmogB0EFd2pBpIaRhwdrIgRBBXdqQaSGkYcHayIGQR53IgJqIC4gB0EedyIDaiAFIDhqIAQgASADcnEgASADcXJqIAZBBXdqQaSGkYcHayIHIAIgBEEedyIFcnEgAiAFcXJqIAEgM2ogBiADIAVycSADIAVxcmogB0EFd2pBpIaRhwdrIgRBBXdqQaSGkYcHayIGIARBHnciASAHQR53IgNycSABIANxcmogBSA5aiAEIAIgA3JxIAIgA3FyaiAGQQV3akGkhpGHB2siBEEFd2pBpIaRhwdrIgdBHnciAmogNSAGQR53IgVqIAMgP2ogBCABIAVycSABIAVxcmogB0EFd2pBpIaRhwdrIgYgAiAEQR53IgNycSACIANxcmogASA6aiAHIAMgBXJxIAMgBXFyaiAGQQV3akGkhpGHB2siBEEFd2pBpIaRhwdrIgcgBEEedyIBIAZBHnciBXJxIAEgBXFyaiADIEBqIAQgAiAFcnEgAiAFcXJqIAdBBXdqQaSGkYcHayIEQQV3akGkhpGHB2siBkEedyICaiA8IAdBHnciA2ogBSA2aiAEIAEgA3JxIAEgA3FyaiAGQQV3akGkhpGHB2siByACIARBHnciBXJxIAIgBXFyaiABIEFqIAYgAyAFcnEgAyAFcXJqIAdBBXdqQaSGkYcHayIEQQV3akGkhpGHB2siBiAEQR53IgMgB0EedyIBcnEgASADcXJqIAUgRGogBCABIAJycSABIAJxcmogBkEFd2pBpIaRhwdrIgJBBXdqQaSGkYcHayIFQR53IgRqIAMgRWogAkEedyIHIAZBHnciBnMgBXNqIAEgPWogAyAGcyACc2ogBUEFd2pBqvz0rANrIgJBBXdqQar89KwDayIBQR53IgMgAkEedyIFcyAGIENqIAQgB3MgAnNqIAFBBXdqQar89KwDayICc2ogByA+aiAEIAVzIAFzaiACQQV3akGq/PSsA2siAUEFd2pBqvz0rANrIgRBHnciBmogAyBOaiABQR53IgcgAkEedyICcyAEc2ogBSBHaiACIANzIAFzaiAEQQV3akGq/PSsA2siAUEFd2pBqvz0rANrIgNBHnciBSABQR53IgRzIAIgTGogBiAHcyABc2ogA0EFd2pBqvz0rANrIgJzaiAHIEpqIAQgBnMgA3NqIAJBBXdqQar89KwDayIBQQV3akGq/PSsA2siA0EedyIGaiAFIEtqIAFBHnciByACQR53IgJzIANzaiAEIE1qIAIgBXMgAXNqIANBBXdqQar89KwDayIBQQV3akGq/PSsA2siA0EedyIFIAFBHnciBHMgQSBEcyBIcyBPc0EBdyINIAJqIAYgB3MgAXNqIANBBXdqQar89KwDayICc2ogByBRaiAEIAZzIANzaiACQQV3akGq/PSsA2siAUEFd2pBqvz0rANrIgNBHnciBmogBSBSaiABQR53IgcgAkEedyICcyADc2ogBCBCIEVzIExzIA1zQQF3IgRqIAIgBXMgAXNqIANBBXdqQar89KwDayIBQQV3akGq/PSsA2siA0EedyINIAFBHnciBXMgPiBFcyBPcyBTc0EBdyACaiAGIAdzIAFzaiADQQV3akGq/PSsA2siAnNqIEMgSHMgTXMgBHNBAXcgB2ogBSAGcyADc2ogAkEFd2pBqvz0rANrIgNBBXdqQar89KwDayEBIAMgDmohDiACQR53IABqIQAgBSAXaiEXIAwgDWohDCAIQUBrIgggUEkNAAsLQdOIgAggFzoAAEHPiIAIIAw6AABBy4iACCAAOgAAQceIgAggDjoAAEHDiIAIIAE6AABB0oiACCAXQQh2OgAAQdGIgAggF0EQdjoAAEHQiIAIIBdBGHY6AABBzoiACCAMQQh2OgAAQc2IgAggDEEQdjoAAEHMiIAIIAxBGHY6AABByoiACCAAQQh2OgAAQcmIgAggAEEQdjoAAEHIiIAIIABBGHY6AABBxoiACCAOQQh2OgAAQcWIgAggDkEQdjoAAEHEiIAIIA5BGHY6AABBwoiACCABQQh2OgAAQcGIgAggAUEQdjoAAEHAiIAIIAFBGHY6AABBwIiACAsFAEGACAsCAAs=\";",
+        "function base64ToBytes(b64) { const bin = atob(b64); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; ++i) bytes[i] = bin.charCodeAt(i); return bytes; }",
+        "async function createWasmSha1(b64) { try { const bytes = base64ToBytes(b64); const { instance } = await WebAssembly.instantiate(bytes); const ex = instance.exports; ex._initialize(); const bufPtr = ex.getMemoryBuffer(); const memory = ex.memory; const sha1Fn = ex.sha1; return (data) => { const heap = new Uint8Array(memory.buffer); heap.set(data, bufPtr); const rp = sha1Fn(data.length); return heap.slice(rp, rp + 20); }; } catch { return null; } }",
+        "let wasmSha1Promise = null;",
+        "function getWasmSha1() { if (wasmSha1Promise === null) { wasmSha1Promise = (async () => { const s = await createWasmSha1(SHA1_SIMD_WASM_B64); if (s !== null) return s; return createWasmSha1(SHA1_WASM_B64); })(); } return wasmSha1Promise; }",
+        "self.onmessage = async function (e) {",
+        "    var msg = e.data;",
+        "    var impl = await getWasmSha1();",
+        "    var results = new Uint8Array(msg.chunks.length * 20);",
+        "    for (var i = 0; i < msg.chunks.length; ++i) {",
+        "        var h = impl !== null ? impl(msg.chunks[i]) : sha1Bytes(msg.chunks[i]);",
+        "        results.set(h, i * 20);",
+        "    }",
+        "    self.postMessage({ id: msg.id, results: results });",
+        "};"
+    ].join("\n");
+
+    function createWorkerPool(maxCount) {
+        const workers = [];
+        const idle = [];
+        let nextId = 1;
+
+        let blobUrl = null;
+        try {
+            if (typeof Worker !== "undefined" && typeof Blob !== "undefined" && typeof URL !== "undefined") {
+                blobUrl = URL.createObjectURL(new Blob([WORKER_SOURCE], { type: "text/javascript" }));
+                for (let i = 0; i < maxCount; ++i) {
+                    const worker = new Worker(blobUrl, { name: "sha1-worker-" + i });
+                    workers.push(worker);
+                    idle.push(worker);
+                }
+            }
+        }
+        catch {
+            // CSP 或环境限制 → 主线程模式
+        }
+
+        if (workers.length === 0) {
+            return null; // 调用方走主线程 fallback
+        }
+
+        function pickWorker() {
+            if (idle.length > 0) return idle.pop();
+            return workers[Math.floor(Math.random() * workers.length)];
+        }
+
+        function hashChunks(chunks) {
+            const worker = pickWorker();
+            const id = nextId++;
+            return new Promise((resolve, reject) => {
+                const onMessage = (e) => {
+                    if (e.data.id !== id) return;
+                    worker.removeEventListener("message", onMessage);
+                    idle.push(worker);
+                    resolve(e.data.results);
+                };
+                const onError = () => {
+                    worker.removeEventListener("message", onMessage);
+                    worker.removeEventListener("error", onError);
+                    idle.push(worker);
+                    reject(new Error("Worker failed"));
+                };
+                worker.addEventListener("message", onMessage);
+                worker.addEventListener("error", onError);
+                try {
+                    worker.postMessage({ id, chunks }, chunks.map((c) => c.buffer));
+                }
+                catch {
+                    // 浏览器不支持 transfer → 普通 postMessage 重试一次
+                    worker.removeEventListener("message", onMessage);
+                    worker.removeEventListener("error", onError);
+                    worker.postMessage({ id, chunks });
+                    worker.addEventListener("message", onMessage);
+                    worker.addEventListener("error", onError);
+                }
+            });
+        }
+
+        return {
+            hashChunks,
+            terminate() {
+                for (const worker of workers) worker.terminate();
+                if (blobUrl !== null) URL.revokeObjectURL(blobUrl);
+            },
+        };
+    }
+
+    // ============================================================
+    // 哈希管线：16MiB 读缓冲 → 切 piece → worker/主线程并行计算
+    // 复刻原项目 TorrentObject.calculateHashes 的流水线设计
+    // ============================================================
+    async function computePieces(fileList, blockSize, options) {
+        const onProgress = options.onProgress || (() => {});
+        const signal = options.signal || null;
+        const workerPool = options.workerPool; // 可能为 null（主线程模式）
+        const wasmImpl = options.wasmImpl !== undefined
+            ? options.wasmImpl
+            : ((await getWasmSha1()) || null); // wasm 不可用时为 null → 纯 JS
+
+        let totalSize = 0;
+        for (const { file } of fileList) totalSize += file.size;
+
+        const totalBlockCount = Math.ceil(totalSize / blockSize);
+        const pieces = new Uint8Array(totalBlockCount * 20); // 每片 20 字节 SHA-1
+        let pieceIndex = 0;
+        let bytesRead = 0;
+        let bytesHashed = 0;
+
+        const reportProgress = () => {
+            const progress = (bytesRead + bytesHashed) / (2 * totalSize);
+            onProgress({ bytesRead, bytesHashed, totalSize, progress });
+        };
+
+        const pending = []; // Promise<void>[]
+
+        function dispatch(inputBytes) {
+            const inputLength = inputBytes.length;
+            const numPieces = Math.ceil(inputLength / blockSize);
+            const startPieceIndex = pieceIndex;
+            pieceIndex += numPieces;
+
+            // 每个 piece 复制成独立 buffer（worker 模式需要 transfer，主线程模式需要独立哈希）
+            const chunks = [];
+            for (let i = 0; i < numPieces; ++i) {
+                const startByteIndex = i * blockSize;
+                const endByteIndex = Math.min((i + 1) * blockSize, inputLength);
+                chunks.push(inputBytes.slice(startByteIndex, endByteIndex));
+            }
+
+            const finish = (results) => {
+                pieces.set(results, startPieceIndex * 20);
+                bytesHashed += inputLength;
+                reportProgress();
+            };
+
+            if (workerPool !== null) {
+                pending.push(
+                    workerPool.hashChunks(chunks)
+                        .then(finish)
+                        .catch((err) => { throw err; })
+                );
+            }
+            else {
+                // 主线程模式：分块计算，块间让出事件循环，避免长时间冻结 UI
+                pending.push((async () => {
+                    const results = new Uint8Array(numPieces * 20);
+                    for (let i = 0; i < numPieces; ++i) {
+                        if (signal !== null && signal.aborted) throw abortError();
+                        const hash = wasmImpl !== null ? wasmImpl(chunks[i]) : sha1Bytes(chunks[i]);
+                        results.set(hash, i * 20);
+                        await new Promise((resolve) => setTimeout(resolve, 0));
+                    }
+                    finish(results);
+                })());
+            }
+        }
+
+        // ---- 读取：16MiB 累积缓冲，读满即派发（流水线） ----
+        const readBufferSize = 16 * MB;
+        const readAccumulator = new Uint8Array(readBufferSize);
+        let readIndex = 0;
+
+        function onFileChunkRead(resultBytes) {
+            if (signal !== null && signal.aborted) throw abortError();
+
+            bytesRead += resultBytes.length;
+            reportProgress();
+
+            if (readIndex + resultBytes.length >= readBufferSize) {
+                // 缓冲满了：填满 → 派发 → 残余留到下一轮
+                const remainingSize = readBufferSize - readIndex;
+                readAccumulator.set(resultBytes.subarray(0, remainingSize), readIndex);
+                resultBytes = resultBytes.subarray(remainingSize);
+
+                dispatch(readAccumulator);
+                readIndex = 0;
+            }
+
+            readAccumulator.set(resultBytes, readIndex);
+            readIndex += resultBytes.length;
+        }
+
+        const hasBYOB = (typeof ReadableStreamBYOBReader !== "undefined")
+            && (typeof File !== "undefined") && (typeof fileList[0].file.stream === "function");
+
+        for (const { path, file } of fileList) {
+            if (file.size === 0) continue; // 0 字节文件不影响哈希
+
+            const filePath = path.join("/");
+            onProgress({ filePath, bytesRead, bytesHashed, totalSize, progress: (bytesRead + bytesHashed) / (2 * totalSize) });
+
+            const getReadError = () => new Error(
+                "Error reading file: `" + filePath + "`\nThe file might be inaccessible, or might have been modified, moved, or deleted"
+            );
+
+            if (hasBYOB) {
+                // 快路径：BYOB 复用同一 ArrayBuffer，零分配
+                let byobBuffer = new ArrayBuffer(readBufferSize);
+                const stream = file.stream();
+                const reader = stream.getReader({ mode: "byob" });
+
+                while (true) {
+                    let readResult;
+                    try {
+                        readResult = await reader.read(new Uint8Array(byobBuffer), { min: readBufferSize });
+                    }
+                    catch {
+                        throw getReadError();
+                    }
+
+                    if (signal !== null && signal.aborted) throw abortError();
+
+                    if (readResult.value !== undefined) {
+                        byobBuffer = readResult.value.buffer;
+                        onFileChunkRead(readResult.value);
+                    }
+                    if (readResult.done) break;
+                }
+            }
+            else {
+                // 慢路径：FileReader 逐块读
+                const reader = new FileReader();
+                const numReads = Math.ceil(file.size / readBufferSize);
+                for (let i = 0; i < numReads; ++i) {
+                    const startIndex = i * readBufferSize;
+                    const endIndex = Math.min((i + 1) * readBufferSize, file.size);
+
+                    let chunk;
+                    try {
+                        chunk = await new Promise((resolve, reject) => {
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = () => reject(new Error("FileReader error"));
+                            reader.readAsArrayBuffer(file.slice(startIndex, endIndex));
+                        });
+                    }
+                    catch {
+                        throw getReadError();
+                    }
+
+                    if (signal !== null && signal.aborted) throw abortError();
+                    onFileChunkRead(new Uint8Array(chunk));
+                }
+            }
+        }
+
+        // 文件末尾残余字节
+        if (readIndex !== 0) {
+            dispatch(readAccumulator.subarray(0, readIndex));
+        }
+
+        if (signal !== null && signal.aborted) throw abortError();
+
+        await Promise.all(pending);
+
+        if (signal !== null && signal.aborted) throw abortError();
+
+        return pieces;
+    }
+
+    // ============================================================
+    // 组装 torrent 对象 + 编码（复刻原项目 assembleTorrentObject）
+    // ============================================================
+    function assembleTorrent(params, input, blockSize, pieces) {
+        const info = {
+            name: params.name,
+            pieces,
+            "piece length": blockSize,
+        };
+
+        if (params.isPrivate) info.private = 1;
+        if (params.source !== "") info.source = params.source;
+
+        if (input.isSingle) {
+            info.length = input.fileList[0].file.size;
+        }
+        else {
+            info.files = input.fileList.map(({ path, file }) => ({ length: file.size, path }));
+        }
+
+        const torrent = { info };
+
+        const trackers = getLines(params.trackers);
+        if (trackers.length !== 0) {
+            torrent.announce = trackers[0];
+            torrent["announce-list"] = trackers.map((t) => [t]);
+        }
+
+        const webSeeds = getLines(params.webSeeds);
+        if (webSeeds.length !== 0) {
+            torrent["url-list"] = webSeeds;
+        }
+
+        if (params.comment !== "") torrent.comment = params.comment;
+        if (params.setCreationDate) torrent["creation date"] = Math.floor(Date.now() / 1000);
+        torrent["created by"] = params.createdBy || "TorrentCreatorLib (tampermonkey)";
+
+        return torrent;
+    }
+
+    // ============================================================
+    // 公开 API
+    // ============================================================
+    /**
+     * 创建 .torrent。
+     *
+     * @param {Object} options
+     * @param {File[]|{path: string[], file: File}[]} options.files
+     *    File[]：单选文件 / webkitdirectory 选文件夹 / 平铺多文件
+     *    {path, file}[]：显式指定路径（推荐，最可控）
+     * @param {string} [options.name] torrent 名（默认：单文件=文件名，文件夹=根目录名）
+     * @param {number|"auto"} [options.pieceSize="auto"] 分片大小（2 的幂）
+     * @param {boolean} [options.isPrivate=false] 私有种子（禁 DHT/PEX）
+     * @param {boolean} [options.setCreationDate=true] 写入 creation date
+     * @param {string[]} [options.trackers=[]]
+     * @param {string[]} [options.webSeeds=[]]
+     * @param {string} [options.comment=""]
+     * @param {string} [options.source=""] 写入 info.source（影响 info hash）
+     * @param {string} [options.createdBy=""] 写入顶层 created by（默认 "TorrentCreatorLib (tampermonkey)"）
+     * @param {boolean} [options.useWorker=true] 用 Web Worker 并行；不可用自动降级主线程
+     * @param {(info: {filePath?, bytesRead, bytesHashed, totalSize, progress}) => void} [options.onProgress]
+     * @param {AbortSignal} [options.signal] 取消
+     * @returns {Promise<{bytes: Uint8Array, blob: Blob, url: string|null,
+     *                    infoHash: string, name: string, pieceLength: number}>}
+     */
+    async function createTorrent(options) {
+        const input = normalizeInput(options.files);
+
+        const name = options.name || input.name || "unknown";
+        const pieceSize = options.pieceSize === undefined || options.pieceSize === "auto"
+            ? autoPieceSize(input.totalSize)
+            : options.pieceSize;
+
+        const params = {
+            name,
+            isPrivate: !!options.isPrivate,
+            setCreationDate: options.setCreationDate !== false,
+            trackers: Array.isArray(options.trackers) ? options.trackers.join("\n") : String(options.trackers || ""),
+            webSeeds: Array.isArray(options.webSeeds) ? options.webSeeds.join("\n") : String(options.webSeeds || ""),
+            comment: String(options.comment || ""),
+            source: String(options.source || ""),
+            createdBy: String(options.createdBy || ""),
+        };
+
+        const error = validateTorrentInput(params, pieceSize, input.totalSize);
+        if (error !== null) throw new Error(error);
+
+        const wasmImpl = (await getWasmSha1()) || null; // wasm 不可用时为 null → 纯 JS
+
+        let workerPool = null;
+        if (options.useWorker !== false) {
+            const maxCount = Math.min(
+                (typeof navigator !== "undefined" && navigator.hardwareConcurrency) || 1,
+                8
+            );
+            workerPool = createWorkerPool(maxCount);
+        }
+
+        try {
+            const pieces = await computePieces(input.fileList, pieceSize, {
+                workerPool,
+                wasmImpl,
+                onProgress: options.onProgress,
+                signal: options.signal || null,
+            });
+
+            const torrent = assembleTorrent(params, input, pieceSize, pieces);
+            const bytes = bencodeEncode(torrent);
+            const infoHash = sha1Hex(bencodeEncode(torrent.info));
+
+            const result = {
+                bytes,
+                infoHash,
+                name,
+                pieceLength: pieceSize,
+                backend: (wasmImpl !== null) ? "wasm" : "js",
+            };
+
+            if (typeof Blob !== "undefined") {
+                result.blob = new Blob([bytes], { type: "application/x-bittorrent" });
+            }
+            if (typeof document !== "undefined" && typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+                result.url = URL.createObjectURL(result.blob);
+            }
+            else {
+                result.url = null;
+            }
+
+            return result;
+        }
+        finally {
+            if (workerPool !== null) workerPool.terminate();
+        }
+    }
+
+    /**
+     * 触发浏览器下载。
+     * @param {Uint8Array|Blob} bytesOrBlob
+     * @param {string} filename 例如 "my-torrent.torrent"
+     */
+    function download(bytesOrBlob, filename) {
+        if (typeof document === "undefined") {
+            throw new Error("download() requires a DOM environment");
+        }
+        const blob = (bytesOrBlob instanceof Blob)
+            ? bytesOrBlob
+            : new Blob([bytesOrBlob], { type: "application/x-bittorrent" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        anchor.style.display = "none";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+
+    /** 快速自检（SHA-1 标准向量 + bencode 向量），返回是否全部通过 */
+    function selfTest() {
+        const results = [
+            sha1Hex(utf8Encode("")) === "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+            sha1Hex(utf8Encode("abc")) === "a9993e364706816aba3e25717850c26c9cd0d89d",
+            new TextDecoder().decode(bencodeEncode("abc")) === "3:abc",
+            new TextDecoder().decode(bencodeEncode({ a: "b" })) === "d1:a1:be",
+            new TextDecoder().decode(bencodeEncode([1, 2])) === "li1ei2ee",
+            new TextDecoder().decode(bencodeEncode({ "piece length": 16384, name: "x", pieces: new Uint8Array([1, 2]) }))
+                === "d4:name1:x12:piece lengthi16384e6:pieces2:\u0001\u0002e",
+        ];
+        return results.every(Boolean);
+    }
+
+    const api = {
+        createTorrent,
+        download,
+        autoPieceSize,
+        bencodeEncode,
+        sha1Hex,
+        getInfoHash: sha1Hex,
+        selfTest,
+        formatSize,
+        version: "1.0.0",
+    };
+
+    global.TorrentCreatorLib = api;
+    // 多目标挂载：兼容油猴沙箱的各类全局实现
+    try {
+        if (typeof globalThis !== "undefined" && globalThis !== global) globalThis.TorrentCreatorLib = api;
+        if (typeof unsafeWindow !== "undefined") unsafeWindow.TorrentCreatorLib = api;
+    }
+    catch { /* 忽略 */ }
+
+    if (typeof module !== "undefined" && module.exports) {
+        module.exports = api; // Node 环境（仅用于测试）
+    }
+})(typeof window !== "undefined" ? window : globalThis);
+
+/* ============================================================
+ * U2 做种兼容层 —— 替代远程 https://userscript.kysdm.com/js/torrent-creator.js
+ * 提供与原库相同的全局入口：createTorrentFile(fileList) / createTorrentFolder(folderList)
+ * 底层使用内联的 TorrentCreatorLib（WASM 加速 + Worker 并行 + 自动降级）
+ * ============================================================ */
+(function () {
+    "use strict";
+    const TC = (typeof TorrentCreatorLib !== "undefined") ? TorrentCreatorLib
+        : (typeof window !== "undefined" && window.TorrentCreatorLib) ? window.TorrentCreatorLib
+        : (typeof globalThis !== "undefined" && globalThis.TorrentCreatorLib) ? globalThis.TorrentCreatorLib
+        : (typeof unsafeWindow !== "undefined" ? unsafeWindow.TorrentCreatorLib : undefined);
+    if (!TC) {
+        console.error("[U2 torrent] TorrentCreatorLib 未加载（找不到全局 TorrentCreatorLib）");
+        return;
+    }
+
+    const U2_TRACKER = "https://daydream.dmhy.best/announce";
+    const U2_CREATED_BY = "https://u2.dmhy.org/forums.php?action=viewtopic&topicid=13384";
+    const IGNORED_FILES = ["Thumbs.db", ".DS_Store", "desktop.ini"];
+    // 旧库固定 16MiB；改为自适应（目标 ~1200 片，16KiB~16MiB），小文件更合理。如需完全一致可设 16777216
+    const BLOCK_SIZE = "auto";
+
+    const q = (sel) => Array.prototype.slice.call(document.querySelectorAll(sel));
+    const ui = {
+        setText: (sel, text) => q(sel).forEach((e) => { e.textContent = text; }),
+        setStyle: (sel, prop, val) => q(sel).forEach((e) => { e.style[prop] = val; }),
+        setAttr: (sel, attr, val) => q(sel).forEach((e) => { if (attr in e) e[attr] = val; else e.setAttribute(attr, val); }),
+        fadeOut: (sel, ms) => q(sel).forEach((e) => {
+            e.style.transition = "opacity " + ms + "ms";
+            e.style.opacity = "0";
+            setTimeout(() => { e.style.display = "none"; }, ms);
+        }),
+    };
+
+    const fmt = (n) => {
+        if (n < 1024) return n + " B";
+        if (n < 1024 * 1024) return (n / 1024).toFixed(0) + " KiB";
+        if (n < 1024 * 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + " MiB";
+        return (n / (1024 * 1024 * 1024)).toFixed(2) + " GiB";
+    };
+
+    function setProgress(pct) {
+        ui.setStyle(".progress > div", "width", pct + "%");
+        ui.setText('[name="progress-total"]', pct.toFixed(2) + "%");
+    }
+
+    // 与原库 setTorrentData 相同的名称校验
+    function checkName(name) {
+        if (!name || name.trim() === "") { window.alert("种子名称不能为空"); return false; }
+        if (name.match(/[<>:"\\/|?*]/)) { window.alert("种子名称不能包含以下字符: < > : \\ / | ? *"); return false; }
+        if (name.length > 255) { window.alert("种子名称长度不能超过 255 个字符"); return false; }
+        return true;
+    }
+
+    // 与原库 finished() 相同：存 localforage（key 不含 .torrent 后缀，下载按钮会补）+ 更新 UI
+    function finish(result) {
+        if (typeof localforage === "undefined") {
+            window.alert("localforage 未加载，无法保存种子");
+            return;
+        }
+        const store = localforage.createInstance({ name: "bbcodejs" });
+        Promise.all([
+            store.setItem("upload_autoSaveMessageTorrentBlob", result.blob),
+            store.setItem("upload_autoSaveMessageTorrentName", result.name),
+        ]).then(() => {
+            setProgress(100);
+            ui.setText('[name="progress-name"]', "完成");
+            ui.setAttr("#upload_torrent,#upload_file,#upload_folder,#torrent_create", "disabled", true);
+            ui.setAttr("#torrent_download,#torrent_clean", "disabled", false);
+            ui.fadeOut('[name="progress"]', 3000);
+        }).catch((err) => {
+            console.error("[U2 torrent] 保存失败", err);
+            window.alert("保存种子到本地存储失败: " + err.message);
+        });
+    }
+
+    function fail(label, err) {
+        let msg = "读取文件失败: " + label;
+        if (err) msg += "\n原因: " + err.message + " (" + err.name + ")";
+        console.error(msg);
+        window.alert(msg);
+        ui.setAttr("#upload_torrent,#upload_file,#upload_folder,#torrent_create", "disabled", false);
+    }
+
+    // ---- 制种任务状态：供"清除"按钮在制种期间切换为"停止制种" ----
+    let activeAbort = null;
+    window.__torrentCreating = false;
+    window.__cancelTorrentCreation = function () {
+        if (activeAbort !== null) activeAbort.abort();
+    };
+
+    function restoreCleanButton() {
+        const btn = q("#torrent_clean")[0];
+        if (btn) btn.value = "清除";
+        ui.setAttr("#torrent_clean", "disabled", false);
+    }
+
+    async function runCreate(entries, name) {
+        if (!checkName(name)) return;
+        const total = entries.reduce((s, e) => s + e.file.size, 0);
+
+        // 建立取消通道：制种期间"清除"按钮变为停止键
+        const abortController = new AbortController();
+        activeAbort = abortController;
+        window.__torrentCreating = true;
+        ui.setAttr("#torrent_clean", "disabled", false);
+        const cleanBtn = q("#torrent_clean")[0];
+        if (cleanBtn) cleanBtn.value = "停止制种";
+
+        try {
+            const result = await TC.createTorrent({
+                files: entries,
+                name: name.trim(),
+                pieceSize: BLOCK_SIZE,
+                isPrivate: true,          // U2 私种站点
+                setCreationDate: true,
+                trackers: [U2_TRACKER],
+                createdBy: U2_CREATED_BY,
+                useWorker: true,
+                signal: abortController.signal,
+                onProgress: (p) => {
+                    if (typeof p.filePath === "string") {
+                        ui.setText('[name="progress-name"]', p.filePath.split("/").pop());
+                    }
+                    setProgress(Math.round(p.progress * 10000) / 100);
+                    ui.setText('[name="progress-percent"]', fmt(p.bytesRead) + " / " + fmt(total));
+                },
+            });
+            finish(result);
+        }
+        catch (err) {
+            if (err && err.name === "AbortError") {
+                // 用户主动停止：静默恢复，隐藏进度条，不弹错误
+                setProgress(0);
+                ui.setText('[name="progress-name"]', "");
+                ui.setText('[name="progress-total"]', "");
+                ui.setText('[name="progress-percent"]', "");
+                ui.setStyle('[name="progress"]', "display", "none"); // 与"清除"按钮行为一致：隐藏进度区
+                ui.setAttr("#upload_torrent,#upload_file,#upload_folder,#torrent_create", "disabled", false);
+            }
+            else {
+                fail(name, err);
+            }
+        }
+        finally {
+            activeAbort = null;
+            window.__torrentCreating = false;
+            restoreCleanButton();
+        }
+    }
+
+    // ===== 与原远程库相同签名的两个入口 =====
+    window.createTorrentFile = async function (fileList) {
+        const f = fileList && fileList[0];
+        if (!f) { window.alert("没有选择任何文件"); return; }
+        await runCreate([{ path: [f.name], file: f }], f.name);
+    };
+
+    window.createTorrentFolder = async function (folderList) {
+        const list = Array.from(folderList || []).filter((f) => IGNORED_FILES.indexOf(f.name) === -1);
+        if (list.length === 0) { window.alert("没有选择任何文件"); return; }
+        const rootName = list[0].webkitRelativePath ? list[0].webkitRelativePath.split("/")[0] : list[0].name;
+        const entries = list.map((f) => ({
+            path: f.webkitRelativePath ? f.webkitRelativePath.split("/").slice(1) : [f.name],
+            file: f,
+        }));
+        await runCreate(entries, rootName);
+    };
+
+    // 等效原库首行：启用制种按钮
+    // 注意：按钮 DOM 由脚本异步注入（在 loadScript 之后），此处执行时元素尚不存在，
+    // 因此用 MutationObserver 监听 + 轮询兜底，元素出现后立即启用
+    (function enableSeedButtons() {
+        // 按钮 DOM 由脚本异步注入（先 await 加载 localforage/mediainfo/conversion 后才注入），
+        // 慢网络下可能超过 10 秒，因此持续等待直到按钮出现并成功启用，成功即停止。
+        const TARGETS = "#upload_file,#upload_folder,#torrent_create";
+        const tryEnable = () => ui.setAttr(TARGETS, "disabled", false);
+        const allEnabled = () => {
+            const els = q(TARGETS);
+            return (els.length >= 3) && els.every((e) => !e.disabled);
+        };
+
+        tryEnable(); // 立即尝试一次
+
+        let done = false;
+        const finish = () => { done = true; };
+
+        if (typeof MutationObserver !== "undefined") {
+            try {
+                const observer = new MutationObserver(() => {
+                    tryEnable();
+                    if (allEnabled()) { observer.disconnect(); finish(); }
+                });
+                observer.observe(document.documentElement, { childList: true, subtree: true });
+            }
+            catch { /* 观察失败则依赖下方轮询兜底 */ }
+        }
+
+        // 轮询兜底：每 500ms 尝试，成功后停止；上限 5 分钟（覆盖极慢网络）
+        const fallback = setInterval(() => {
+            if (done) { clearInterval(fallback); return; }
+            tryEnable();
+            if (allEnabled()) { clearInterval(fallback); finish(); }
+            else if (Date.now() - start > 300000) { clearInterval(fallback); }
+        }, 500);
+        const start = Date.now();
+
+        // 兜底 2：脚本注入 UI 后页面的 load 事件（DOM 就绪的最后一刻）
+        if (document.readyState !== "complete") {
+            window.addEventListener("load", tryEnable, { once: true });
+        }
+    })();
+})();
 
 (async () => {
     // 声明全局变量
@@ -328,7 +1315,7 @@ GreasyFork 地址
 </tr>
 `);
 
-            await loadScript('https://userscript.kysdm.com/js/torrent-creator.js?v=1.3')
+            // 已内联 TorrentCreatorLib + U2 兼容层（不再加载远程 torrent-creator.js）
 
             jq('.progress').css({
                 'width': '99%',
@@ -415,6 +1402,11 @@ GreasyFork 地址
             });
             // 清空
             jq('#torrent_clean').click(async function () {
+                // 制种进行中：清除按钮 = 停止制种
+                if (window.__torrentCreating) {
+                    if (typeof window.__cancelTorrentCreation === 'function') window.__cancelTorrentCreation();
+                    return;
+                }
                 jq('#torrent').val('');
                 jq('#filechooser').val('');
                 jq('#folderchooser').val('');
