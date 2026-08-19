@@ -1,1 +1,1 @@
-https://github.com/buzz/mediainfo.js @v0.1.9
+https://github.com/buzz/mediainfo.js @v0.3.7

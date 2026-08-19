@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.40
+// @version      1.2.41
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -4432,7 +4432,14 @@ function SmileIT2(smile, form, text) {
                     return;
                 };
 
-                const mediainfo = await MediaInfoFactory({ format: 'text' });
+                // 0.3.7 的 scriptDirectory 自动检测在油猴动态注入 <script> 时失效（wasm 会请求到站点根路径），
+                // 这里显式指定 wasm 地址（与服务器 /wasm/ 部署目录一致）
+                const mediainfo = await MediaInfoFactory({
+                    format: 'text',
+                    locateFile: (path) => path.endsWith('.wasm')
+                        ? 'https://userscript.kysdm.com/wasm/' + path
+                        : path,
+                });
                 // console.log('Mediainfo Working…');
                 const getSize = () => file.size;
                 const readChunk = (chunkSize, offset) =>
