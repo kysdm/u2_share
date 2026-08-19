@@ -948,7 +948,7 @@ GreasyFork 地址
     const CFG_ROW_HTML = '<table style="width:100%; margin-top:6px; border:none;">'
         + '<tbody>'
         + '<tr><td style="border:none; display:flex; align-items:center;">'
-        + '<span style="white-space:nowrap; margin-right:4px;">区块大小：</span>'
+        + '<span style="white-space:nowrap; margin-right:4px;">区块：</span>'
         + '<select id="u2_piece_size" style="font-size:11px; padding:1px 2px;">'
         + '<option value="4194304">4 MiB</option>'
         + '<option value="8388608">8 MiB</option>'
