@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.29
+// @version      1.2.40
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -19,6 +19,17 @@
 为什么会有近似功能的函数呢，问就是历史原因
 等不能跑的时候再动祖传代码
 /*
+
+/*
+ * ============ 外部依赖来源（防止日后遗忘） ============
+ * jQuery 3.6.0        https://jquery.com（@require cdnjs）
+ * localforage 1.10.0  https://github.com/localForage/localForage
+ * mediainfo.js 0.3.7  https://github.com/buzz/mediainfo.js
+ *                     （MediaInfoLib by MediaArea，BSD-2-Clause）
+ *                     服务器部署: /js/mediainfo.js + /js/MediaInfoModule.wasm（同目录）
+ * TorrentCreatorLib   https://github.com/Kimbatt/torrent-creator（内联移植版，WASM 加速）
+ * ======================================================
+ */
 
 /*
 GreasyFork 地址
@@ -1193,7 +1204,7 @@ GreasyFork 地址
     // 任一库加载失败只降级对应功能，不再中断整个脚本
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js')
         .catch(err => console.error('[U2] localforage 加载失败，自动保存/种子存储不可用:', err))
-    await loadScript('https://userscript.kysdm.com/js/mediainfo.js?v=1.0')
+    await loadScript('https://userscript.kysdm.com/js/mediainfo.js?v=0.3.7') // 0.3.7：buzz/mediainfo.js 官方构建
         .catch(err => console.error('[U2] mediainfo.js 加载失败，媒体信息功能不可用:', err))
     await loadScript('https://userscript.kysdm.com/js/conversion.js?v=1.0')
         .catch(err => console.error('[U2] conversion.js 加载失败，图片压缩功能不可用:', err))
@@ -3831,27 +3842,127 @@ function SmileIT2(smile, form, text) {
                 };
             })();
             // console.log(attach_hash_list);
-            let bbcode = '';
-            _list.forEach(async (val) => {
-                if (/^[a-zA-Z0-9]{32}$/.test(val)) { bbcode += `[attach]${val}[/attach]`; }
-                else if (/^https?:\/\/.+/.test(val)) { bbcode += `[img]${val}[/img]`; }
-                else { console.error("无效数据 -> " + val); };
-            });
             let em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);  // 获取text_area_id
             if (!em) { console.error('[U2] 未找到 text_area_id 参数'); return; }
             const targetBox = window.parent.document.getElementById(em.groups.id);
             if (!targetBox) { console.error('[U2] 未找到编辑框元素:', em.groups.id); return; }
-            addTextBox(targetBox, bbcode); // 添加附件bbcode
-            targetBox.dispatchEvent(new Event('input'));  // 触发input事件
-            jq('[name="progress"]').hide();  // 隐藏进度条
-            jq('.embedded').show();  // 显示附件菜单
+            appendUploadResult(_list, targetBox);
             jq('[name="file"]').val(''); // 清空输入框
             jq('#upload_files').val("选择文件");
         });
 
-        // 判断是否会触发缩图
-        const imgThumb = (file) => {
-            return new Promise((resolve) => {
+        // ===== Worker 压缩（OffscreenCanvas）：压缩移出主线程，页面不卡 + 真实进度 =====
+        const COMPRESS_WORKER_SOURCE = [
+            '"use strict";',
+            'self.onmessage = async function (e) {',
+            '    var msg = e.data;',
+            '    try {',
+            '        var result = await doCompress(msg.file, msg.config, msg.mode, msg.id);',
+            '        self.postMessage({ id: msg.id, result: result });',
+            '    } catch (err) {',
+            '        self.postMessage({ id: msg.id, error: String((err && err.message) || err) });',
+            '    }',
+            '};',
+            'async function doCompress(file, config, mode, id) {',
+            '    var bitmap = await createImageBitmap(file);',
+            '    var w = bitmap.width, h = bitmap.height;',
+            '    function makeCanvas() {',
+            '        var c = new OffscreenCanvas(w, h);',
+            '        var ctx = c.getContext("2d");',
+            '        ctx.drawImage(bitmap, 0, 0);',
+            '        return c;',
+            '    }',
+            '    if (mode === "accurate") {',
+            '        // 二分压缩逼近目标大小（config.size 单位 KB），保持定制版 scale 语义',
+            '        var target = Math.max(1, config.size * 1024);',
+            '        var quality = 0.5;',
+            '        var total = 8;',
+            '        var best = null, bestSize = Infinity, lastBlob = null;',
+            '        for (var i = 0; i < total; i++) {',
+            '            self.postMessage({ id: id, progress: (i + 1) / total });',
+            '            var blob = await makeCanvas().convertToBlob({ type: config.type, quality: quality });',
+            '            lastBlob = blob;',
+            '            if (blob.size <= target && blob.size < bestSize) { best = blob; bestSize = blob.size; }',
+            '            quality = (blob.size > target) ? quality / 2 : Math.min(1, quality + (1 - quality) / 2);',
+            '        }',
+            '        bitmap.close();',
+            '        var out = best || lastBlob;',
+            '        return { blob: out, scale: (out.size < file.size) ? "good" : "bad" };',
+            '    }',
+            '    // 单次转换（compress 语义）',
+            '    var blob = await makeCanvas().convertToBlob({ type: config.type, quality: config.quality });',
+            '    bitmap.close();',
+            '    self.postMessage({ id: id, progress: 1 });',
+            '    return { blob: blob, scale: (blob.size < file.size) ? "good" : "bad" };',
+            '}',
+        ].join('\n');
+
+        let compressWorker = null;
+        let compressWorkerSeq = 0;
+        const compressWorkerCallbacks = new Map();
+        const compressWorkerAvailable = () =>
+            (typeof Worker !== 'undefined') && (typeof OffscreenCanvas !== 'undefined')
+            && (typeof URL !== 'undefined') && (typeof Blob !== 'undefined');
+        const ensureCompressWorker = () => {
+            if (compressWorker) return true;
+            if (!compressWorkerAvailable()) return false;
+            try {
+                compressWorker = new Worker(URL.createObjectURL(new Blob([COMPRESS_WORKER_SOURCE], { type: 'text/javascript' })));
+                compressWorker.onmessage = (e) => {
+                    const cb = compressWorkerCallbacks.get(e.data.id);
+                    if (!cb) return;
+                    if (e.data.progress !== undefined) {
+                        if (cb.onProgress) cb.onProgress(e.data.progress);
+                        return;
+                    }
+                    compressWorkerCallbacks.delete(e.data.id);
+                    if (e.data.error) cb.reject(new Error(e.data.error));
+                    else cb.resolve(e.data.result);
+                };
+                compressWorker.onerror = () => {
+                    for (const cb of compressWorkerCallbacks.values()) cb.reject(new Error('压缩 Worker 异常'));
+                    compressWorkerCallbacks.clear();
+                    if (compressWorker) { compressWorker.terminate(); compressWorker = null; }
+                };
+                return true;
+            } catch { return false; }
+        };
+        const compressInWorker = (file, config, mode, onProgress) => {
+            return new Promise((resolve, reject) => {
+                if (!ensureCompressWorker()) { reject(new Error('Worker 不可用')); return; }
+                const id = ++compressWorkerSeq;
+                compressWorkerCallbacks.set(id, { resolve, reject, onProgress: onProgress || null });
+                compressWorker.postMessage({ id, file, config, mode });
+            });
+        };
+        // 压缩中不确定进度动画样式（compositor 驱动，主线程阻塞不影响播放）
+        const ensureIndeterminateStyle = () => {
+            if (document.getElementById('u2-indeterminate-style')) return;
+            const style = document.createElement('style');
+            style.id = 'u2-indeterminate-style';
+            style.textContent = '.progress > div.indeterminate{position:relative;overflow:hidden;}' +
+                '.progress > div.indeterminate::after{content:"";position:absolute;top:0;left:0;height:100%;width:60%;' +
+                'background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);' +
+                'animation:u2-indeterminate-slide 1.2s linear infinite;}' +
+                '@keyframes u2-indeterminate-slide{from{transform:translateX(-100%);}to{transform:translateX(300%);}}';
+            document.head.appendChild(style);
+        };
+
+        // 判断是否会触发缩图（createImageBitmap 优先，旧浏览器回退 Image+objectURL）
+        const imgThumb = async (file) => {
+            if (typeof createImageBitmap === 'function') {
+                try {
+                    const bmp = await createImageBitmap(file);
+                    const big = (bmp.height > 500 || bmp.width > 500) ? 1 : 0;
+                    bmp.close(); // 释放位图内存
+                    return big;
+                }
+                catch {
+                    window.alert(`${file.name} 不是有效的图片文件`);
+                    return 'badimg';
+                }
+            }
+            return await new Promise((resolve) => {
                 let img = new Image();              //创建个Image对象
                 const thumbObjectUrl = url.createObjectURL(file); //将图片路径存入Image对象
                 img.src = thumbObjectUrl;
@@ -3869,13 +3980,14 @@ function SmileIT2(smile, form, text) {
 
         const imgCompressor = (file) => {
             return new Promise(async (resolve, reject) => {
-
+                try {
                 if (typeof imageConversion !== 'object') { reject('conversion.js 没有加载'); return; };
 
                 const compress_format = (await db.getItem('default_image_compress_format') || 'webp').toLowerCase();  // 压缩格式
                 const default_compress = await db.getItem('default_image_compress'); // 全局压缩
                 const website = await db.getItem('image_host_website');
-                const max_size = image_host[website].size;
+                const hostConfig = image_host[website] || image_host['u2.dmhy.org']; // db 残留无效值时回退默认图床
+                const max_size = hostConfig.size;
 
                 if (file.type.indexOf('image') === 0 && file.size > 1024 * 1024 * max_size) {
 
@@ -3888,86 +4000,127 @@ function SmileIT2(smile, form, text) {
                         };
                     };
 
-                    if (!(file instanceof File)) {
-                        let reader = new FileReader();
-                        reader.onload = async function (e) {
-                            jq('[name="progress-percent"]').text('压缩中...  (文件过大)');
-                            jq('[name="progress-name"]').text(file.name);
-                            imageConversion.compressAccurately(new Blob([new Uint8Array(e.target.result)], { type: file.type }), { size: max_size * 1000, type: 'image/' + compress_format })
-                                .then((data) => {
-                                    jq('[name="progress-percent"]').text('压缩中...  (文件过大)  完成.');
-                                    let _file = data.scale === 'good' ? new File([data.file], file.name + '.' + compress_format, { type: 'image/' + compress_format }) : file;
-                                    imgThumb(_file).then(t => {
-                                        resolve({ 'file': _file, 'thumb': t });
-                                    });
-                                })
-                                .catch(e => { resolve({ 'file': null, 'thumb': 'badimg' }); });
-                        };
-                        reader.onerror = function () {
-                            window.alert(`${file.name} 读取失败`);
-                            // reject('invalid file');
-                            resolve({ 'file': null, 'thumb': 'badimg' });
+                    // 统一执行压缩并处理结果（method: compressAccurately / compress）
+                // 优先 Worker + OffscreenCanvas（真实进度、不阻塞主线程）；不支持时回退主线程 imageConversion
+                const runCompress = async (input, config, method, label) => {
+                    jq('[name="progress-percent"]').text(`压缩中...  ${label}`);
+                    jq('[name="progress-name"]').text(file.name);
+
+                    // ---- Worker 路径：真实进度（主线程空闲，过渡正常），页面不卡 ----
+                    if (compressWorkerAvailable()) {
+                        try {
+                            const wResult = await compressInWorker(input, config, (method === 'compress' ? 'once' : 'accurate'), (p) => {
+                                jq('.progress > div').css('width', (5 + p * 90).toFixed(1) + '%');
+                            });
+                            jq('.progress > div').css('width', '100%');
+                            jq('[name="progress-percent"]').text(`压缩中...  ${label}  完成.`);
+                            let _file = wResult.scale === 'good' ? new File([wResult.blob], file.name + '.' + compress_format, { type: config.type }) : file;
+                            const t = await imgThumb(_file);
+                            return (t === 'badimg') ? { 'file': null, 'thumb': 'badimg' } : { 'file': _file, 'thumb': t };
                         }
-                        reader.readAsArrayBuffer(file);
+                        catch (e) {
+                            console.warn('[U2] Worker 压缩不可用，回退主线程压缩:', e);
+                        }
+                    }
+
+                    // ---- 回退：主线程 imageConversion + 不确定摆动动画（compositor 驱动） ----
+                    ensureIndeterminateStyle(); // 惰性注入动画样式（仅首次）
+                    const startSwing = () => {
+                        const bar = jq('.progress > div');
+                        bar.data('orig-transition', bar.css('transition')); // 保存原过渡
+                        bar.css('transition', 'none'); // 压缩阻塞会冻结主线程过渡，先禁用
+                        bar.addClass('indeterminate');
+                        bar.css('width', '40%');
+                        if (bar[0]) void bar[0].offsetWidth; // 强制 reflow：40% 立即生效，不依赖过渡
+                    };
+                    const stopSwing = (finalWidth) => {
+                        const bar = jq('.progress > div');
+                        bar.removeClass('indeterminate');
+                        bar.css('transition', bar.data('orig-transition') || ''); // 恢复过渡，平滑落定
+                        bar.css('width', finalWidth);
+                    };
+                    startSwing();
+                    // 关键：等待动画首帧提交到合成器后再开始压缩，
+                    // 否则压缩的同步阻塞会吞掉动画启动帧，导致进度条无动画
+                    await new Promise((resolve) => {
+                        let settled = false;
+                        const finish = () => { if (!settled) { settled = true; resolve(); } };
+                        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(finish);
+                        else setTimeout(finish, 50);
+                        setTimeout(finish, 250); // 后台标签页 rAF 不触发，超时兜底
+                    });
+                    try {
+                        const data = await imageConversion[method](input, config);
+                        stopSwing('100%'); // 压缩完成：平滑到 100%
+                        jq('[name="progress-percent"]').text(`压缩中...  ${label}  完成.`);
+                        let _file = data.scale === 'good' ? new File([data.file], file.name + '.' + compress_format, { type: 'image/' + compress_format }) : file;
+                        const t = await imgThumb(_file);
+                        return (t === 'badimg') ? { 'file': null, 'thumb': 'badimg' } : { 'file': _file, 'thumb': t };
+                    }
+                    catch (e) {
+                        stopSwing('0%'); // 压缩失败：归零
+                        console.error('[U2] 图片压缩失败:', e);
+                        return { 'file': null, 'thumb': 'badimg' };
+                    }
+                };
+                    // 大文件压缩（File 直接传；非 File 的 Blob 先经 FileReader 读取）
+                    const bigConfig = { size: max_size * 1000, type: 'image/' + compress_format };
+                    if (file instanceof File) {
+                        resolve(await runCompress(file, bigConfig, 'compressAccurately', '(文件过大)'));
                     } else {
-                        jq('[name="progress-percent"]').text('压缩中...  (文件过大)');
-                        jq('[name="progress-name"]').text(file.name);
-                        imageConversion.compressAccurately(file, { size: max_size * 1000, type: 'image/' + compress_format })
-                            .then((data) => {
-                                jq('[name="progress-percent"]').text('压缩中...  (文件过大)  完成.');
-                                let _file = data.scale === 'good' ? new File([data.file], file.name + '.' + compress_format, { type: 'image/' + compress_format }) : file;
-                                imgThumb(_file).then(t => {
-                                    resolve({ 'file': _file, 'thumb': t });
-                                });
-                            })
-                            .catch(e => { resolve({ 'file': null, 'thumb': 'badimg' }); });
+                        const buf = await new Promise((res, rej) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => res(new Uint8Array(e.target.result));
+                            reader.onerror = () => rej(new Error(`${file.name} 读取失败`));
+                            reader.readAsArrayBuffer(file);
+                        });
+                        resolve(await runCompress(new Blob([buf], { type: file.type }), bigConfig, 'compressAccurately', '(文件过大)'));
                     };
 
                 }
                 else if (file.type.indexOf('image') === 0) {
                     if (/\.(gif)$/i.test(file.name)) { resolve({ 'file': file, 'thumb': 0 }); return; };  // gif压缩后会变静态图
-                    // console.log(default_compress);
-                    if (!default_compress) { imgThumb(file).then(t => { resolve({ 'file': file, 'thumb': t }); }); return; }; // 未开启全局压缩
+                    if (!default_compress) { resolve(await imgThumb(file).then(t => ({ 'file': file, 'thumb': t }))); return; }; // 未开启全局压缩
 
-                    if (!(file instanceof File)) {
-                        let reader = new FileReader();
-                        reader.onload = async function (e) {
-                            jq('[name="progress-percent"]').text('压缩中...  (全局)');
-                            jq('[name="progress-name"]').text(file.name);
-                            imageConversion.compress(new Blob([new Uint8Array(e.target.result)], { type: file.type }), { quality: 1, type: 'image/' + compress_format })
-                                .then((data) => {
-                                    jq('[name="progress-percent"]').text('压缩中...  (全局)  完成.');
-                                    let _file = data.scale === 'good' ? new File([data.file], file.name + '.' + compress_format, { type: 'image/' + compress_format }) : file;
-                                    imgThumb(_file).then(t => {
-                                        resolve({ 'file': _file, 'thumb': t });
-                                    });
-                                })
-                                .catch(e => { resolve({ 'file': null, 'thumb': 'badimg' }); });
-                        };
-                        reader.onerror = function () {
-                            window.alert(`${file.name} 读取失败`);
-                            resolve({ 'file': null, 'thumb': 'badimg' });
-                        }
-                        reader.readAsArrayBuffer(file);
+                    // 全局压缩：无损质量转目标格式
+                    const globalConfig = { quality: 1, type: 'image/' + compress_format };
+                    if (file instanceof File) {
+                        resolve(await runCompress(file, globalConfig, 'compress', '(全局)'));
                     } else {
-                        jq('[name="progress-percent"]').text('压缩中...  (全局)');
-                        jq('[name="progress-name"]').text(file.name);
-                        imageConversion.compress(file, { quality: 1, type: 'image/' + compress_format })
-                            .then((data) => {
-                                jq('[name="progress-percent"]').text('压缩中...  (全局)  完成.');
-                                let _file = data.scale === 'good' ? new File([data.file], file.name + '.' + compress_format, { type: 'image/' + compress_format }) : file;
-                                imgThumb(_file).then(t => {
-                                    resolve({ 'file': _file, 'thumb': t });
-                                });
-                            })
-                            .catch(e => { resolve({ 'file': null, 'thumb': 'badimg' }); });
+                        const buf = await new Promise((res, rej) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => res(new Uint8Array(e.target.result));
+                            reader.onerror = () => rej(new Error(`${file.name} 读取失败`));
+                            reader.readAsArrayBuffer(file);
+                        });
+                        resolve(await runCompress(new Blob([buf], { type: file.type }), globalConfig, 'compress', '(全局)'));
                     };
                 }
                 else {
                     resolve({ 'file': file, 'thumb': 'other' })
                 };
 
+                }
+                catch (e) {
+                    reject(e); // async executor 内异常必须显式 reject，否则 Promise 永久挂起
+                }
+
             });
+        };
+
+        // 将上传结果 hash 列表拼接为 bbcode 并插入编辑器（三处共用）
+        const appendUploadResult = (list, targetBox) => {
+            if (!targetBox) { console.error('[U2] 未找到编辑框元素'); return; }
+            let bbcode = '';
+            for (const val of list) {
+                if (/^[a-zA-Z0-9]{32}$/.test(val)) { bbcode += `[attach]${val}[/attach]`; }
+                else if (/^https?:\/\/.+/.test(val)) { bbcode += `[img]${val}[/img]`; }
+                else { console.error("无效数据 -> " + val); };
+            };
+            addTextBox(targetBox, bbcode); // 添加附件bbcode
+            targetBox.dispatchEvent(new Event('input'));  // 触发input事件
+            jq('[name="progress"]').hide();  // 隐藏进度条
+            jq('.embedded').show();  // 显示附件菜单
         };
 
         // 上传文件
@@ -4008,6 +4161,7 @@ function SmileIT2(smile, form, text) {
         const upload1 = (file, attach_thumb, max_size, extensions) => {
             // u2.dmhy.org
             return new Promise(async (resolve, reject) => {
+                try {
 
                 if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
                 if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
@@ -4055,6 +4209,10 @@ function SmileIT2(smile, form, text) {
                         reject(e);
                     }
                 });
+                }
+                catch (e) {
+                    reject(e); // async executor 内异常必须显式 reject，否则 Promise 永久挂起
+                }
             });
         };
 
@@ -4266,12 +4424,15 @@ function SmileIT2(smile, form, text) {
         // mediainfo
         const mediainfoFn = (dom, file) => {
             return new Promise(async (resolve, reject) => {
-                if (typeof MediaInfo !== 'function') {
+                try {
+                // mediainfo.js 0.3.7+ 导出为 { default: factory } 对象（旧版为函数），两者兼容
+                const MediaInfoFactory = (typeof MediaInfo === 'function') ? MediaInfo : (MediaInfo && MediaInfo.default);
+                if (typeof MediaInfoFactory !== 'function') {
                     reject('mediainfo.js 没有加载.')
                     return;
                 };
 
-                const mediainfo = await MediaInfo({ format: 'text' });
+                const mediainfo = await MediaInfoFactory({ format: 'text' });
                 // console.log('Mediainfo Working…');
                 const getSize = () => file.size;
                 const readChunk = (chunkSize, offset) =>
@@ -4283,6 +4444,7 @@ function SmileIT2(smile, form, text) {
                             };
                             resolve(new Uint8Array(event.target.result));
                         };
+                        reader.onerror = () => reject(reader.error || new Error('文件读取失败'));
                         reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
                     });
 
@@ -4290,27 +4452,36 @@ function SmileIT2(smile, form, text) {
                 mediainfo
                     .analyzeData(getSize, readChunk)
                     .then((result) => {
-                        if (result) {
-                            result = result.replace(/(\n)*$/, '');
-                            let r = result.split('\n');
-                            let index = r[1].startsWith('Format  ') ? 1 : 2;
-                            r.splice(index, 0, `Complete name                            : ${file.name}`);
-                            result = r.join('\n');
-                        };
-                        // console.log(result); 
+                        if (!result) {
+                            resolve(); // 无法识别：不插入 [mediainfo]null[/mediainfo]
+                            return;
+                        }
+                        result = result.replace(/(\n)*$/, '');
+                        let r = result.split('\n');
+                        let index = r[1].startsWith('Format  ') ? 1 : 2;
+                        r.splice(index, 0, `Complete name                            : ${file.name}`);
+                        result = r.join('\n');
                         addTextBox(dom, `[mediainfo]${result}[/mediainfo]`);
                         resolve();
                     })
                     .catch((error) => {
                         reject(error.stack);
+                    })
+                    .finally(() => {
+                        try { mediainfo.close(); } catch { /* 忽略 */ } // 释放 wasm 实例
                     });
+                }
+                catch (e) {
+                    reject(e); // async executor 内异常必须显式 reject，否则 Promise 永久挂起
+                }
             });
         };
 
 
         // 拖拽&剪贴板上传
         (async (text_area_id) => {
-            const box = window.parent.document.getElementById(text_area_id); // 允许拖拽上传的区域
+            const box = text_area_id ? window.parent.document.getElementById(text_area_id) : null; // 允许拖拽上传的区域
+            if (!box) { console.error('[U2] 拖拽目标编辑框不存在，拖拽上传功能不可用'); return; }
 
             box.addEventListener('paste', async function (e) {
                 if (window.parent.document.getElementById(text_area_id) !== (e.target || e.toElement)) return;
@@ -4336,14 +4507,11 @@ function SmileIT2(smile, form, text) {
                             let f = await imgCompressor(file).catch(e => { window.alert(e) });
                             if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
                             const val = await upload(f.file, f.thumb).catch(e => { window.alert('图片上传失败: ' + ((e && e.message) || e || '未知错误')); }); // 上传文件 返回文件hash
-                            let bbcode = '';
-                            if (/^[a-zA-Z0-9]{32}$/.test(val)) { bbcode += `[attach]${val}[/attach]`; }
-                            else if (/^https?:\/\/.+/.test(val)) { bbcode += `[img]${val}[/img]`; }
-                            else { console.error("无效数据 -> " + val); continue; };
-                            addTextBox(window.parent.document.getElementById(text_area_id), bbcode); // 添加附件bbcode
-                            window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
-                            jq('[name="progress"]').hide();  // 隐藏进度条
-                            jq('.embedded').show();  // 显示附件菜单
+                            if (/^[a-zA-Z0-9]{32}$/.test(val) || /^https?:\/\/.+/.test(val)) {
+                                appendUploadResult([val], window.parent.document.getElementById(text_area_id));
+                            } else {
+                                console.error("无效数据 -> " + val);
+                            };
                         };
                         // console.log(file);
                     };
@@ -4373,27 +4541,20 @@ function SmileIT2(smile, form, text) {
                         };
                         let f = await imgCompressor(file_list[i]).catch(e => { window.alert(e) });
                         if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
-                        const val = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
+                        const val = await upload(f.file, f.thumb).catch(e => { window.alert('图片上传失败: ' + ((e && e.message) || e || '未知错误')); }); // 上传文件 返回文件hash
                         if (val) _list.push(val); // 存储hash值
                     };
                 })();
-                let bbcode = '';
-
-                _list.forEach(async (val) => {
-                    if (/^[a-zA-Z0-9]{32}$/.test(val)) { bbcode += `[attach]${val}[/attach]`; }
-                    else if (/^https?:\/\/.+/.test(val)) { bbcode += `[img]${val}[/img]`; }
-                    else { console.error("无效数据 -> " + val); };
-                });
-
-                addTextBox(window.parent.document.getElementById(text_area_id), bbcode); // 添加附件bbcode
-                window.parent.document.getElementById(text_area_id).dispatchEvent(new Event('input'));  // 触发input事件
-                jq('[name="progress"]').hide();  // 隐藏进度条
-                jq('.embedded').show();  // 显示附件菜单
+                appendUploadResult(_list, window.parent.document.getElementById(text_area_id));
 
             },
                 false);
 
-        })(/text_area_id=(?<id>[^\?&]+)/i.exec(location.search).groups.id);
+        })((() => {
+            const em = /text_area_id=(?<id>[^\?&]+)/i.exec(location.search);
+            if (!em) { console.error('[U2] 未找到 text_area_id 参数，拖拽上传功能不可用'); return null; }
+            return em.groups.id;
+        })());
 
     })();
 
