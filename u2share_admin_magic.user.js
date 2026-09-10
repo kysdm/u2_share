@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2 释放人工魔法 (MOD)
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.2
+// @version      0.0.3
 // @description  U2 释放人工魔法 (MOD)
 // @author       kysdm
 // @grant        none
@@ -15,10 +15,6 @@
 'use strict';
 
 (async () => {
-    // 当前用户 ID
-    const uidMatch = $('#info_block').find('a:first').attr('href').match(/\.php\?id=(\d{3,5})/i) || ['', ''];
-    const uid = uidMatch[1];
-
     const db = localforage.createInstance({ name: 'history' });
     const token = await db.getItem('token');
     if (token === null || token.length !== 96) {
@@ -123,23 +119,23 @@
         return postWith($('meta[name="csrf-token"]').attr('content'), false);
     }
 
+    // API V2：鉴权用 Authorization: Bearer，用户由 token 决定，uid 不再作为参数
     async function queryModPromotion(tid) {
-        const response = await fetch(`https://u2.kysdm.com/api/v1/promotion_specific?token=${token}&uid=${uid}&torrent_id=${tid}`);
-        if (!response.ok) {
-            throw new Error(response.status);
+        const response = await fetch(`https://u2.kysdm.com/api/v2/promotions/active?torrent_id=${tid}`, {
+            headers: { Authorization: 'Bearer ' + token }
+        });
+        const api = await response.json();
+        if (api.code !== 200) {
+            throw new Error(`API 返回异常：code=${api.code} message=${api.message}`);
         }
-        return response.json();
+        return api;
     }
 
-    /** 查询某个种子是否已经释放过魔法（管理施放 + by owner self.）。 */
+    /** 查询某个种子是否已经释放过魔法（管理施放 + by owner self.）。抓取与压制互斥，命中任一即视为已释放。 */
     async function checkPromotion(tid) {
         const api = await queryModPromotion(tid);
 
-        if (api.state != 200 || api.msg !== 'success') {
-            throw new Error(`API 返回异常：state=${api.state} msg=${api.msg}`);
-        }
-
-        const promotion = api.data.promotion;
+        const promotion = api.data.items;
         let promotionState = false;  // 是否已经释放过魔法
         let promotionId, userName, userId;
         promotion.forEach(item => {
