@@ -15,49 +15,44 @@
 'use strict';
 
 (async () => {
-    var uid = $('#info_block').find('a:first').attr('href').match(/\.php\?id=(\d{3,5})/i) || ['', '']; if (uid[1] !== '') uid = uid[1]; // 当前用户ID
-    var db = localforage.createInstance({ name: "history" });
-    var token = await db.getItem('token');
-    if (token === null || token.length !== 96) { log('未找到有效 API Token，将无法使用此脚本。') };
+    // 当前用户 ID
+    const uidMatch = $('#info_block').find('a:first').attr('href').match(/\.php\?id=(\d{3,5})/i) || ['', ''];
+    const uid = uidMatch[1];
 
+    const db = localforage.createInstance({ name: 'history' });
+    const token = await db.getItem('token');
+    if (token === null || token.length !== 96) {
+        log('未找到有效 API Token，将无法使用此脚本。');
+    }
 
     function log(text) {
-        let currentTime = new Date();
-        let hours = currentTime.getHours().toString().padStart(2, '0');
-        let minutes = currentTime.getMinutes().toString().padStart(2, '0');
-        let seconds = currentTime.getSeconds().toString().padStart(2, '0');
-        let formattedTime = hours + ':' + minutes + ':' + seconds;
+        const currentTime = new Date();
+        const formattedTime = [currentTime.getHours(), currentTime.getMinutes(), currentTime.getSeconds()]
+            .map(value => value.toString().padStart(2, '0'))
+            .join(':');
 
         if ($('table.torrents').prev().prop('nodeName').toLowerCase() !== 'br') {
             $('table.torrents').before(`<p class="promotion_log">${formattedTime} - ${text}</p><br>`);
         } else {
             $('table.torrents').prev().before(`<p class="promotion_log">${formattedTime} - ${text}</p>`);
         }
-
-    }
-
-    // 站点改版后 POST 需要带上页面里的 csrf-token：
-    // <meta name="csrf-token" content="v1.xxx.yyy.hash.hash" />
-    function getCsrfToken() {
-        let csrf = $('meta[name="csrf-token"]').attr('content')  // 页面 meta（首选）
-            || $('input[name="_csrf"]').val();                   // 兜底：表单隐藏域
-        return typeof csrf === 'string' ? csrf.trim() : '';
     }
 
     // token 带有效期（v1.<生效时间>.<失效时间>.<hash>.<hash>），页面开太久就会过期；
     // 过期时站点返回 403 + 纯文本 "Invalid or expired link"，这时重新拉一次表单页取新 token。
-    function fetchFreshCsrfToken(tid) {
+    async function fetchFreshCsrfToken(tid) {
         const url = 'https://u2.dmhy.org/promotion.php?action=specify&torrent=' + encodeURIComponent(tid);
 
-        return fetch(url)
-            .then(response => response.ok ? response.text() : '')
-            .then(html => {
-                const matched = html.match(/<meta[^>]+name=["']csrf-token["'][^>]*content=["']([^"']+)["']/i)
-                    || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']csrf-token["']/i)
-                    || html.match(/name=["']_csrf["'][^>]*value=["']([^"']+)["']/i);
-                return matched !== null ? matched[1] : '';
-            })
-            .catch(() => '');
+        try {
+            const response = await fetch(url);
+            if (!response.ok) return '';
+
+            const html = await response.text();
+            const matched = html.match(/<meta name="csrf-token" content="([^"]+)"/i);
+            return matched !== null ? matched[1] : '';
+        } catch (error) {
+            return '';
+        }
     }
 
     /** 压成一行摘要，用于日志。 */
@@ -86,8 +81,10 @@
         });
     }
 
-    function sendPromotionPostRequest(formData) {
-        const postWith = (csrf, retried) => postPromotionOnce(formData, csrf).then(async response => {
+    async function sendPromotionPostRequest(formData) {
+        const postWith = async (csrf, retried) => {
+            const response = await postPromotionOnce(formData, csrf);
+
             // 站点受理成功时返回 200 + 一段 JS 跳转脚本（不是 302）：
             //   <script type="text/javascript">
             //       window.location.href = '?action=torrent&id=64563';
@@ -119,48 +116,67 @@
                 throw new Error('站点未返回跳转脚本，响应内容：' + briefBody(html));
             }
             return { target: target, html: html };
-        });
+        };
 
-        const csrf = getCsrfToken();
-        if (csrf !== '') return postWith(csrf, false);
-
-        // 页面上找不到就直接去表单页取一个
-        return fetchFreshCsrfToken(formData.torrent).then(fresh => {
-            if (fresh === '') throw new Error('页面中未找到 csrf-token');
-            return postWith(fresh, false);
-        });
+        // 站点用 <meta name="csrf-token" content="v1.xxx.yyy.hash.hash" /> 承载 csrf-token；
+        // 取不到或已过期时，由上面的 403 分支去表单页取新 token 重试
+        return postWith($('meta[name="csrf-token"]').attr('content'), false);
     }
 
-    function queryModPromotion(tid) {
-        return fetch(`https://u2.kysdm.com/api/v1/promotion_specific?token=${token}&uid=${uid}&torrent_id=${tid}`, { method: 'GET' })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(response.status);
-                }
-                return response.json();
-            });
+    async function queryModPromotion(tid) {
+        const response = await fetch(`https://u2.kysdm.com/api/v1/promotion_specific?token=${token}&uid=${uid}&torrent_id=${tid}`);
+        if (!response.ok) {
+            throw new Error(response.status);
+        }
+        return response.json();
     }
 
+    /** 查询某个种子是否已经释放过魔法（管理施放 + by owner self.）。 */
     async function checkPromotion(tid) {
-        let api = await queryModPromotion(tid);
+        const api = await queryModPromotion(tid);
 
-        if (api.state == 200 && api.msg === 'success') {
-            const promotion = api.data.promotion;
-            let promotion_state = false;  // 初始化魔法是否状态
-            let promotion_id, user_name, user_id;
-            promotion.forEach(item => {
-                if (item.promotion_type === '管理' && item.remarks.includes('by owner self.')) {
-                    promotion_state = true;
-                    promotion_id = item.promotion_id;
-                    user_name = item.user_name;
-                    user_id = item.user_id;
-                    return;
-                }
-            })
-            return { "promotion_state": promotion_state, "promotion_id": promotion_id, "user_name": user_name, "user_id": user_id };
+        if (api.state != 200 || api.msg !== 'success') {
+            throw new Error(`API 返回异常：state=${api.state} msg=${api.msg}`);
+        }
+
+        const promotion = api.data.promotion;
+        let promotionState = false;  // 是否已经释放过魔法
+        let promotionId, userName, userId;
+        promotion.forEach(item => {
+            if (item.promotion_type === '管理' && item.remarks.includes('by owner self.')) {
+                promotionState = true;
+                promotionId = item.promotion_id;
+                userName = item.user_name;
+                userId = item.user_id;
+            }
+        });
+
+        return { promotion_state: promotionState, promotion_id: promotionId, user_name: userName, user_id: userId };
+    }
+
+    /** 处理单个种子：已经释放过就跳过，否则提交一次释放魔法。 */
+    async function releaseMagic(tid, shortcut) {
+        let data;
+        try {
+            data = await checkPromotion(tid);
+        } catch (error) {
+            log(`#${tid} 获取 API 信息发生错误 [${error}]`);
+            return;
+        }
+
+        if (data.promotion_state) {
+            log(`#${tid} 已经释放过魔法 ${data.user_name}(${data.user_id})`);
+            return;
+        }
+
+        log(`#${tid} 还未释放魔法`);
+        try {
+            await sendPromotionPostRequest({ action: 'admin', torrent: tid, shortcut: shortcut });
+            log(`#${tid} 释放成功`);
+        } catch (error) {
+            log(`#${tid} 释放失败 [${error}]`);
         }
     }
-
 
     $('table.torrents').before('<button id="promotion_self_rip">原创压制</button>')
         .before('&nbsp;<button id="promotion_self_dump">原创抓取</button><p></p>');
@@ -173,48 +189,18 @@
         $(this).find('.torrentname').toggleClass('promotion_mod_select');
     });
 
-    $('#promotion_self_dump,#promotion_self_rip').click(function () {
+    $('#promotion_self_dump,#promotion_self_rip').click(async function () {
         const shortcut = $(this).attr('id') === 'promotion_self_dump' ? 'self-dump' : 'self-rip';
         const tasks = [];
 
         $('table.promotion_mod_select').each(function () {
-            let url = $(this).find('a.tooltip').attr('href');
-            let tid = url.match(/id=(\d+)/)[1];
-            log(`#${tid} 添加到队列`)
-
-            const formData = { action: 'admin', torrent: tid, shortcut: shortcut };
-
-            const task = checkPromotion(tid)
-                .then((data) => {
-                    return new Promise((resolve, reject) => {
-                        if (data.promotion_state) {
-                            log(`#${tid} 已经释放过魔法 ${data.user_name}(${data.user_id})`);
-                            resolve();
-                        } else {
-                            log(`#${tid} 还未释放魔法`);
-                            sendPromotionPostRequest(formData)
-                                .then(() => {
-                                    log(`#${tid} 释放成功`);
-                                    resolve();
-                                })
-                                .catch(error => {
-                                    log(`#${tid} 释放失败 [${error}]`);
-                                    reject(error);
-                                });
-                        }
-                    });
-                })
-                .catch(error => {
-                    log(`#${tid} 获取 API 信息发生错误 [${error}]`);
-                });
-
-            tasks.push(task);
+            const tid = $(this).find('a.tooltip').attr('href').match(/id=(\d+)/)[1];
+            log(`#${tid} 添加到队列`);
+            tasks.push(releaseMagic(tid, shortcut));
         });
 
-        Promise.all(tasks)
-            .then(() => {
-                log(`任务完成`);
-            });
+        await Promise.all(tasks);
+        log('任务完成');
     });
 
-})()
+})();
