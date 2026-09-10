@@ -36,22 +36,99 @@
 
     }
 
-    function sendPromotionPostRequest(formData) {
-        return fetch('https://u2.dmhy.org/promotion.php?action=specify', {
+    // 站点改版后 POST 需要带上页面里的 csrf-token：
+    // <meta name="csrf-token" content="v1.xxx.yyy.hash.hash" />
+    function getCsrfToken() {
+        let csrf = $('meta[name="csrf-token"]').attr('content')  // 页面 meta（首选）
+            || $('input[name="_csrf"]').val();                   // 兜底：表单隐藏域
+        return typeof csrf === 'string' ? csrf.trim() : '';
+    }
+
+    // token 带有效期（v1.<生效时间>.<失效时间>.<hash>.<hash>），页面开太久就会过期；
+    // 过期时站点返回 403 + 纯文本 "Invalid or expired link"，这时重新拉一次表单页取新 token。
+    function fetchFreshCsrfToken(tid) {
+        const url = 'https://u2.dmhy.org/promotion.php?action=specify&torrent=' + encodeURIComponent(tid);
+
+        return fetch(url)
+            .then(response => response.ok ? response.text() : '')
+            .then(html => {
+                const matched = html.match(/<meta[^>]+name=["']csrf-token["'][^>]*content=["']([^"']+)["']/i)
+                    || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']csrf-token["']/i)
+                    || html.match(/name=["']_csrf["'][^>]*value=["']([^"']+)["']/i);
+                return matched !== null ? matched[1] : '';
+            })
+            .catch(() => '');
+    }
+
+    /** 压成一行摘要，用于日志。 */
+    function briefBody(text) {
+        return String(text).replace(/\s+/g, ' ').trim().slice(0, 120);
+    }
+
+    function postPromotionOnce(formData, csrf) {
+        const { action, torrent, shortcut } = formData;  // 调用方必定传入这三个字段
+
+        // 改版后 torrent 同时出现在 query 与 body 中
+        const url = new URL('https://u2.dmhy.org/promotion.php');
+        url.searchParams.set('action', 'specify');
+        url.searchParams.set('torrent', torrent);
+
+        // 站点需要的四个 key：_csrf、action、torrent、shortcut（无顺序要求）
+        const body = new URLSearchParams({ _csrf: csrf, action, torrent, shortcut });
+
+        return fetch(url.toString(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: new URLSearchParams(formData),
+            body: body,
             redirect: 'manual'
-        })
-            .then(response => {
-                console.log(response);
-                if (!response.ok) {
-                    throw new Error(response.status);
+        });
+    }
+
+    function sendPromotionPostRequest(formData) {
+        const postWith = (csrf, retried) => postPromotionOnce(formData, csrf).then(async response => {
+            // 站点受理成功时返回 200 + 一段 JS 跳转脚本（不是 302）：
+            //   <script type="text/javascript">
+            //       window.location.href = '?action=torrent&id=64563';
+            //   </script>
+            // 302 分支保留：fetch 在 redirect: 'manual' 下得到 opaqueredirect、status 为 0。
+            if (response.type === 'opaqueredirect') {
+                return { target: '', html: '' };
+            }
+
+            const html = await response.text();
+
+            // _csrf 失效：403 + 纯文本 "Invalid or expired link"，取新 token 重试一次（只重试一次）
+            if ((response.status === 403 || /invalid or expired link/i.test(html)) && !retried) {
+                const fresh = await fetchFreshCsrfToken(formData.torrent);
+                if (fresh !== '') {
+                    log('csrf-token 已失效，已重新获取并重试一次');
+                    return postWith(fresh, true);
                 }
-                return response.text();
-            });
+            }
+
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status + (html === '' ? '' : '：' + briefBody(html)));
+            }
+
+            const matched = html.match(/window\.location\.href\s*=\s*['"]([^'"]*)['"]/i);
+            const target = matched !== null ? matched[1] : '';
+            if (target === '') {
+                // 没有跳转脚本说明站点返回的是提示/错误页面，把内容摘要带进日志
+                throw new Error('站点未返回跳转脚本，响应内容：' + briefBody(html));
+            }
+            return { target: target, html: html };
+        });
+
+        const csrf = getCsrfToken();
+        if (csrf !== '') return postWith(csrf, false);
+
+        // 页面上找不到就直接去表单页取一个
+        return fetchFreshCsrfToken(formData.torrent).then(fresh => {
+            if (fresh === '') throw new Error('页面中未找到 csrf-token');
+            return postWith(fresh, false);
+        });
     }
 
     function queryModPromotion(tid) {
