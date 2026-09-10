@@ -7,8 +7,8 @@
 // @grant        none
 // @match        *://u2.dmhy.org/torrents.php*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
-// @downloadURL  https://gist.githubusercontent.com/kysdm/0083eacdad63a4cb15c6d14088b8d89c/raw
-// @updateURL    https://gist.githubusercontent.com/kysdm/0083eacdad63a4cb15c6d14088b8d89c/raw
+// @downloadURL  https://raw.githubusercontent.com/kysdm/u2_share/main/u2share_admin_magic.user.js
+// @updateURL    https://raw.githubusercontent.com/kysdm/u2_share/main/u2share_admin_magic.user.js
 // @icon         https://u2.dmhy.org/favicon.ico
 // ==/UserScript==
 
