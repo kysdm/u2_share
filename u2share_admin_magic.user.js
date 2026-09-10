@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2 释放人工魔法 (MOD)
 // @namespace    https://u2.dmhy.org/
-// @version      0.0.3
+// @version      0.0.4
 // @description  U2 释放人工魔法 (MOD)
 // @author       kysdm
 // @grant        none
@@ -15,11 +15,14 @@
 'use strict';
 
 (async () => {
-    const db = localforage.createInstance({ name: 'history' });
-    const token = await db.getItem('token');
-    if (token === null || token.length !== 96) {
-        log('未找到有效 API Token，将无法使用此脚本。');
-    }
+    // 日志面板固定在左上角：脱离文档流，写日志不会引起页面重排
+    const logBox = $('<div class="promotion_log_box"></div>').appendTo('body');
+    $('<style>.promotion_log { margin: 0; padding: 0; }' +
+        '.promotion_log_box { position: fixed; left: 12px; top: 12px; width: 360px; max-height: 30vh;' +
+        ' overflow-y: auto; z-index: 9999; padding: 6px 8px; font-size: 12px; line-height: 1.5;' +
+        ' background: rgba(255, 255, 255, .95); border: 1px solid #d0d7de; border-radius: 6px;' +
+        ' box-shadow: 0 2px 8px rgba(0, 0, 0, .15); }' +
+        '.promotion_log_box:empty { display: none; }</style>').appendTo('head');
 
     function log(text) {
         const currentTime = new Date();
@@ -27,11 +30,37 @@
             .map(value => value.toString().padStart(2, '0'))
             .join(':');
 
-        if ($('table.torrents').prev().prop('nodeName').toLowerCase() !== 'br') {
-            $('table.torrents').before(`<p class="promotion_log">${formattedTime} - ${text}</p><br>`);
-        } else {
-            $('table.torrents').prev().before(`<p class="promotion_log">${formattedTime} - ${text}</p>`);
+        logBox.append(`<p class="promotion_log">${formattedTime} - ${text}</p>`);
+        logBox[0].scrollTop = logBox[0].scrollHeight;
+    }
+
+    const db = localforage.createInstance({ name: 'history' });
+    const token = await db.getItem('token');
+    if (token === null || token.length !== 96) {
+        log('未找到有效 API Token，将无法使用此脚本。');
+    }
+
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // 站点与 API 都有限流：任意 1 秒窗口内最多发出 REQUESTS_PER_WINDOW 个请求
+    const REQUEST_WINDOW_MS = 1000;
+    const REQUESTS_PER_WINDOW = 4;
+    const recentRequests = [];
+
+    /** 限流版 fetch：排队等待，保证任意 1 秒窗口内的请求数不超过上限。 */
+    async function request(url, options) {
+        while (true) {
+            const now = Date.now();
+            while (recentRequests.length > 0 && now - recentRequests[0] > REQUEST_WINDOW_MS) {
+                recentRequests.shift();
+            }
+            if (recentRequests.length < REQUESTS_PER_WINDOW) {
+                recentRequests.push(now);
+                break;
+            }
+            await sleep(REQUEST_WINDOW_MS - (now - recentRequests[0]));
         }
+        return fetch(url, options);
     }
 
     // token 带有效期（v1.<生效时间>.<失效时间>.<hash>.<hash>），页面开太久就会过期；
@@ -40,7 +69,7 @@
         const url = 'https://u2.dmhy.org/promotion.php?action=specify&torrent=' + encodeURIComponent(tid);
 
         try {
-            const response = await fetch(url);
+            const response = await request(url);
             if (!response.ok) return '';
 
             const html = await response.text();
@@ -67,7 +96,7 @@
         // 站点需要的四个 key：_csrf、action、torrent、shortcut（无顺序要求）
         const body = new URLSearchParams({ _csrf: csrf, action, torrent, shortcut });
 
-        return fetch(url.toString(), {
+        return request(url.toString(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
@@ -121,7 +150,7 @@
 
     // API V2：鉴权用 Authorization: Bearer，用户由 token 决定，uid 不再作为参数
     async function queryModPromotion(tid) {
-        const response = await fetch(`https://u2.kysdm.com/api/v2/promotions/active?torrent_id=${tid}`, {
+        const response = await request(`https://u2.kysdm.com/api/v2/promotions/active?torrent_id=${tid}`, {
             headers: { Authorization: 'Bearer ' + token }
         });
         const api = await response.json();
@@ -165,7 +194,6 @@
             return;
         }
 
-        log(`#${tid} 还未释放魔法`);
         try {
             await sendPromotionPostRequest({ action: 'admin', torrent: tid, shortcut: shortcut });
             log(`#${tid} 释放成功`);
@@ -178,8 +206,6 @@
         .before('&nbsp;<button id="promotion_self_dump">原创抓取</button><p></p>');
 
     $('<style>.promotion_mod_select { background-color: #FFDCA2; }</style>').appendTo('head');
-    $('<style>.promotion_log { margin: 0; padding: 0; }</style>').appendTo('head');
-
     $('table.torrentname').parent().parent().click(function () {
         $(this).toggleClass('promotion_mod_select');
         $(this).find('.torrentname').toggleClass('promotion_mod_select');
@@ -187,15 +213,17 @@
 
     $('#promotion_self_dump,#promotion_self_rip').click(async function () {
         const shortcut = $(this).attr('id') === 'promotion_self_dump' ? 'self-dump' : 'self-rip';
-        const tasks = [];
 
-        $('table.promotion_mod_select').each(function () {
-            const tid = $(this).find('a.tooltip').attr('href').match(/id=(\d+)/)[1];
-            log(`#${tid} 添加到队列`);
-            tasks.push(releaseMagic(tid, shortcut));
-        });
+        const tids = $('table.promotion_mod_select').map(function () {
+            return $(this).find('a.tooltip').attr('href').match(/id=(\d+)/)[1];
+        }).get();
 
-        await Promise.all(tasks);
+        tids.forEach(tid => log(`#${tid} 添加到队列`));
+        log(`共 ${tids.length} 个种子，每秒最多 ${REQUESTS_PER_WINDOW} 个请求`);
+
+        for (const tid of tids) {
+            await releaseMagic(tid, shortcut);
+        }
         log('任务完成');
     });
 
