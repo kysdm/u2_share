@@ -69,11 +69,12 @@ class SQL():
             self.conn = sqlite3.connect(self.dbfile)
             self.cursor = self.conn.cursor()
 
-    def Insert(self, column, value):
+    def Insert(self, column, values):
         try:
-            sql = f'''INSERT INTO "main"."info" ({column}) VALUES ({value})'''
-            logger.debug(sql)
-            self.cursor.execute(sql)
+            placeholders = ', '.join(['?'] * len(values))
+            sql = f'''INSERT INTO "main"."info" ({column}) VALUES ({placeholders})'''
+            logger.debug(f'{sql} ==> {values}')
+            self.cursor.execute(sql, values)
         except sqlite3.IntegrityError as e:
             logger.warning(f'{sql} ==> {e}')
             self.cursor.close()
