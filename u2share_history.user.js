@@ -2491,18 +2491,6 @@ function convertBytesToAutoUnit(bytes) {
     return bytes + units[unitIndex];
 };
 
-async function loadExternalCssAsync(url) {
-    return new Promise((resolve) => {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.type = "text/css";
-        link.href = url;
-        link.onload = resolve;
-        link.onerror = resolve;
-        document.head.appendChild(link);
-    });
-}
-
 function addGlobalStyles(cssRules) {
     const styleElement = document.createElement('style');
     styleElement.appendChild(document.createTextNode(cssRules));
@@ -2640,113 +2628,6 @@ const normalizePrefix = (prefix) => (prefix === '+' || prefix === '-') ? prefix 
 const normalizeNewlines = (text) => typeof text === 'string' ? text.replace(/\r\n?/g, '\n') : text;
 
 function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
-    /* addGlobalStyles(`.diff-container{
-                        display: flex;
-                        align-items: flex-start;
-                        justify-content: flex-start;
-                    }
-                    .diff-cell{
-                        border: none;
-                        padding: 0;
-                        margin-left: 5px;
-                        flex: 1;
-                    }
-                    .draw-div{
-                        box-sizing: border-box;
-                        max-width: 100%;
-                        min-height: 15px;
-                        max-height: 600px;
-                        margin: 5px;
-                        overflow: auto;
-                        border-top: 1px solid #bfbfbf;
-                        border-bottom: 1px solid #bfbfbf;
-                    }
-                    .diff-table {
-                        width: 100%;
-                        border-left: 1px solid #bfbfbf;
-                        border-right: 1px solid #bfbfbf;
-                        background-color: white;
-                    }
-                    .diff-table table, .diff-table table td{
-                        background-color: transparent;
-                        border: none;
-                        vertical-align: top;
-                    }
-                    .diff-table, .diff-table table {
-                        border-collapse: collapse;
-                        box-sizing: border-box;
-                        table-layout: fixed;
-                        font-family: ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;
-                        font-size: 12px;
-                    }
-                    .diff-table tbody {
-                        vertical-align: top;
-                    }
-                    .diff-table del {
-                        text-decoration: none;
-                        background-color: #ff818266;
-                    }
-                    .diff-table ins {
-                        text-decoration: none;
-                        background-color: #abf2bc;
-                    }
-                    .diff-linenumber {
-                        text-align: right;
-                        vertical-align: top;
-                        width: 3em;
-                        border: none;
-                        color: #6e7781;
-                        font-size: 12px;
-                    }
-                    .diff-linenumber-delete {
-                        background-color: #ffd7d5;
-                    }
-                    .diff-linenumber-insert {
-                        background-color: #ccffd8;
-                    }
-                    .diff-line-text-delete {
-                        background-color: #ffebe9;
-                    }
-                    .diff-line-text-insert {
-                        background-color: #e6ffec;
-                    }
-                    .diff-linenumber-empty, .diff-text-cell-empty {
-                        background-color: #d0d8e080;
-                    }
-                    .diff-line-text {
-                        display: inline-block;
-                        white-space: pre-wrap;
-                        overflow-wrap: break-word;
-                        word-break: break-word;
-                        box-sizing: border-box;
-                        width: auto;
-                        font-size: 12px;
-                    }
-                    .diff-line-prefix {
-                        background: none;
-                        word-wrap: break-word;
-                        display: inline;
-                        font-size: 12px;
-                        box-sizing: border-box;
-                        vertical-align: top;
-                    }  
-                    .diff-line-prefix-delete::before {
-                        content: " - ";
-                    }  
-                    .diff-line-prefix-insert::before {
-                        content: " + ";
-                    }
-                    .diff-line-prefix-empty::before {
-                        content: "   ";
-                    }
-                    .diff-text-cell, .diff-text-cell-empty {
-                        width: auto;
-                        white-space: pre;
-                        border-left: none;
-                        border-right: 1px solid #bfbfbf;
-                        border-top: none;
-                        border-bottom: none;
-                    }`); */
 
     // 生成BBCODE内容
     for (let i = 0, len = data.length; i < len; i++) {
