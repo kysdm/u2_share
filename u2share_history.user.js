@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.3
+// @version      0.8.4
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -2575,12 +2575,13 @@ function diffHistoryCommentBbcode(comments, type) {
 
             for (let i = 0, len = comments.length; i < len; i++) {
                 if (comments[i].self === leftValue) {
-                    leftBbcode = comments[i].bbcode;
+                    leftBbcode = normalizeNewlines(comments[i].bbcode);
                 } else if (comments[i].self === rightValue) {
-                    rightBbcode = comments[i].bbcode;
+                    rightBbcode = normalizeNewlines(comments[i].bbcode);
                 }
 
-                if (leftBbcode !== undefined && leftBbcode !== "" && rightBbcode !== undefined && rightBbcode !== "") break;
+                // 两侧都取到非空字符串才算有效对比（null / 空串继续找下一条记录）
+                if (typeof leftBbcode === 'string' && leftBbcode !== "" && typeof rightBbcode === 'string' && rightBbcode !== "") break;
 
             }
 
@@ -2607,9 +2608,9 @@ function diffHistoryCommentBbcode(comments, type) {
 
 function preCheckBbcodeDiscrepancy(data, left, right) {
     // 预检测两边BBCODE是否存在差异
-    let leftBbcode = generateBbcode(data[left]);
-    let rightBbcode = generateBbcode(data[right]);
-    return !(leftBbcode === rightBbcode || typeof leftBbcode === 'undefined' || typeof rightBbcode === 'undefined');
+    let leftBbcode = normalizeNewlines(generateBbcode(data[left]));
+    let rightBbcode = normalizeNewlines(generateBbcode(data[right]));
+    return !(leftBbcode === rightBbcode || typeof leftBbcode !== 'string' || typeof rightBbcode !== 'string');
 }
 
 function generateBbcode(data) {
@@ -2631,6 +2632,11 @@ ${data.description_info}`;
 // 这里统一归一化成 \u00a0，避免库输出格式的细微变化导致下面的分支全部匹配不上而静默丢行
 const BLANK_PREFIX = '\u00a0';
 const normalizePrefix = (prefix) => (prefix === '+' || prefix === '-') ? prefix : BLANK_PREFIX;
+
+// diff@5.1.0 没有 stripTrailingCr，也不会自动处理 \r：\r 会留在行内容里，
+// 于是“只有换行符不同”的两版记录（表单提交多为 \r\n，API 写入是 \n）会被判成每一行都改了；
+// 统一换行符后再比较与渲染，非字符串原样返回（缺失/null 由调用方判断）
+const normalizeNewlines = (text) => typeof text === 'string' ? text.replace(/\r\n?/g, '\n') : text;
 
 function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
     /* addGlobalStyles(`.diff-container{
@@ -2750,7 +2756,13 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
         }
     }
 
-    if (leftBbcode === rightBbcode || typeof leftBbcode === 'undefined' || typeof rightBbcode === 'undefined') {
+    // 统一换行符后再判等与渲染，避免 \r\n / \n 差异被放大成“整篇都改了”
+    if (typeof leftBbcode === 'string') leftBbcode = normalizeNewlines(leftBbcode);
+    if (typeof rightBbcode === 'string') rightBbcode = normalizeNewlines(rightBbcode);
+
+    // 取不到记录，或 bbcode 不是字符串（API 可能返回 null）时直接提示无差异；
+    // 否则 Diff.createTwoFilesPatch 会因 value.split 不存在而抛异常，整块差异都不会渲染
+    if (leftBbcode === rightBbcode || typeof leftBbcode !== 'string' || typeof rightBbcode !== 'string') {
         drawElement.html(`<table class="diff-table">
             <tbody id="diff-tbody">
                 <tr style="background-color: #ddf4ff;">
@@ -2767,18 +2779,15 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
         return;
     }
 
+    // 这里用的是 Diff2Html.html() 纯字符串渲染接口：
+    // synchronisedScroll / stickyFileHeaders / fileListToggle / fileListStartVisible / fileContentToggle
+    // 是 Diff2HtmlUI（带 DOM 的封装）的选项，wordWrap 在 3.4.40 里并不存在，传给 html() 都不生效
     const configuration = {
         drawFileList: false,
-        fileListToggle: false,
-        fileListStartVisible: false,
-        fileContentToggle: false,
         matching: 'lines',
         outputFormat: 'side-by-side',  // line-by-line or side-by-side
-        synchronisedScroll: true,
         highlight: false,
         renderNothingWhenEmpty: false,
-        wordWrap: true,
-        stickyFileHeaders: false,
     };
 
     let $diffHtml = $(Diff2Html.html(Diff.createTwoFilesPatch("a", "b", leftBbcode, rightBbcode), configuration));
