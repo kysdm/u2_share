@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.5
+// @version      0.8.6
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -41,9 +41,90 @@ GreasyFork 地址
 // 声明全局变量
 var lang, torrent_id, db, user_id, topicid, key, token;
 
+// ── 差异面板样式 ──────────────────────────────────────────────────────────────
+// 站点有多套风格（BambooGreen / ExHentai / Classic …），且页面 DOM 里没有任何主题标记，
+// 所以配色不写死：读页面真实底色与正文色，推导出一套同色系的面板配色。
+// 结构固定，只有颜色是占位符 {surface} / {border} / …，由 diffCss() 运行时填充。
+const diffCssLayout = `.diff-container{display:flex;align-items:flex-start;justify-content:flex-start;}.diff-cell{border:none;padding:0;margin-left:5px;flex:1;}.draw-div{box-sizing:border-box;max-width:100%;min-height:15px;max-height:600px;margin:5px;overflow:auto;border-top:1px solid {border};border-bottom:1px solid {border};}.diff-table{width:100%;border-left:1px solid {border};border-right:1px solid {border};background-color:{surface};}.diff-table table,.diff-table table td{background-color:transparent;border:none;vertical-align:top;}.diff-table,.diff-table table{border-collapse:collapse;box-sizing:border-box;table-layout:fixed;font-family:ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;font-size:12px;}.diff-table tbody{vertical-align:top;}.diff-table del{text-decoration:none;background-color:{delWord};}.diff-table ins{text-decoration:none;background-color:{insWord};}.diff-linenumber{text-align:right;vertical-align:top;width:3em;border:none;color:{muted};font-size:12px;}.diff-linenumber-delete{background-color:{delNum};}.diff-linenumber-insert{background-color:{insNum};}.diff-line-text-delete{background-color:{delRow};}.diff-line-text-insert{background-color:{insRow};}.diff-linenumber-empty,.diff-text-cell-empty{background-color:{empty};}.diff-line-text{display:inline-block;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;box-sizing:border-box;width:auto;font-size:12px;}.diff-line-prefix{background:none;word-wrap:break-word;display:inline;font-size:12px;box-sizing:border-box;vertical-align:top;}.diff-line-prefix-delete::before{content:" - ";}.diff-line-prefix-insert::before{content:" + ";}.diff-line-prefix-empty::before{content:"   ";}.diff-text-cell,.diff-text-cell-empty{width:auto;white-space:pre;border-left:none;border-right:1px solid {border};border-top:none;border-bottom:none;}.diff-info-row{background-color:{infoRow};}.diff-info-text{color:{muted};}`;
+
+const WHITE_COLOR = { r: 255, g: 255, b: 255 };
+
+function parseCssColor(value) {
+    const matched = /rgba?\(([^)]+)\)/.exec(value || '');
+    if (!matched) return null;
+    const [r, g, b, a = 1] = matched[1].split(',').map(Number);
+    return { r: r, g: g, b: b, a: a };
+}
+
+// 相对亮度，0（黑）~1（白），用来判断主题深浅
+function colorLuminance(color) {
+    const channel = (value) => { value /= 255; return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4); };
+    return 0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b);
+}
+
+function mixColor(from, to, ratio) {
+    return {
+        r: from.r + (to.r - from.r) * ratio,
+        g: from.g + (to.g - from.g) * ratio,
+        b: from.b + (to.b - from.b) * ratio,
+    };
+}
+
+function toHexColor(color) {
+    return '#' + ['r', 'g', 'b'].map((key) => {
+        const value = Math.round(Math.max(0, Math.min(255, color[key])));
+        return value.toString(16).padStart(2, '0');
+    }).join('');
+}
+
+// 差异面板坐在 table.main 里，取第一个有实际底色的容器当作页面底色
+function pageBackgroundColor() {
+    const candidates = [document.querySelector('table.main'), document.body, document.documentElement, document.querySelector('#outer')];
+    for (const element of candidates) {
+        if (!element) continue;
+        const color = parseCssColor(getComputedStyle(element).backgroundColor);
+        if (color && color.a > 0) return color;
+    }
+    return WHITE_COLOR;
+}
+
+function diffPalette() {
+    const page = pageBackgroundColor();
+    const dark = colorLuminance(page) < 0.5;
+    const text = parseCssColor(getComputedStyle(document.body).color) || (dark ? WHITE_COLOR : { r: 0, g: 0, b: 0 });
+    // 面板自己的底色：比页面略亮（暗色主题像抬起的卡片，亮色主题接近白）——不至于“完全没有底色”
+    const surface = mixColor(page, WHITE_COLOR, dark ? 0.10 : 0.88);
+    const border = mixColor(surface, text, dark ? 0.22 : 0.18);
+    const muted = mixColor(text, surface, 0.35);
+    const accent = dark ? { r: 68, g: 147, b: 248 } : { r: 9, g: 105, b: 218 };
+    const deletion = dark ? { r: 248, g: 81, b: 73 } : { r: 207, g: 34, b: 46 };   // GitHub 的删除红
+    const addition = dark ? { r: 63, g: 185, b: 80 } : { r: 26, g: 127, b: 55 };   // GitHub 的新增绿
+    const delRow = mixColor(surface, deletion, dark ? 0.15 : 0.11);
+    const insRow = mixColor(surface, addition, dark ? 0.15 : 0.10);
+    return {
+        surface: toHexColor(surface),
+        border: toHexColor(border),
+        muted: toHexColor(muted),
+        infoRow: toHexColor(mixColor(surface, accent, dark ? 0.16 : 0.12)),
+        empty: toHexColor(dark ? mixColor(surface, WHITE_COLOR, 0.10) : mixColor(surface, text, 0.05)),
+        delRow: toHexColor(delRow),
+        insRow: toHexColor(insRow),
+        delNum: toHexColor(mixColor(surface, deletion, 0.20)),
+        insNum: toHexColor(mixColor(surface, addition, dark ? 0.20 : 0.18)),
+        // 词级文字高亮统一用 GitHub 的固定值（亮色：亮绿 #abf2bc + 半透明浅红；暗色：半透明绿/红）。
+        // 按行底色混合会得到偏深的绿，文字压在深绿上阅读吃力、暗色下对比度还会掉到 4.1 左右
+        delWord: dark ? 'rgba(248,81,73,0.4)' : 'rgba(255,129,130,0.4)',
+        insWord: dark ? 'rgba(46,160,67,0.4)' : '#abf2bc',
+    };
+}
+
+function diffCss() {
+    const palette = diffPalette();
+    return diffCssLayout.replace(/\{(\w+)\}/g, (matched, key) => palette[key] || matched);
+}
 (async () => {
     // 初始化
-    addGlobalStyles(`.diff-container{display:flex;align-items:flex-start;justify-content:flex-start;}.diff-cell{border:none;padding:0;margin-left:5px;flex:1;}.draw-div{box-sizing:border-box;max-width:100%;min-height:15px;max-height:600px;margin:5px;overflow:auto;border-top:1px solid #bfbfbf;border-bottom:1px solid #bfbfbf;}.diff-table{width:100%;border-left:1px solid #bfbfbf;border-right:1px solid #bfbfbf;background-color:white;}.diff-table table,.diff-table table td{background-color:transparent;border:none;vertical-align:top;}.diff-table,.diff-table table{border-collapse:collapse;box-sizing:border-box;table-layout:fixed;font-family:ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;font-size:12px;}.diff-table tbody{vertical-align:top;}.diff-table del{text-decoration:none;background-color:#ff818266;}.diff-table ins{text-decoration:none;background-color:#abf2bc;}.diff-linenumber{text-align:right;vertical-align:top;width:3em;border:none;color:#6e7781;font-size:12px;}.diff-linenumber-delete{background-color:#ffd7d5;}.diff-linenumber-insert{background-color:#ccffd8;}.diff-line-text-delete{background-color:#ffebe9;}.diff-line-text-insert{background-color:#e6ffec;}.diff-linenumber-empty,.diff-text-cell-empty{background-color:#d0d8e080;}.diff-line-text{display:inline-block;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;box-sizing:border-box;width:auto;font-size:12px;}.diff-line-prefix{background:none;word-wrap:break-word;display:inline;font-size:12px;box-sizing:border-box;vertical-align:top;}.diff-line-prefix-delete::before{content:" - ";}.diff-line-prefix-insert::before{content:" + ";}.diff-line-prefix-empty::before{content:"   ";}.diff-text-cell,.diff-text-cell-empty{width:auto;white-space:pre;border-left:none;border-right:1px solid #bfbfbf;border-top:none;border-bottom:none;}`);
+    addGlobalStyles(diffCss());
     lang = new lang_init($('#locale_selection').val()); // 获取当前网页语言
     let em = /.*id=(?<tid>\d{3,5})/i.exec(location.search); if (em) torrent_id = em.groups.tid; else torrent_id = null; // 当前种子ID
     topicid = location.href.match(/topicid=(\d+)/i) || ['', '']; if (topicid[1] !== '') topicid = topicid[1];
@@ -2647,11 +2728,11 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
     if (leftBbcode === rightBbcode || typeof leftBbcode !== 'string' || typeof rightBbcode !== 'string') {
         drawElement.html(`<table class="diff-table">
             <tbody id="diff-tbody">
-                <tr style="background-color: #ddf4ff;">
+                <tr class="diff-info-row">
                     <td class="diff-linenumber">
                     </td>
-                    <td class="diff-text-cell" style="border-right: none; color: #6e7781;">
-                        <span>bbcode without changes</span>
+                    <td class="diff-text-cell" style="border-right: none;">
+                        <span class="diff-info-text">bbcode without changes</span>
                     </td>
                     <td class="diff-linenumber"></td>
                     <td class="diff-text-cell"></td>
@@ -2705,7 +2786,7 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
 
         if (oldRow.type === 'header') {
             // 行信息（@@ -x,y +m,n @@）只取左侧一份
-            $tbody.append(`<tr style="background-color: #ddf4ff;">`
+            $tbody.append(`<tr class="diff-info-row">`
                 + `<td class="diff-linenumber"></td><td class="diff-text-cell" style="border-right: none;"><span>${oldRow.content}</span></td>`
                 + `<td class="diff-linenumber"></td><td class="diff-text-cell"></td>`
                 + `</tr>`);
