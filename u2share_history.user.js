@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.2
+// @version      0.8.3
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -950,7 +950,8 @@ async function torrentInfoHistory() {
                 $('#codedescr').attr('class', $('#codedescr').attr('class') === 'plus' ? 'minus' : 'plus');
             });
             $('#diffdescr').closest('a').click(async function () {
-                $('#diff_draw, .diff-container').toggle();
+                $('#diff_draw').toggle();
+                $('#diff_unit').find('.diff-container').toggle();
                 if ($('#diffdescr').attr('class') === 'plus') {
                     $('#diffdescr').attr('class', 'minus');
                     await db.setItem('diff_switch', true);
@@ -1346,7 +1347,8 @@ async function torrentInfoHistoryReset() {
         $('#codedescr').attr('class', $('#codedescr').attr('class') === 'plus' ? 'minus' : 'plus');
     });
     $('#diffdescr').closest('a').click(async function () {
-        $('#diff_draw, .diff-container').toggle();
+        $('#diff_draw').toggle();
+        $('#diff_unit').find('.diff-container').toggle();
         if ($('#diffdescr').attr('class') === 'plus') {
             $('#diffdescr').attr('class', 'minus');
             await db.setItem('diff_switch', true);
@@ -2625,6 +2627,11 @@ Description:
 ${data.description_info}`;
 }
 
+// diff2html 用 &nbsp;（U+00A0）表示“未改动/占位”行的前缀，占位行可能取到空串；
+// 这里统一归一化成 \u00a0，避免库输出格式的细微变化导致下面的分支全部匹配不上而静默丢行
+const BLANK_PREFIX = '\u00a0';
+const normalizePrefix = (prefix) => (prefix === '+' || prefix === '-') ? prefix : BLANK_PREFIX;
+
 function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
     /* addGlobalStyles(`.diff-container{
                         display: flex;
@@ -2780,17 +2787,15 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
     const processTr = ($tr) => {
         let list = [];
         $tr.each(function () {
-            let obj;
             if ($(this).find('td.d2h-code-side-linenumber.d2h-info').length == 1) {
                 // 行信息
                 const header = $(this).text().trim();
                 list.push({ "type": 'header', "content": header });
             } else {
                 const number = $(this).find("td[class^='d2h-code-side-linenumber']").text().trim();
-                const prefix = $(this).find('span.d2h-code-line-prefix').text();
+                const prefix = normalizePrefix($(this).find('span.d2h-code-line-prefix').text());
                 let content = $(this).find('span.d2h-code-line-ctn').html();
                 content = content === '<br>' ? '' : content;
-                const state = (prefix === '+') ? 'add' : ((prefix === '-') ? 'del' : 'no');
                 list.push({ "type": 'content', "content": content, "prefix": prefix, "line": number });
             }
         });
@@ -2803,24 +2808,30 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
     let $html = $(`<table class="diff-table"><tbody id="diff-tbody"></tbody></table>`);
     const $tbody = $html.find('#diff-tbody');
 
-    for (let index = 0; index < oldList.length; index++) {
+    for (let index = 0, len = oldList.length; index < len; index++) {
 
-        if (oldList[index].type === 'header') {
+        const oldRow = oldList[index];
+
+        if (oldRow.type === 'header') {
+            // 行信息（@@ -x,y +m,n @@）只取左侧一份
             $tbody.append(`<tr style="background-color: #ddf4ff;">`
-                + `<td class="diff-linenumber"></td><td class="diff-text-cell" style="border-right: none;"><span>${oldList[index].content}</span></td>`
+                + `<td class="diff-linenumber"></td><td class="diff-text-cell" style="border-right: none;"><span>${oldRow.content}</span></td>`
                 + `<td class="diff-linenumber"></td><td class="diff-text-cell"></td>`
                 + `</tr>`);
             continue;
         }
 
-        const oldPrefix = oldList[index].prefix;
-        const oldContent = oldList[index].content;
-        const oldLine = oldList[index].line;
-        const newPrefix = newList[index].prefix;
-        const newContent = newList[index].content;
-        const newLine = newList[index].line;
+        // 正常情况下两侧行数、行类型一一对应；这里做兜底：缺行或对不上时按“对侧为空行”处理，
+        // 即使 diff2html 的输出结构发生变化，也只会显示异常，不会静默丢行或直接抛异常
+        const newRow = (newList[index] && newList[index].type === 'content') ? newList[index] : null;
+        const oldPrefix = oldRow.prefix;
+        const oldContent = oldRow.content;
+        const oldLine = oldRow.line;
+        const newPrefix = newRow ? newRow.prefix : BLANK_PREFIX;
+        const newContent = newRow ? newRow.content : '';
+        const newLine = newRow ? newRow.line : '';
 
-        if (oldPrefix === ' ' && newPrefix === ' ') {
+        if (oldPrefix === BLANK_PREFIX && newPrefix === BLANK_PREFIX) {
             // 两边都没有修改
             $tbody.append(`<tr>`
                 + `<td class="diff-linenumber">${oldLine}&nbsp;</td>`
@@ -2843,7 +2854,7 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
                 + `<table><tr><td><span class="diff-line-prefix diff-line-prefix-insert"></span></td><td><span class="diff-line-text">${newContent}</span></td></tr></table>`
                 + `</td>`
                 + `</tr>`);
-        } else if (oldPrefix === '-' && newPrefix === ' ') {
+        } else if (oldPrefix === '-' && newPrefix === BLANK_PREFIX) {
             $tbody.append(`<tr>`
                 + `<td class="diff-linenumber diff-linenumber-delete">${oldLine}&nbsp;</td>`
                 + `<td class="diff-text-cell diff-line-text-delete">`
@@ -2852,13 +2863,29 @@ function drawDiffHistoryBbcode(data, leftValue, rightValue, type, drawElement) {
                 + `<td class="diff-linenumber diff-linenumber-empty"></td>`
                 + `<td class="diff-text-cell-empty"></td>`
                 + `</tr>`);
-        } else if (oldPrefix === ' ' && newPrefix === '+') {
+        } else if (oldPrefix === BLANK_PREFIX && newPrefix === '+') {
             $tbody.append(`<tr>`
                 + `<td class="diff-linenumber diff-linenumber-empty"></td>`
                 + `<td class="diff-text-cell-empty"></td>`
                 + `<td class="diff-linenumber diff-linenumber-insert">${newLine}&nbsp;</td>`
                 + `<td class="diff-text-cell diff-line-text-insert">`
                 + `<table><tr><td><span class="diff-line-prefix diff-line-prefix-insert"></span></td><td><span class="diff-line-text">${newContent}</span></td></tr></table>`
+                + `</td>`
+                + `</tr>`);
+        } else {
+            // 兜底：未识别的组合（例如 diff2html 未来版本新增的行类型）按各自的前缀着色后原样输出，
+            // 宁可显示得难看，也不要静默丢行
+            const prefixClass = (p) => p === '-' ? 'diff-line-prefix-delete' : (p === '+' ? 'diff-line-prefix-insert' : 'diff-line-prefix-empty');
+            const textClass = (p) => p === '-' ? ' diff-line-text-delete' : (p === '+' ? ' diff-line-text-insert' : '');
+            const numberClass = (p) => p === '-' ? ' diff-linenumber-delete' : (p === '+' ? ' diff-linenumber-insert' : '');
+            $tbody.append(`<tr>`
+                + `<td class="diff-linenumber${numberClass(oldPrefix)}">${oldLine}&nbsp;</td>`
+                + `<td class="diff-text-cell${textClass(oldPrefix)}">`
+                + `<table><tr><td><span class="diff-line-prefix ${prefixClass(oldPrefix)}"></span></td><td><span class="diff-line-text">${oldContent}</span></td></tr></table>`
+                + `</td>`
+                + `<td class="diff-linenumber${numberClass(newPrefix)}">${newLine}&nbsp;</td>`
+                + `<td class="diff-text-cell${textClass(newPrefix)}">`
+                + `<table><tr><td><span class="diff-line-prefix ${prefixClass(newPrefix)}"></span></td><td><span class="diff-line-text">${newContent}</span></td></tr></table>`
                 + `</td>`
                 + `</tr>`);
         }
