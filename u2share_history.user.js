@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2历史记录
 // @namespace    https://u2.dmhy.org/
-// @version      0.8.4
+// @version      0.8.5
 // @description  查看种子历史记录
 // @author       kysdm
 // @grant        none
@@ -10,7 +10,6 @@
 // @match        *://u2.dmhy.org/forums.php?action=viewtopic*
 // @icon         https://u2.dmhy.org/favicon.ico
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
-// @require      https://unpkg.com/thenby@1.3.4/thenBy.min.js
 // @require      https://unpkg.com/diff@5.1.0/dist/diff.js
 // @require      https://cdn.jsdelivr.net/npm/diff2html@3.4.40/bundles/js/diff2html.min.js
 // @downloadURL  https://github.com/kysdm/u2_share/raw/main/u2share_history.user.js
@@ -310,7 +309,8 @@ function forumCommentHistoryReset() {
         success: function (d) {
             if (d.message === 'success') {
                 console.log('获取论坛评论成功');
-                let __comment = d.data.items.sort(firstBy((a, b) => a.pid - b.pid).thenBy((a, b) => b.self - a.self)); // 如果用self排序，消息顺序不正确，则改用编辑日期排序
+                // 先按楼层 pid 升序，同楼层内按 self 降序（self 越小越新），等价于原来的 firstBy().thenBy()
+                let __comment = d.data.items.sort((a, b) => (a.pid - b.pid) || (b.self - a.self)); // 如果用self排序，消息顺序不正确，则改用编辑日期排序
 
                 if (__comment.length === 0) { // 没有评论 可以说不会出现这种情况
                     console.log('没有历史记录.');
@@ -1104,7 +1104,8 @@ function torrentCommentHistoryReset() {
                     if (d.message !== 'success') { console.log('获取种子评论错误'); }
                     else {
                         console.log('获取种子评论成功');
-                        let __comment = d.data.items.sort(firstBy((a, b) => a.cid - b.cid).thenBy((a, b) => b.self - a.self)); // 如果用self排序，消息顺序不正确，则改用编辑日期排序
+                        // 先按楼层 cid 升序，同楼层内按 self 降序（self 越小越新），等价于原来的 firstBy().thenBy()
+                        let __comment = d.data.items.sort((a, b) => (a.cid - b.cid) || (b.self - a.self)); // 如果用self排序，消息顺序不正确，则改用编辑日期排序
                         if (__comment.length === 0) { // 没有评论
                             $('#startcomments').text('没有评论');
                             $('#startcomments').removeAttr("style");
