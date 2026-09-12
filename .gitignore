@@ -1,3 +1,50 @@
-.vscode
-.history
+# 本仓库是脚本集合，这里只忽略「跑起来之后才产生的东西」和编辑器垃圾。
+# 注意：脚本本体、README、以及 vendored 的 image-conversion/、mediainfo/ 都不要忽略。
+
+# ---------- 运行时状态（含 UID 与进度，不要入库）----------
+# u2share_batch_give_sugar.py：发糖队列与进度库，删掉它才会开始新一轮发糖
+u2_ucoin.db
+*.db-journal
+*.db-wal
+*.db-shm
+# u2share_download_new_torrents.py / u2share_download_free_torrents.py：已处理过的种子 ID
+NewIdList.csv
+FreeIdList.csv
+
+# ---------- 日志 ----------
 *.log
+# 下载脚本会自建 log/ 目录（log/自动加新种/YYYYMMDD.log）
+log/
+# file_structure_rebuilder.py 的 loguru 轮转日志：rebuild_log.2026-09-12_00-00-00_000000.txt
+rebuild_log*.txt
+
+# ---------- file_structure_rebuilder.py 的工作数据 ----------
+# 该脚本以仓库根目录为 work_dir，逐个处理以种子 ID 命名的数字目录，
+# 并在其中写入 checksum.sha256 / missing_files.sha256，都是本地产物
+/[0-9]*/
+checksum.sha256
+missing_files.sha256
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- 编辑器 / 操作系统 ----------
+.vscode/
+.idea/
+.history/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Node（若日后在仓库内跑 jsdom 回归）----------
+node_modules/
