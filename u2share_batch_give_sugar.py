@@ -69,12 +69,11 @@ class SQL():
             self.conn = sqlite3.connect(self.dbfile)
             self.cursor = self.conn.cursor()
 
-    def Insert(self, column, values):
+    def Insert(self, value):
         try:
-            placeholders = ', '.join(['?'] * len(values))
-            sql = f'''INSERT INTO "main"."info" ({column}) VALUES ({placeholders})'''
-            logger.debug(f'{sql} ==> {values}')
-            self.cursor.execute(sql, values)
+            sql = 'INSERT INTO "main"."info" ("pid", "useractualid", "userid", "ucoin", "ucoind") VALUES (?, ?, ?, ?, ?)'
+            logger.debug(sql)
+            self.cursor.execute(sql, value)
         except sqlite3.IntegrityError as e:
             logger.warning(f'{sql} ==> {e}')
             self.cursor.close()
@@ -87,11 +86,11 @@ class SQL():
         finally:
             self.conn.close()
 
-    def Update(self, columnvalue, newcolumnvalue):
+    def Update(self, pid, ucoind):
         try:
-            sql = f'UPDATE "main"."info" SET {newcolumnvalue} WHERE {columnvalue}'
+            sql = 'UPDATE "main"."info" SET "ucoind"=? WHERE "pid"=?'
             logger.debug(sql)
-            self.cursor.execute(sql)
+            self.cursor.execute(sql, (ucoind, pid))
         except sqlite3.IntegrityError as e:
             logger.warning(f'{sql} ==> {e}')
             self.cursor.close()
@@ -273,6 +272,7 @@ def TransferUC(uid, ucoin, message=''):
 
 def main(limit):
     # 返回数据库中已赠送UC为空或未完成赠送的
+    limit = int(limit)  # 强制转换为整数，防止 SQL 注入
     _sqlreturn = SQL().Select(f'SELECT * FROM "main"."info" WHERE "ucoin" >= "ucoind" ORDER BY "pid" LIMIT 0,{limit}')
     logger.info('打印赠送信息...')
     logger.info('| 索引号 | 楼层ID | 赠送ID | 赠送UC |')
@@ -296,10 +296,10 @@ def main(limit):
             c = TransferUC(x, b, MESSAGE)
             if c > 0:
                 logger.info(f'[ {v} | {x} | {c} ] 成功！已完成转账。')
-                SQL().Update(f"pid={v}", f"ucoind={c+z}")
+                SQL().Update(v, c + z)
             else:
                 logger.info(f'[ {v} | {x} | {c} ] 失败！接收人UID不存在或无法接受转账。')
-                SQL().Update(f"pid={v}", "ucoind=-1")
+                SQL().Update(v, -1)
         else:
             i_uc = 0
             for i in range(a):  # 循环发送5金
@@ -308,20 +308,20 @@ def main(limit):
                 if c > 0:
                     i_uc += c
                     logger.info(f'[ {v} | {x} | {i_uc}/{y} ] 成功！已完成转账。')
-                    SQL().Update(f"pid={v}", f"ucoind={i_uc+z}")
+                    SQL().Update(v, i_uc + z)
                 else:
                     logger.info(f'[ {v} | {x} | {i_uc}/{y} ] 失败！接收人UID不存在或无法接受转账。')
-                    SQL().Update(f"pid={v}", "ucoind=-1")
+                    SQL().Update(v, -1)
             if b != 0:  # 发送不足5金的部分
                 logger.info(f'[ {v} | {x} | {b} ] 准备转账...')
                 c = TransferUC(x, b, MESSAGE)
                 if c > 0:
                     i_uc += c
                     logger.info(f'[ {v} | {x} | {i_uc}/{y} ] 成功！已完成转账。')
-                    SQL().Update(f"pid={v}", f"ucoind={i_uc+z}")
+                    SQL().Update(v, i_uc + z)
                 else:
                     logger.info(f'[ {v} | {x} | {i_uc}/{y} ] 失败！接收人UID不存在或无法接受转账。')
-                    SQL().Update(f"pid={v}", "ucoind=-1")
+                    SQL().Update(v, -1)
             else:
                 pass
 
@@ -336,5 +336,5 @@ if __name__ == '__main__':
     num = 0
     [logger.info(f'| {str(i).center(6)} | {str(j[0]).center(6)} | {str(j[1]).center(6)} | {str(j[2]).center(6)} |') for i, j in enumerate(UserInfo)]
     press_any_key()
-    [SQL().Insert('"pid", "useractualid", "userid", "ucoin", "ucoind"', f"'{x}','{y}','{z}','{UCOIN}', 0") for x, y, z in UserInfo]
+    [SQL().Insert([x, y, z, UCOIN, 0]) for x, y, z in UserInfo]
     main(LIMIT)
