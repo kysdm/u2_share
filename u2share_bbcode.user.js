@@ -4,7 +4,6 @@
 // @version      1.2.44
 // @description  实时预览BBCODE
 // @author       kysdm
-// @grant        GM_xmlhttpRequest
 // @match        *://u2.dmhy.org/*
 // @exclude      *://u2.dmhy.org/shoutbox.php*
 // @icon         https://u2.dmhy.org/favicon.ico
@@ -4221,59 +4220,6 @@ function SmileIT2(smile, form, text) {
                     reject(e); // async executor 内异常必须显式 reject，否则 Promise 永久挂起
                 }
             });
-        };
-
-        const upload3 = (file, max_size, extensions) => {
-            // p.sda1.dev binary
-            return new Promise(async (resolve, reject) => {
-
-                if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
-                if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
-
-                async function fileToBlob(file) {
-                    // 为兼容Violentmonkey加的转换，Tampermonkey 打开binary后可直传file
-                    const reader = new FileReader();
-                    reader.readAsArrayBuffer(file);
-                    await new Promise(resolve => reader.onload = resolve);
-                    return new Blob([reader.result], { type: file.type });
-                };
-
-                GM_xmlhttpRequest({
-                    method: "POST",
-                    data: await fileToBlob(file),
-                    // binary: true,
-                    // anonymous: true,  // 使用此参数禁止发送cookie会导致无法触发onprogress
-                    headers: { "Cookie": "" },// 禁止发送 cookie
-                    url: `https://p.sda1.dev/api/v1/upload_external_noform?filename=${encodeURIComponent(file.name.replace(/#/g, '_'))}`,
-                    upload: {
-                        onprogress: function (e) {
-                            if (e.lengthComputable) {
-                                let progressRate = ((e.loaded / e.total) * 100).toFixed(2) + '%';  // 计算上传进度
-                                jq('.progress > div').css('width', progressRate);  // 设置进度条宽度
-                                jq('[name="progress-percent"]').text(`${e.loaded} / ${e.total} | ${progressRate}`);
-                                jq('[name="progress-name"]').text(file.name);
-                            };
-                        }
-                    },
-                    onload: function (r) {
-                        let j = JSON.parse(r.responseText);
-                        if (j.success) {
-                            let url = j.data.url;
-                                resolve(url);
-                        } else {
-                            uploadErrorHandling(j.message);
-                            reject(j.message);
-                        };
-                        jq('.progress > div').css('width', '0%');  // 重置进度条宽度
-                    },
-                    onerror: function (e) {
-                        uploadErrorHandling(e);
-                        reject(e);
-                    }
-                });
-
-            });
-
         };
 
         const upload3Proxy = (file, max_size, extensions) => {
