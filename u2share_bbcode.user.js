@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.41
+// @version      1.2.44
 // @description  实时预览BBCODE
 // @author       kysdm
 // @grant        GM_xmlhttpRequest
@@ -3774,6 +3774,9 @@ function SmileIT2(smile, form, text) {
                 "size": 5,
                 "extensions": "jpeg,jpg,png,gif,bmp,webp",
                 "auth": true
+            }, "pixhost.cc": {
+                "size": 10,
+                "extensions": "jpeg,jpg,png,gif,webp"
             },
         };
 
@@ -3790,6 +3793,7 @@ function SmileIT2(smile, form, text) {
         // 找不到不通过代理显示进度条的办法
         // jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="p.sda1.dev.proxy">流浪图床(代理) [5MB]</option>`)
         jq('select').append(`<option title="jpeg,jpg,png,gif,bmp,webp" value="s.ee">S.EE [5MB]</option>`)
+        jq('select').append(`<option title="jpeg,jpg,png,gif,webp" value="pixhost.cc">PiXhost [10MB]</option>`)
 
         jq('#files').change(function () {
             const emfile = jq('#files')[0];
@@ -4127,8 +4131,9 @@ function SmileIT2(smile, form, text) {
         const upload = async (file, attach_thumb) => {
             // attach_thumb 是判断是否会触发U2返回缩略图的参数 <u2在图片超过一定大小后，会进行一次压缩>
             const website = await db.getItem('image_host_website');
-            const website_size = image_host[website].size;
-            const website_extensions = image_host[website].extensions.split(',');
+            const hostConfig = image_host[website] || image_host['u2.dmhy.org']; // db 残留无效值时回退默认图床（与 imgCompressor 一致）
+            const website_size = hostConfig.size;
+            const website_extensions = hostConfig.extensions.split(',');
             const auth = await db.getItem('image_host_website_auth_' + website);
 
             switch (website) {
@@ -4143,6 +4148,8 @@ function SmileIT2(smile, form, text) {
                         window.alert(`请先设置图床的鉴权信息\nhttps://s.ee/user/developers/`);
                         return;
                     }
+                case 'pixhost.cc':
+                    return await upload5Pixhost(file, website_size, website_extensions);
                 default:
                     break;
             };
@@ -4380,6 +4387,78 @@ function SmileIT2(smile, form, text) {
                 };
 
                 xhr.onerror = (e) => {
+                    uploadErrorHandling(e);
+                    reject(e);
+                };
+
+                // 发送 FormData 数据
+                xhr.send(formData);
+            });
+
+        };
+
+        const upload5Pixhost = (file, max_size, extensions) => {
+            // pixhost.cc (API v2: multipart/form-data, 无需鉴权, 单文件上限 10MB)
+            // 接口自身没有 CORS 头，页面 XHR 读不到响应，因此经自建中转转发：
+            //   POST https://u2.kysdm.com/proxy/pixhost  ->  multipart 原样转发，并原样返回 pixhost 的 JSON
+            // 走页面 XHR 的好处是可以直接用 xhr.upload.onprogress 拿到真实上传进度
+            return new Promise((resolve, reject) => {
+
+                if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
+                if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
+
+                const formData = new FormData();
+                formData.append('img', file, file.name.replace(/#/g, '_')); // 文件名中的 # 会截断图片 URL
+                formData.append('content_type', '0');   // 0 = SFW, 1 = NSFW
+                formData.append('max_th_size', '420');  // 缩略图最长边, 有效范围 150-500, 默认 200
+                // 注意: 不要手动设置 Content-Type, multipart 的 boundary 由浏览器自动附加
+
+                // pixhost 的错误响应体通常是空的，HTTP/2 下 statusText 也是空串，所以按状态码给出可读提示
+                const errorText = (status) => ({
+                    400: '请求无效或缺少文件',
+                    413: '文件超过图床或中转的大小限制',
+                    414: '图片格式不受支持',
+                    415: '图库不存在',
+                    416: '图库上传令牌不正确',
+                    417: '图库无法完成',
+                    422: '上传被拒绝',
+                    429: '请求过于频繁，请稍后重试',
+                    500: '图床服务器内部错误',
+                }[status] || `HTTP ${status}`);
+
+                const xhr = new XMLHttpRequest();
+                xhr.open("POST", "https://u2.kysdm.com/proxy/pixhost", true);
+                xhr.setRequestHeader("Accept", "application/json");
+                xhr.withCredentials = false;  // 显式设置不携带 cookies
+
+                // 真实上传进度
+                xhr.upload.addEventListener("progress", (e) => {
+                    if (e.lengthComputable) {
+                        const progressRate = ((e.loaded / e.total) * 100).toFixed(2) + '%';
+                        jq('.progress > div').css('width', progressRate); // 更新进度条
+                        jq('[name="progress-percent"]').text(`${e.loaded} / ${e.total} | ${progressRate}`);
+                        jq('[name="progress-name"]').text(file.name);
+                    }
+                });
+
+                xhr.onload = () => {
+                    jq('.progress > div').css('width', '0%'); // 重置进度条
+                    let j = null;
+                    try { j = JSON.parse(xhr.responseText); } catch (e) { j = null; };  // 出错时响应体可能为空或非 JSON
+                    if (xhr.status === 200 && j && j.th_url) {
+                        // 缩略图 https://t3.pixhost.cc/thumbs/6323/781892239_a.png
+                        // 直链   https://img3.pixhost.cc/images/6323/781892239_a.png
+                        const direct_url = /\/\/t\d+\./.test(j.th_url) ? j.th_url.replace(/\/\/t(\d+)\./, '//img$1.').replace('/thumbs/', '/images/') : j.th_url;
+                        resolve(direct_url);
+                    } else {
+                        const msg = (j && (j.error || j.message)) || errorText(xhr.status);
+                        uploadErrorHandling(msg);
+                        reject(msg);
+                    };
+                };
+
+                xhr.onerror = (e) => {
+                    jq('.progress > div').css('width', '0%'); // 重置进度条
                     uploadErrorHandling(e);
                     reject(e);
                 };
