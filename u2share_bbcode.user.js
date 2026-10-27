@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.44
+// @version      1.2.50
 // @description  实时预览BBCODE
 // @author       kysdm
 // @match        *://u2.dmhy.org/*
@@ -1213,6 +1213,51 @@ GreasyFork 地址
     const attachmap_db = localforage.createInstance({ name: "attachmap" });
     const history_db = localforage.createInstance({ name: "history" });
 
+    // ===== CSRF token（preview.php / upload-transport.php 都需要）=====
+    let csrfTokenCache = '';      // 刷新得到的新 token，优先于页面里的旧 token
+    let csrfFetchPromise = null;  // 并发的刷新请求合并成一次（预览会在输入时被频繁调用）
+
+    // token 格式 v1.<生效时间>.<失效时间>.<hash>.<hash>，页面开太久会过期，提前 60 秒换新的
+    const csrfTokenExpired = (token) => {
+        const matched = /^v1\.\d+\.(\d+)\./.exec(token || '');
+        return matched ? (Date.now() / 1000) > (Number(matched[1]) - 60) : false;
+    };
+
+    // 站点用 <meta name="csrf-token" content="v1..."> 承载 token；iframe 页面上没有时再找表单里的 _csrf
+    const getCsrfToken = () => {
+        if (csrfTokenCache && !csrfTokenExpired(csrfTokenCache)) return csrfTokenCache;
+        return jq('meta[name="csrf-token"]').attr('content') || jq('input[name="_csrf"]').first().val() || '';
+    };
+
+    // 重新拉一次页面取新 token：优先 meta，其次表单里的 _csrf（attachment.php 的 iframe 页没有 meta）
+    // 同一会话里任何页面的 token 都可用
+    const fetchFreshCsrfToken = () => {
+        if (csrfFetchPromise) return csrfFetchPromise;
+        csrfFetchPromise = (async () => {
+            for (const url of [location.pathname + location.search, '/index.php']) {
+                try {
+                    const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+                    if (!response.ok) continue;
+                    const html = await response.text();
+                    const meta = /<meta name="csrf-token" content="([^"]+)"/i.exec(html);
+                    if (meta) { csrfTokenCache = meta[1]; return meta[1]; }
+                    const input = /<input[^>]*name=["']_csrf["'][^>]*value=["']([^"']+)["']/i.exec(html)
+                        || /<input[^>]*value=["']([^"']+)["'][^>]*name=["']_csrf["']/i.exec(html);
+                    if (input) { csrfTokenCache = input[1]; return input[1]; }
+                } catch (e) {
+                    console.error('[U2] 重新获取 CSRF token 失败:', e);
+                }
+            }
+            return '';
+        })().finally(() => { csrfFetchPromise = null; });
+        return csrfFetchPromise;
+    };
+
+    // 附件预览失败后的短暂退避：编辑框每次重渲染都会重新解析 [attach]，
+    // 失败后 10 秒内不再重复请求 preview.php（成功结果由 attachmap 缓存）
+    const previewFailureCache = new Map();
+    const PREVIEW_FAILURE_TTL = 10 * 1000;
+
     // 现存BBCODE元素
     (async () => {
         if (jq('.bbcode').length === 0) return;  // 判断页面是否存在 bbcode 输入框
@@ -1773,11 +1818,18 @@ GreasyFork 地址
                     return;
                 }
 
+                const p = async () => {
+                    // takeupload.php 走普通表单校验 _csrf；页面开太久时先换新 token
+                    let csrf = getCsrfToken();
+                    if (!csrf || csrfTokenExpired(csrf)) csrf = (await fetchFreshCsrfToken()) || csrf;
 
-                const p = () => {
                     return new Promise(function (resolve, reject) {
                         // https://developer.mozilla.org/zh-CN/docs/Web/API/FormData
                         let formdata = new FormData(document.getElementById('compose'));
+
+                        // 表单里没有 _csrf 或已过期时，用当前 token 补上
+                        const formCsrf = formdata.get('_csrf');
+                        if (csrf && (!formCsrf || csrfTokenExpired(String(formCsrf)))) formdata.set('_csrf', csrf);
 
                         // 处理自定义标题的结构
                         let customTitle = formdata.get("custom_title");
@@ -1805,6 +1857,7 @@ GreasyFork 地址
 
                         const request = new XMLHttpRequest();
                         request.open("POST", "takeupload.php");
+                        if (csrf && !csrfTokenExpired(csrf)) request.setRequestHeader("x-csrf-token", csrf);
                         request.timeout = 5000; // 超时时间 单位毫秒
                         request.onload = function () {
                             if (request.status >= 200 && request.status < 300) {
@@ -2260,7 +2313,8 @@ GreasyFork 地址
                 if (!/^\w{32}$/.test(hash)) { return `<div style="text-decoration: line-through; font-size: 7pt">附件 ${hash} 无效。</div>`; }; // attach 标签内hash不符合要求
 
                 return await attachmap_db.getItem(hash).then(async (value) => {
-                    if (value !== null && value.attach_id) {
+                    // invalid 记录没有 attach_id，但也算命中缓存，避免每次重渲染都重新请求
+                    if (value !== null && (value.attach_id || value.attach_type === 'invalid')) {
                         // console.log('数据已存在');
                         if (value.attach_type === 'img') {
                             if (Number.isFinite(value.attach_thumb)) {
@@ -2287,13 +2341,28 @@ GreasyFork 地址
                         };
                     } else {
                         // console.log('数据不存在');
+                        const failedAt = previewFailureCache.get(hash);
+                        if (failedAt) {
+                            if (Date.now() - failedAt < PREVIEW_FAILURE_TTL) {
+                                // 刚失败过：短暂退避，避免编辑框每次重渲染都重新请求
+                                return addTempCode(args[0]);
+                            }
+                            previewFailureCache.delete(hash); // 过期清理
+                        }
                         return await new Promise((resolve, reject) => {
-                            jq.ajax({
+                            const previewOnce = (csrf, retried) => jq.ajax({
                                 type: 'post',
                                 url: 'https://u2.dmhy.org/preview.php',
                                 contentType: "application/x-www-form-urlencoded",
+                                headers: { 'x-csrf-token': csrf },
                                 data: ({ "body": `[attach]${hash}[/attach]` }),
                                 success: async function (d) {
+                                    previewFailureCache.delete(hash); // 请求成功，清掉失败退避
+                                    // token 过期时站点也可能返回 200 + 错误文本
+                                    if (!retried && /invalid or expired link/i.test(d)) {
+                                        const fresh = await fetchFreshCsrfToken();
+                                        if (fresh) { previewOnce(fresh, true); return; }
+                                    }
                                     // console.log('成功');
                                     let htmlobj = document.createElement('div');
                                     htmlobj.innerHTML = d;
@@ -2385,16 +2454,37 @@ GreasyFork 地址
                                                 "attach_time": getDateString()
                                             };
                                             await attachmap_db.setItem(hash, attach);
-                                        } else { console.error('附件未知错误: ' + d); };
+                                        } else {
+                                            console.error('附件未知错误: ' + d);
+                                            previewFailureCache.set(hash, Date.now()); // 意外响应也短暂退避
+                                        };
                                         resolve(`<div style="text-decoration: line-through; font-size: 7pt">附件 ${args[1]} 无效。</div>`);
                                     };
                                 },
-                                error: function (d) {
+                                error: async function (d) {
+                                    // token 过期：换新 token 重试一次
+                                    if (!retried && (d.status === 403 || d.status === 419)) {
+                                        const fresh = await fetchFreshCsrfToken();
+                                        if (fresh) { previewOnce(fresh, true); return; }
+                                    }
                                     // console.log('附件获取失败');
                                     reject(d.status);
                                 },
                             });
-                        }).catch(() => { return args[0]; });
+
+                            // 当前 token 缺失/过期时先换新再请求，避免第一次预览必然失败
+                            (async () => {
+                                let csrf = getCsrfToken();
+                                if (!csrf || csrfTokenExpired(csrf)) csrf = (await fetchFreshCsrfToken()) || csrf;
+                                previewOnce(csrf, false);
+                            })();
+                        }).catch((e) => {
+                            // 失败时用 tempCode 包住原标签：既原样显示，也避免 localConvert 反复匹配同一个
+                            // [attach]...[/attach] 造成无限重试（每次重试都会再打一次 preview.php）
+                            previewFailureCache.set(hash, Date.now()); // 10 秒内不再重复请求
+                            console.warn('[U2] 附件预览请求失败，已跳过:', e);
+                            return addTempCode(args[0]);
+                        });
                     };
                 });
             });
@@ -4163,60 +4253,218 @@ function SmileIT2(smile, form, text) {
             jq('.embedded').show();  // 显示附件菜单
         };
 
+        // ===== U2 上传通道（新接口，两步）=====
+        // 1) 原始 body + 元数据头上传到 upload-transport.php，返回一次性 token（JSON）
+        //    POST https://u2.dmhy.org/upload-transport.php?route=attachment.php&field=file
+        //    Content-Type: application/octet-stream
+        //    x-csrf-token / x-u2-upload-name / x-u2-upload-type（名称与类型按 URI 编码）
+        // 2) 把 token 以 __u2_upload[file] 表单字段提交给 attachment.php?text_area_id=...，
+        //    响应 HTML 里的 addTag 脚本带附件 hash，td 里带剩余配额。
+        const UPLOAD_TRANSPORT_URL = 'https://u2.dmhy.org/upload-transport.php?route=attachment.php&field=file';
+
+        // 把响应压成一行摘要，便于放进错误提示
+        const briefResponse = (text, max = 200) => {
+            const plain = String(text || '')
+                .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+                .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            return plain.slice(0, max);
+        };
+
+        // 从响应文本提取 32 位附件 hash：先排除 csrf token（其中也含一段 32 位十六进制）
+        const extractAttachHash = (text) => {
+            const cleaned = String(text || '').replace(/v1\.\d+\.\d+\.[0-9a-f]+\.[0-9a-f]+/gi, '');
+            const patterns = [
+                /\[attach\]([0-9a-f]{32})\[\/attach\]/i,
+                /addTag\([\s\S]{0,300}?["']([0-9a-f]{32})["']/i,
+                /[?&]hash=([0-9a-f]{32})/i,
+                /attach(?:ment)?_?hash["'\s:=]+([0-9a-f]{32})/i,
+                /\b([0-9a-f]{32})\b/i,
+            ];
+            for (const re of patterns) {
+                const matched = re.exec(cleaned);
+                if (matched) return matched[1];
+            }
+            return '';
+        };
+
+        // 解析 attachment.php 的响应：新流程返回 HTML（hash 在 addTag 脚本里），保留 JSON 兼容
+        const parseUploadResponse = (body, contentType) => {
+            const result = { hash: '', limit: null, message: '' };
+            const text = String(body || '').trim();
+            if (text === '') return result;
+
+            let json = null;
+            if (/json/i.test(contentType) || /^[{[]/.test(text)) {
+                try { json = JSON.parse(text); } catch (e) { json = null; }
+            }
+
+            if (json !== null) {
+                const entries = [];
+                const walk = (node, key) => {
+                    if (node === null || node === undefined) return;
+                    if (typeof node === 'object') {
+                        if (Array.isArray(node)) { node.forEach(item => walk(item, key)); return; }
+                        for (const k of Object.keys(node)) walk(node[k], k);
+                        return;
+                    }
+                    entries.push([String(key), String(node).trim()]);
+                };
+                walk(json, '');
+
+                // hash 优先取字段名相关的 32 位十六进制值
+                const keyedHash = entries.filter(([k, v]) => /hash|attach|file|md5|id/i.test(k) && /^[0-9a-f]{32}$/i.test(v));
+                const anyHash = entries.filter(([, v]) => /^[0-9a-f]{32}$/i.test(v));
+                result.hash = ((keyedHash[0] || anyHash[0] || [])[1]) || extractAttachHash(text);
+
+                // 配额形如 12/100
+                const keyedQuota = entries.filter(([k, v]) => /quota|limit|count|used|total|remain/i.test(k) && /\d+\s*\/\s*\d+/.test(v));
+                const anyQuota = entries.filter(([, v]) => /\d+\s*\/\s*\d+/.test(v));
+                result.limit = ((keyedQuota[0] || anyQuota[0] || [])[1]) || (text.match(/\d+\s*\/\s*\d+/) || [])[0] || null;
+                if (result.limit) result.limit = result.limit.replace(/\s*\/\s*/, '/');
+
+                // 失败时优先取接口给的提示文案
+                const keyedMessage = entries.filter(([k]) => /^(message|msg|error|errmsg|err|detail)$/i.test(k));
+                result.message = keyedMessage.length > 0 ? keyedMessage[0][1] : briefResponse(text, 300);
+                return result;
+            }
+
+            // HTML 响应：hash 在 addTag 脚本里，配额在 td 里
+            const doc = new DOMParser().parseFromString(text, 'text/html');
+            const scriptText = Array.from(doc.querySelectorAll('script')).map(el => el.textContent).join('\n');
+            const tdText = Array.from(doc.querySelectorAll('td')).map(el => el.textContent).join(' ');
+            result.hash = extractAttachHash(scriptText) || extractAttachHash(text);
+            const matched = tdText.match(/\d+\s*(?:\/|из|of)\s*\d+/i);
+            if (matched) result.limit = matched[0].replace(/\s*из\s*/, '/').replace(/\s*of\s*/, '/').replace(/\s*\/\s*/, '/');
+            result.message = briefResponse(text, 300);
+            return result;
+        };
+
         // 上传文件
         const upload1 = (file, attach_thumb, max_size, extensions) => {
-            // u2.dmhy.org
+            // u2.dmhy.org：两步上传（原始 body 换 token → 表单提交 token 落库）
             return new Promise(async (resolve, reject) => {
                 try {
 
                 if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
                 if (file.size > 1024 * 1024 * max_size) { window.alert(`${file.name} 文件过大`); reject(); return; };
 
-                let formData = new FormData();  // 创建一个form类型的数据
-                formData.append('file', file);  // 获取上传文件的数据
+                const isCsrfExpired = (status, body) => status === 403 || status === 419 || /invalid or expired link/i.test(body || '');
+                const httpError = (prefix, status, statusText, body) => {
+                    const error = new Error(`${prefix} HTTP ${status}${statusText ? ' ' + statusText : ''}${body ? '：' + briefResponse(body) : ''}`);
+                    error.status = status;
+                    error.body = body;
+                    return error;
+                };
 
-                jq.ajax({
-                    url: "attachment.php", // 接口
-                    type: 'post',
-                    cache: false,
-                    contentType: false,
-                    processData: false,
-                    data: formData,
-                    xhr: function () {
-                        const xhr = new XMLHttpRequest();
-                        xhr.upload.addEventListener('progress', function (e) {
-                            let progressRate = ((e.loaded / e.total) * 100).toFixed(2) + '%';  // 计算上传进度
-                            jq('.progress > div').css('width', progressRate);  // 设置进度条宽度
-                            jq('[name="progress-percent"]').text(`${e.loaded} / ${e.total} | ${progressRate}`);
-                            jq('[name="progress-name"]').text(file.name);
-                        });
-                        return xhr;
-                    },
-                    success: async function (d) {
+                let csrf = getCsrfToken();
+                if (!csrf || csrfTokenExpired(csrf)) csrf = (await fetchFreshCsrfToken()) || csrf;
+                if (!csrf) { window.alert('未获取到 CSRF token，请刷新页面后重试'); reject(); return; }
+
+                // ---- 第一步：原始 body 上传，换一次性上传 token ----
+                const transportOnce = (token) => new Promise((res, rej) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', UPLOAD_TRANSPORT_URL, true);
+                    // 文件名 / 类型放请求头（站点按 URI 编码解析），文件本体直接作为 body
+                    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+                    xhr.setRequestHeader('x-csrf-token', token);
+                    xhr.setRequestHeader('x-u2-upload-name', encodeURIComponent(file.name));
+                    xhr.setRequestHeader('x-u2-upload-type', encodeURIComponent(file.type || 'application/octet-stream'));
+
+                    xhr.upload.addEventListener('progress', function (e) {
+                        if (!e.lengthComputable) return;
+                        const progressRate = ((e.loaded / e.total) * 100).toFixed(2) + '%';  // 计算上传进度
+                        jq('.progress > div').css('width', progressRate);  // 设置进度条宽度
+                        jq('[name="progress-percent"]').text(`${e.loaded} / ${e.total} | ${progressRate}`);
+                        jq('[name="progress-name"]').text(file.name);
+                    });
+
+                    xhr.onload = () => {
+                        const text = xhr.responseText || '';
+                        if (xhr.status < 200 || xhr.status >= 300) { rej(httpError('上传通道', xhr.status, xhr.statusText, text)); return; }
+
+                        // 正常返回 {"token":"v1...."}
+                        let uploadToken = '';
                         try {
-                            let attach_hash_obj = /(?<hash>\w{32})/i.exec(jq(d).find('script').text());
-                            // <span class="striking">失败！不允许该文件扩展名。</span>
-                            const attach_hash = attach_hash_obj.groups.hash; // 附件的hash值
-                            const attach = { "attach_thumb": attach_thumb };
-                            await attachmap_db.setItem(attach_hash, attach); // 写入数据库
-                            // 不知道怎么计算的，怎么传都用不完配额
-                            let limit = jq(d).find('td').text().match(/(?<val>\d+(?:\/| из | of )\d+)/);
-                            limit = limit ? limit.groups.val.replace(' из ', '/').replace(' of ', '/') : null;
-                            jq('select option[value="u2.dmhy.org"]').text(`U2 [${upload_size_limit}MB] (配额 ${limit})`);
-                            jq('.progress > div').css('width', '0%');  // 重置进度条宽度
-                            resolve(attach_hash);
-                        } catch (e) {
-                            uploadErrorHandling(e);
-                            reject(e);
-                        };
-                    },
-                    error: function (e) {
-                        uploadErrorHandling(e);
-                        reject(e);
-                    }
+                            const json = JSON.parse(text);
+                            uploadToken = String((json && (json.token || (json.data && json.data.token))) || '');
+                        } catch (e) { uploadToken = ''; }
+                        if (!uploadToken) {
+                            const error = new Error(`上传通道未返回 token${text ? '：' + briefResponse(text) : ''}`);
+                            error.status = xhr.status;
+                            error.body = text;
+                            rej(error);
+                            return;
+                        }
+                        res(uploadToken);
+                    };
+
+                    xhr.onerror = (e) => rej(new Error(`上传请求失败${e && e.type ? '（' + e.type + '）' : ''}`));
+                    xhr.send(file); // 原始文件作为请求体（Content-Length 自动计算，进度可用）
                 });
+
+                let uploadToken;
+                try {
+                    uploadToken = await transportOnce(csrf);
+                } catch (e) {
+                    if (!isCsrfExpired(e.status, e.body)) throw e;
+                    const fresh = await fetchFreshCsrfToken();
+                    if (!fresh) throw e;
+                    csrf = fresh;
+                    jq('.progress > div').css('width', '0%'); // 重传前归零
+                    uploadToken = await transportOnce(csrf);
+                }
+
+                // ---- 第二步：提交上传 token，站点落库并返回附件 hash ----
+                const submitOnce = (token) => new Promise((res, rej) => {
+                    const action = jq('form[name="attachment"]').attr('action') || (location.pathname + location.search);
+                    const body = new URLSearchParams();
+                    body.set('_csrf', token);
+                    body.set('__u2_upload[file]', uploadToken);
+                    body.set('submit', '上传');
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', action, true);
+                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                    xhr.onload = () => {
+                        const text = xhr.responseText || '';
+                        if (xhr.status < 200 || xhr.status >= 300) { rej(httpError('附件确认', xhr.status, xhr.statusText, text)); return; }
+                        res(text);
+                    };
+                    xhr.onerror = (e) => rej(new Error(`附件确认请求失败${e && e.type ? '（' + e.type + '）' : ''}`));
+                    xhr.send(body.toString());
+                });
+
+                let html;
+                try {
+                    html = await submitOnce(csrf);
+                } catch (e) {
+                    if (!isCsrfExpired(e.status, e.body)) throw e;
+                    const fresh = await fetchFreshCsrfToken();
+                    if (!fresh) throw e;
+                    csrf = fresh;
+                    html = await submitOnce(csrf);
+                }
+
+                const { hash, limit, message } = parseUploadResponse(html, 'text/html');
+                // 失败页面：<span class="striking">失败！不允许该文件扩展名。</span>
+                if (!hash) {
+                    console.error('[U2] attachment.php 原始响应:', html);
+                    throw new Error(`上传接口未返回附件 hash${message ? '：' + message : ''}`);
+                }
+
+                const attach = { "attach_thumb": attach_thumb };
+                await attachmap_db.setItem(hash, attach); // 写入数据库
+                previewFailureCache.delete(hash); // 新上传成功的附件允许立即预览
+                // 不知道怎么计算的，怎么传都用不完配额
+                if (limit) jq('select option[value="u2.dmhy.org"]').text(`U2 [${upload_size_limit}MB] (配额 ${limit})`);
+                jq('.progress > div').css('width', '0%');  // 重置进度条宽度
+                resolve(hash);
                 }
                 catch (e) {
+                    uploadErrorHandling(e); // 隐藏进度条、清空输入框、提示错误
                     reject(e); // async executor 内异常必须显式 reject，否则 Promise 永久挂起
                 }
             });
