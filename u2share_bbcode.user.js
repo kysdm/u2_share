@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.50
+// @version      1.2.51
 // @description  实时预览BBCODE
 // @author       kysdm
 // @match        *://u2.dmhy.org/*
@@ -1819,74 +1819,152 @@ GreasyFork 地址
                 }
 
                 const p = async () => {
-                    // takeupload.php 走普通表单校验 _csrf；页面开太久时先换新 token
+                    // 新版发布流程：先把种子文件传给 upload-transport.php 换一次性 token，
+                    // 再把表单字段 + __u2_upload[file]=token 提交给 takeupload.php
                     let csrf = getCsrfToken();
                     if (!csrf || csrfTokenExpired(csrf)) csrf = (await fetchFreshCsrfToken()) || csrf;
 
-                    return new Promise(function (resolve, reject) {
-                        // https://developer.mozilla.org/zh-CN/docs/Web/API/FormData
-                        let formdata = new FormData(document.getElementById('compose'));
+                    const isCsrfError = (status, body) => status === 403 || status === 419 || /invalid or expired link/i.test(body || '');
 
-                        // 表单里没有 _csrf 或已过期时，用当前 token 补上
-                        const formCsrf = formdata.get('_csrf');
-                        if (csrf && (!formCsrf || csrfTokenExpired(String(formCsrf)))) formdata.set('_csrf', csrf);
+                    // 生成种子时 DB 里存的是不带 .torrent 后缀的名字；直接选的种子文件则已带后缀
+                    let torrentName = (await db.getItem('upload_autoSaveMessageTorrentName')) || 'a.torrent';
+                    if (!/\.torrent$/i.test(torrentName)) torrentName += '.torrent';
 
-                        // 处理自定义标题的结构
-                        let customTitle = formdata.get("custom_title");
-                        if (!isWhitespace(customTitle)) {
-                            // 自定义标题中有数据时
-                            const category = formdata.get("type");
-                            customTitle = customTitle.replace(/^\[|\]$/g, '');  // 去除自定义标题两边的括号，提交后系统会自动补全
-
-                            if (['9', '411', '413', '12', '13', '14', '15', '16', '17', '410', '412'].includes(category)) {
-                                for (let pair of formdata.entries()) if (pair[0].startsWith('anime_')) formdata.set(pair[0], '');
-                                formdata.set("anime_chinese", customTitle);
-                            } else if (['21', '22', '23'].includes(category)) {
-                                for (let pair of formdata.entries()) if (pair[0].startsWith('manga_')) formdata.set(pair[0], '');
-                                formdata.set("manga_title", customTitle);
-                            } else if (category === '30') {
-                                for (let pair of formdata.entries()) if (pair[0].startsWith('music_')) formdata.set(pair[0], '');
-                                formdata.set("music_title", customTitle);
-                            } else if (category === '40') {
-                                formdata.set("other_title", customTitle);
+                    // ---- 第一步：原始种子文件上传，换一次性 token ----
+                    const transportOnce = (token) => new Promise((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('POST', 'https://u2.dmhy.org/upload-transport.php?route=takeupload.php&field=file', true);
+                        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+                        xhr.setRequestHeader('x-csrf-token', token);
+                        xhr.setRequestHeader('x-u2-upload-name', encodeURIComponent(torrentName));
+                        xhr.setRequestHeader('x-u2-upload-type', encodeURIComponent('application/octet-stream'));
+                        xhr.timeout = 60000;
+                        xhr.onload = () => {
+                            const text = xhr.responseText || '';
+                            if (xhr.status < 200 || xhr.status >= 300) {
+                                const error = new Error(`上传通道 HTTP ${xhr.status}${text ? '：' + text.slice(0, 200) : ''}`);
+                                error.status = xhr.status;
+                                error.body = text;
+                                reject(error);
+                                return;
                             }
+                            let uploadToken = '';
+                            try {
+                                const json = JSON.parse(text);
+                                uploadToken = String((json && (json.token || (json.data && json.data.token))) || '');
+                            } catch (e) { uploadToken = ''; }
+                            if (!uploadToken) {
+                                const error = new Error(`上传通道未返回 token${text ? '：' + text.slice(0, 200) : ''}`);
+                                error.status = xhr.status;
+                                error.body = text;
+                                reject(error);
+                                return;
+                            }
+                            resolve(uploadToken);
+                        };
+                        xhr.onerror = () => reject(new Error('上传通道请求失败'));
+                        xhr.ontimeout = () => reject(new Error('上传通道请求超时'));
+                        xhr.send(torrentBlob);
+                    });
 
+                    let uploadToken;
+                    try {
+                        uploadToken = await transportOnce(csrf);
+                    } catch (e) {
+                        if (!isCsrfError(e.status, e.body)) throw e;
+                        const fresh = await fetchFreshCsrfToken();
+                        if (!fresh) throw e;
+                        csrf = fresh;
+                        uploadToken = await transportOnce(csrf);
+                    }
+
+                    // ---- 第二步：表单字段 + token 提交 ----
+                    const formdata = new FormData(document.getElementById('compose'));
+
+                    // 与第一步用同一个 CSRF token（和站点原生请求一致）
+                    if (csrf) formdata.set('_csrf', csrf);
+
+                    // 处理自定义标题的结构
+                    let customTitle = formdata.get("custom_title");
+                    if (!isWhitespace(customTitle)) {
+                        // 自定义标题中有数据时
+                        const category = formdata.get("type");
+                        customTitle = customTitle.replace(/^\[|\]$/g, '');  // 去除自定义标题两边的括号，提交后系统会自动补全
+
+                        if (['9', '411', '413', '12', '13', '14', '15', '16', '17', '410', '412'].includes(category)) {
+                            for (let pair of formdata.entries()) if (pair[0].startsWith('anime_')) formdata.set(pair[0], '');
+                            formdata.set("anime_chinese", customTitle);
+                        } else if (['21', '22', '23'].includes(category)) {
+                            for (let pair of formdata.entries()) if (pair[0].startsWith('manga_')) formdata.set(pair[0], '');
+                            formdata.set("manga_title", customTitle);
+                        } else if (category === '30') {
+                            for (let pair of formdata.entries()) if (pair[0].startsWith('music_')) formdata.set(pair[0], '');
+                            formdata.set("music_title", customTitle);
+                        } else if (category === '40') {
+                            formdata.set("other_title", customTitle);
                         }
 
-                        if (torrentBlob) formdata.set("file", new File([torrentBlob], "a.torrent", { type: "application/octet-stream" }));
+                    }
 
+                    // 种子文件已经走 transport，不能再把旧的 file 字段发出去
+                    formdata.delete('file');
+
+                    const body = new URLSearchParams();
+                    for (const [key, value] of formdata.entries()) {
+                        if (typeof value === 'string') body.append(key, value);
+                    }
+                    body.set('__u2_upload[file]', uploadToken);
+
+                    const submitOnce = (formBody) => new Promise((resolve, reject) => {
                         const request = new XMLHttpRequest();
-                        request.open("POST", "takeupload.php");
-                        if (csrf && !csrfTokenExpired(csrf)) request.setRequestHeader("x-csrf-token", csrf);
+                        request.open("POST", "https://u2.dmhy.org/takeupload.php");
+                        request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
                         request.timeout = 5000; // 超时时间 单位毫秒
                         request.onload = function () {
+                            const text = request.response || '';
                             if (request.status >= 200 && request.status < 300) {
+                                if (/invalid or expired link/i.test(text)) {
+                                    const error = new Error('CSRF token 已失效');
+                                    error.status = 403;
+                                    error.body = text;
+                                    reject(error);
+                                    return;
+                                }
                                 resolve({
                                     status: request.status,
                                     response: request.response,
                                     responseURL: request.responseURL
                                 });
                             } else {
-                                reject({
-                                    status: request.status,
-                                    statusText: request.statusText
-                                });
+                                const error = new Error(`HTTP ${request.status} ${request.statusText}`);
+                                error.status = request.status;
+                                error.body = text;
+                                reject(error);
                             };
                         };
                         request.onerror = function () {
-                            reject({
-                                status: request.status,
-                                statusText: request.statusText
-                            });
+                            reject(new Error('请求失败'));
                         };
                         request.ontimeout = function () {
-                            reject({
-                                status: 408,
-                                statusText: "Request timed out"
-                            });
+                            const error = new Error('Request timed out');
+                            error.status = 408;
+                            reject(error);
                         };
-                        request.send(formdata);
+                        request.send(formBody.toString());
                     });
+
+                    let result;
+                    try {
+                        result = await submitOnce(body);
+                    } catch (e) {
+                        if (!isCsrfError(e.status, e.body)) throw e;
+                        const fresh = await fetchFreshCsrfToken();
+                        if (!fresh) throw e;
+                        csrf = fresh;
+                        body.set('_csrf', csrf);
+                        result = await submitOnce(body);
+                    }
+                    return result;
                 };
 
                 p().then(async r => {
