@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         U2实时预览BBCODE
 // @namespace    https://u2.dmhy.org/
-// @version      1.2.51
+// @version      1.2.52
 // @description  实时预览BBCODE
 // @author       kysdm
 // @match        *://u2.dmhy.org/*
@@ -4008,7 +4008,7 @@ function SmileIT2(smile, form, text) {
                     jq('[name="progress-total"]').text(`${i + 1} / ${len}`); // 显示当前上传文件的序号
                     let f = await imgCompressor(emfile.files[i]).catch(e => { window.alert(e) });
                     if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
-                    const val = await upload(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
+                    const val = await uploadFile(f.file, f.thumb).catch(e => { }); // 上传文件 返回文件hash
                     if (val) _list.push(val); // 存储hash值
                 };
             })();
@@ -4294,8 +4294,8 @@ function SmileIT2(smile, form, text) {
             jq('.embedded').show();  // 显示附件菜单
         };
 
-        // 上传文件
-        const upload = async (file, attach_thumb) => {
+        // 按当前选择的图床分发上传，返回附件 hash 或图片 URL
+        const uploadFile = async (file, attach_thumb) => {
             // attach_thumb 是判断是否会触发U2返回缩略图的参数 <u2在图片超过一定大小后，会进行一次压缩>
             const website = await db.getItem('image_host_website');
             const hostConfig = image_host[website] || image_host['u2.dmhy.org']; // db 残留无效值时回退默认图床（与 imgCompressor 一致）
@@ -4305,18 +4305,18 @@ function SmileIT2(smile, form, text) {
 
             switch (website) {
                 case 'u2.dmhy.org':
-                    return await upload1(file, attach_thumb, website_size, website_extensions);
+                    return await uploadToU2(file, attach_thumb, website_size, website_extensions);
                 case 'p.sda1.dev':
-                    return await upload3Proxy(file, website_size, website_extensions);
+                    return await uploadToSda1(file, website_size, website_extensions);
                 case 's.ee':
                     if (auth) {
-                        return await upload4Proxy(file, website_size, website_extensions, auth);
+                        return await uploadToSEe(file, website_size, website_extensions, auth);
                     } else {
                         window.alert(`请先设置图床的鉴权信息\nhttps://s.ee/user/developers/`);
                         return;
                     }
                 case 'pixhost.cc':
-                    return await upload5Pixhost(file, website_size, website_extensions);
+                    return await uploadToPixhost(file, website_size, website_extensions);
                 default:
                     break;
             };
@@ -4420,8 +4420,8 @@ function SmileIT2(smile, form, text) {
             return result;
         };
 
-        // 上传文件
-        const upload1 = (file, attach_thumb, max_size, extensions) => {
+        // U2 附件上传（两步：upload-transport 换 token → attachment.php 落库）
+        const uploadToU2 = (file, attach_thumb, max_size, extensions) => {
             // u2.dmhy.org：两步上传（原始 body 换 token → 表单提交 token 落库）
             return new Promise(async (resolve, reject) => {
                 try {
@@ -4548,8 +4548,8 @@ function SmileIT2(smile, form, text) {
             });
         };
 
-        const upload3Proxy = (file, max_size, extensions) => {
-            // p.sda1.dev binary
+        const uploadToSda1 = (file, max_size, extensions) => {
+            // 流浪图床 p.sda1.dev（经自建代理中转，binary 直传）
             return new Promise(async (resolve, reject) => {
                 // console.log('p.sda1.dev binary TEST')
                 if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
@@ -4612,8 +4612,8 @@ function SmileIT2(smile, form, text) {
 
         };
 
-        const upload4Proxy = (file, max_size, extensions, auth) => {
-            // s.ee
+        const uploadToSEe = (file, max_size, extensions, auth) => {
+            // S.EE 图床（经自建代理中转，需要鉴权）
             return new Promise((resolve, reject) => {
 
                 if (!extensions.includes(file.name.split('.').pop().toLowerCase())) { window.alert(`${file.name} 文件类型不支持`); reject(); return; };
@@ -4669,8 +4669,8 @@ function SmileIT2(smile, form, text) {
 
         };
 
-        const upload5Pixhost = (file, max_size, extensions) => {
-            // pixhost.cc (API v2: multipart/form-data, 无需鉴权, 单文件上限 10MB)
+        const uploadToPixhost = (file, max_size, extensions) => {
+            // PiXhost 图床（API v2: multipart/form-data, 无需鉴权, 单文件上限 10MB）
             // 接口自身没有 CORS 头，页面 XHR 读不到响应，因此经自建中转转发：
             //   POST https://u2.kysdm.com/proxy/pixhost  ->  multipart 原样转发，并原样返回 pixhost 的 JSON
             // 走页面 XHR 的好处是可以直接用 xhr.upload.onprogress 拿到真实上传进度
@@ -4864,7 +4864,7 @@ function SmileIT2(smile, form, text) {
                             jq('[name="progress-total"]').text(`1 / 1`); // 显示当前上传文件的序号
                             let f = await imgCompressor(file).catch(e => { window.alert(e) });
                             if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
-                            const val = await upload(f.file, f.thumb).catch(e => { window.alert('图片上传失败: ' + ((e && e.message) || e || '未知错误')); }); // 上传文件 返回文件hash
+                            const val = await uploadFile(f.file, f.thumb).catch(e => { window.alert('图片上传失败: ' + ((e && e.message) || e || '未知错误')); }); // 上传文件 返回文件hash
                             if (/^[a-zA-Z0-9]{32}$/.test(val) || /^https?:\/\/.+/.test(val)) {
                                 appendUploadResult([val], window.parent.document.getElementById(text_area_id));
                             } else {
@@ -4899,7 +4899,7 @@ function SmileIT2(smile, form, text) {
                         };
                         let f = await imgCompressor(file_list[i]).catch(e => { window.alert(e) });
                         if (!f || !f.file) continue;  // 如果不是有效的文件，则跳过
-                        const val = await upload(f.file, f.thumb).catch(e => { window.alert('图片上传失败: ' + ((e && e.message) || e || '未知错误')); }); // 上传文件 返回文件hash
+                        const val = await uploadFile(f.file, f.thumb).catch(e => { window.alert('图片上传失败: ' + ((e && e.message) || e || '未知错误')); }); // 上传文件 返回文件hash
                         if (val) _list.push(val); // 存储hash值
                     };
                 })();
