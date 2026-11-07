@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         U2显示文件校验和
 // @namespace    U2显示文件校验和
-// @version      0.0.7
-// @description  为文件列表添加校验和信息
+// @version      0.1.3
+// @description  为文件列表添加校验和信息，并标注已二次校验的次数
 // @author       kysdm
 // @match        *://u2.dmhy.org/details.php?id=*
 // @grant        none
@@ -11,6 +11,9 @@
 // @require      https://unpkg.com/xhook@1.6.2/dist/xhook.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // ==/UserScript==
+
+// 校验值列表接口（公开，无需 token），只用来取当前种子的二次校验次数
+const VERIFY_COUNT_API = 'https://u2.kysdm.com/api/v2/torrents/checksum/list';
 
 (async () => {
     'use strict';
@@ -104,30 +107,35 @@
         return;
     }
 
+    const isSingleFile = $('#showfl').length === 0;
+    let checksumSpan = '';
+    let copyLines = null;
+
     if (torrent_checksum === '404') {
-        $("#closeall").after(`<span id="checksum">[无校验和信息]</a></span>`);
+        if (!isSingleFile) $("#closeall").after(`<span id="checksum">[无校验和信息]</a></span>`);
     } else {
-        $("#closeall").after(`<span id="checksum"><a href="javascript:void(0)">[复制校验和]</a></span>`);
+        const verifyCount = await getVerifyCount(tid);
+        checksumSpan = `<span id="checksum">${checksumLink(verifyCount)}</span>`;
+        copyLines = torrent_checksum.torrent_files_info.files.map(item => `${item.hash} *${item.path}`);
 
-        const __checksum = [];
-        torrent_checksum.torrent_files_info.files.forEach(function (item) { __checksum.push(`${item.hash} *${item.path}`); });
-
-        $("#checksum").click(function () {
-            navigator.clipboard.writeText(__checksum.join('\n')).then(() => {
-                window.alert('成功')
-            }).catch(() => {
-                window.alert('失败 - 可能是你的浏览器太古老了')
-            });
-        });
+        // 多文件种子：链接跟在文件列表的「关闭所有」后面
+        if (!isSingleFile) $("#closeall").after(checksumSpan);
     }
 
-    if ($('#showfl').length === 0) {
-        // 单文件种子
+    if (isSingleFile) {
+        // 单文件种子没有文件列表，把「[复制校验和⑱]」放进「文件校验和」这一行
         const checksum = torrent_checksum && typeof torrent_checksum === 'object' && Object.keys(torrent_checksum).length !== 0 ? torrent_checksum.torrent_files_info.files[0].hash : '---';
+        const link = checksumSpan ? `&nbsp;&nbsp;${checksumSpan}` : '';
+
         $(`td[class='rowhead nowrap']:contains('${lang['torrent_info']}')`).next('td').find('tr:first')
-            .after(`<tr><td style="border: none;" colspan="4"><b>文件校验和:</b>&nbsp;${checksum}</td></tr>`);
+            .after(`<tr><td style="border: none;" colspan="4"><b>文件校验和:</b>&nbsp;${checksum}${link}</td></tr>`);
+
+        if (copyLines) bindCopy(copyLines);
+
         return;
     }
+
+    if (copyLines) bindCopy(copyLines);
 
 })();
 
@@ -178,3 +186,74 @@ function lang_init(lang) {
     };
     return lang_json[lang];
 };
+
+/**
+ * 取种子的二次校验次数（公开接口，失败按 0 处理）
+ * @param {string} tid 种子 ID
+ * @returns {Promise<number>}
+ */
+async function getVerifyCount(tid) {
+    if (!tid) return 0;
+
+    try {
+        const resp = await fetch(`${VERIFY_COUNT_API}?ids=${tid}`, { cache: 'default' });
+        if (!resp.ok) return 0;
+
+        const body = await resp.json();
+        if (!body || body.code !== 200 || !body.data || !Array.isArray(body.data.items)) return 0;
+
+        for (let i = 0; i < body.data.items.length; i++) {
+            const item = body.data.items[i];
+            if (!item || Number(item.torrent_id) !== Number(tid)) continue;
+
+            const count = Number(item.verify_count);
+            return Number.isFinite(count) && count > 0 ? Math.trunc(count) : 0;
+        }
+
+        return 0;
+    } catch (e) {
+        console.log('校验次数获取失败，本次不显示次数：' + e);
+        return 0;
+    }
+}
+
+/**
+ * 生成「[复制校验和]」链接；已二次校验时在方括号内补一个圈号
+ * @param {number} verifyCount
+ * @returns {string}
+ */
+function checksumLink(verifyCount) {
+    const label = verifyCount > 0
+        ? `[复制校验和${circledNumber(verifyCount)}]`
+        : '[复制校验和]';
+
+    return `<a href="javascript:void(0)">${label}</a>`;
+}
+
+/**
+ * 绑定「[复制校验和]」的复制行为
+ * @param {string[]} lines 每行一条「hash *path」
+ */
+function bindCopy(lines) {
+    $("#checksum").click(function () {
+        navigator.clipboard.writeText(lines.join('\n')).then(() => {
+            window.alert('成功')
+        }).catch(() => {
+            window.alert('失败 - 可能是你的浏览器太古老了')
+        });
+    });
+}
+
+/**
+ * 把次数转成圈号：1-20 -> ①-⑳，21-35 -> ㉑-㉟，36-50 -> ㊱-㊿
+ * 圈号只到 50，再大就退回 ×N，避免出现豆腐块或者断行
+ * @param {number} count
+ * @returns {string}
+ */
+function circledNumber(count) {
+    if (count >= 1 && count <= 20) return String.fromCodePoint(0x2460 + count - 1);
+    if (count >= 21 && count <= 35) return String.fromCodePoint(0x3251 + count - 21);
+    if (count >= 36 && count <= 50) return String.fromCodePoint(0x32B1 + count - 36);
+
+    return `×${count}`;
+}
