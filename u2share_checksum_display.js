@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         U2显示文件校验和
 // @namespace    U2显示文件校验和
-// @version      0.1.3
-// @description  为文件列表添加校验和信息，并标注已二次校验的次数
+// @version      0.1.4
+// @description  为文件列表添加校验和信息，并标注是否已被二次校验
 // @author       kysdm
 // @match        *://u2.dmhy.org/details.php?id=*
 // @grant        none
@@ -123,7 +123,7 @@ const VERIFY_COUNT_API = 'https://u2.kysdm.com/api/v2/torrents/checksum/list';
     }
 
     if (isSingleFile) {
-        // 单文件种子没有文件列表，把「[复制校验和⑱]」放进「文件校验和」这一行
+        // 单文件种子没有文件列表，把「[复制校验和✓]」放进「文件校验和」这一行
         const checksum = torrent_checksum && typeof torrent_checksum === 'object' && Object.keys(torrent_checksum).length !== 0 ? torrent_checksum.torrent_files_info.files[0].hash : '---';
         const link = checksumSpan ? `&nbsp;&nbsp;${checksumSpan}` : '';
 
@@ -218,13 +218,13 @@ async function getVerifyCount(tid) {
 }
 
 /**
- * 生成「[复制校验和]」链接；已二次校验时在方括号内补一个圈号
+ * 生成「[复制校验和]」链接；已二次校验时在方括号内补一个 ✓
  * @param {number} verifyCount
  * @returns {string}
  */
 function checksumLink(verifyCount) {
     const label = verifyCount > 0
-        ? `[复制校验和${circledNumber(verifyCount)}]`
+        ? '[复制校验和✓]'
         : '[复制校验和]';
 
     return `<a href="javascript:void(0)">${label}</a>`;
@@ -242,18 +242,4 @@ function bindCopy(lines) {
             window.alert('失败 - 可能是你的浏览器太古老了')
         });
     });
-}
-
-/**
- * 把次数转成圈号：1-20 -> ①-⑳，21-35 -> ㉑-㉟，36-50 -> ㊱-㊿
- * 圈号只到 50，再大就退回 ×N，避免出现豆腐块或者断行
- * @param {number} count
- * @returns {string}
- */
-function circledNumber(count) {
-    if (count >= 1 && count <= 20) return String.fromCodePoint(0x2460 + count - 1);
-    if (count >= 21 && count <= 35) return String.fromCodePoint(0x3251 + count - 21);
-    if (count >= 36 && count <= 50) return String.fromCodePoint(0x32B1 + count - 36);
-
-    return `×${count}`;
 }
